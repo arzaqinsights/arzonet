@@ -58,6 +58,7 @@ class CampaignService
             $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
+                ->onQueue('bulk')
                 ->delay(now()->addSeconds($delay));
         }
     }
@@ -97,6 +98,7 @@ class CampaignService
             $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
+                ->onQueue('bulk')
                 ->delay(now()->addSeconds($delay));
         }
     }
@@ -172,6 +174,7 @@ class CampaignService
             $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
+                ->onQueue('bulk')
                 ->delay(now()->addSeconds($delay));
         }
     }

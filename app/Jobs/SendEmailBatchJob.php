@@ -23,7 +23,14 @@ class SendEmailBatchJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries;
-    public int $timeout = 600; // Increased timeout for tracking injection
+    public int $timeout = 600;
+
+    // Retry with exponential backoff (e.g., 10s, 30s, 90s, 270s, etc.)
+    public function backoff()
+    {
+        return [10, 30, 90, 270];
+    }
+
 
     public function __construct(
         public int $campaignId,
@@ -41,17 +48,33 @@ class SendEmailBatchJob implements ShouldQueue
         }
 
         $template = $campaign->template;
-        $sender = $campaign->sender;
         $emails = Email::whereIn('id', $this->emailIds)->subscribed()->get();
 
-        if (!$sender || $sender->status !== 'verified') {
-            Log::error("Campaign {$campaign->id} aborted: Sender {$sender->email} is not verified.");
-            $campaign->update(['status' => 'cancelled']);
-            return;
+        // Round-robin sender setup
+        $senders = null;
+        $specificSender = $campaign->sender;
+        
+        if ($specificSender) {
+            if ($specificSender->status !== 'verified') {
+                Log::error("Campaign {$campaign->id} aborted: Sender {$specificSender->email} is not verified.");
+                $campaign->update(['status' => 'cancelled']);
+                return;
+            }
+            $senders = collect([$specificSender]);
+        } else {
+            $senders = \App\Models\Sender::where('status', 'verified')->get();
+            if ($senders->isEmpty()) {
+                Log::error("Campaign {$campaign->id} aborted: No verified senders available for round-robin.");
+                $campaign->update(['status' => 'cancelled']);
+                return;
+            }
         }
 
         $emailsPerMinute = $campaign->emails_per_minute ?: config('email.sending_rate_per_minute', 60);
         $delayBetweenEmails = 60.0 / $emailsPerMinute;
+        $senderIndex = 0;
+        $senderCount = $senders->count();
+
 
         foreach ($emails as $email) {
             $campaign->refresh();
@@ -77,9 +100,13 @@ class SendEmailBatchJob implements ShouldQueue
                 // 2. Inject Tracking (Pixel + Link Rewriting)
                 $trackedHtml = $analyticsTracker->injectTracking($html, $log);
 
-                // 3. Send Email
+                // 3. Round-robin sender selection
+                $currentSender = $senders[$senderIndex % $senderCount];
+                $senderIndex++;
+
+                // 4. Send Email
                 $messageId = $mailService->send(
-                    sender: $sender,
+                    sender: $currentSender,
                     to: $email->email,
                     subject: $subject,
                     html: $trackedHtml,
@@ -87,7 +114,8 @@ class SendEmailBatchJob implements ShouldQueue
                     logId: $log->id
                 );
 
-                // 4. Update Log with Success
+                // 5. Update Log with Success
+
                 $log->update([
                     'status'     => 'sent',
                     'sent_at'    => now(),

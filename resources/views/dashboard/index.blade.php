@@ -123,7 +123,7 @@
         <div class="glass-card overflow-hidden">
             <div class="p-6 border-b border-surface-100 flex items-center justify-between">
                 <h3 class="text-lg font-bold text-surface-900">Recent Campaigns</h3>
-                <a href="{{ route('campaigns.index') }}" class="btn btn-ghost btn-sm">View All</a>
+                <a href="{{ route('admin.campaigns.index') }}" class="btn btn-ghost btn-sm">View All</a>
             </div>
             <div class="overflow-x-auto">
                 <table class="data-table">
@@ -175,7 +175,7 @@
         <div class="glass-card overflow-hidden">
             <div class="p-6 border-b border-surface-100 flex items-center justify-between">
                 <h3 class="text-lg font-bold text-surface-900">Latest Lists</h3>
-                <a href="{{ route('email-lists.create') }}" class="btn btn-primary btn-sm">Import New</a>
+                <a href="{{ route('admin.email-lists.create') }}" class="btn btn-primary btn-sm">Import New</a>
             </div>
             <div class="overflow-x-auto">
                 <table class="data-table">
