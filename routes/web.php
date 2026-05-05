@@ -9,7 +9,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\BlacklistController;
 use App\Http\Controllers\SenderController;
 use App\Http\Controllers\UnsubscribeController;
-use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\SESWebhookController;
 use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\MediaController;
@@ -21,16 +21,15 @@ use App\Http\Controllers\MediaController;
 */
 
 // Unsubscribe (Public)
-Route::get('/unsubscribe/{id}', [UnsubscribeController::class, 'show'])->name('unsubscribe');
-Route::post('/unsubscribe/{id}/confirm', [UnsubscribeController::class, 'confirm'])->name('unsubscribe.confirm');
-Route::post('/webhooks/ses', [WebhookController::class, 'handleSES'])->name('webhooks.ses');
+Route::get('/unsubscribe/{token}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
+Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('webhooks.ses');
 
 // Dashboard
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 // Tracking (Public)
-Route::get('/t/o/{logId}', [TrackingController::class, 'open'])->name('track.open');
-Route::get('/t/c/{logId}', [TrackingController::class, 'click'])->name('track.click');
+Route::get('/t/o/{token}', [TrackingController::class, 'open'])->name('track.open');
+Route::get('/t/c/{token}', [TrackingController::class, 'click'])->name('track.click');
 
 // CRM Contacts
 Route::prefix('contacts')->name('contacts.')->group(function () {

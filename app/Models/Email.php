@@ -21,6 +21,8 @@ class Email extends Model
         'tags',
         'last_active_at',
         'unsubscribed_at',
+        'engagement_score',
+        'last_engaged_at',
     ];
 
     protected function casts(): array
@@ -30,13 +32,19 @@ class Email extends Model
             'tags' => 'array',
             'unsubscribed_at' => 'datetime',
             'last_active_at' => 'datetime',
+            'last_engaged_at' => 'datetime',
+            'engagement_score' => 'integer',
         ];
     }
 
+    /**
+     * Legacy unsubscribe method. 
+     * @deprecated Use the tracking_token from EmailLog instead.
+     */
     public function getUnsubscribeUrl(?int $logId = null): string
     {
         $token = hash_hmac('sha256', $this->id . $this->email, config('app.key'));
-        return route('unsubscribe', ['id' => $this->id, 'token' => $token, 'lid' => $logId]);
+        return route('unsubscribe', ['token' => $token]);
     }
 
     public function scopeSubscribed($query)

@@ -3,91 +3,77 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmailLog;
-use App\Models\ContactActivity;
+use App\Models\Email;
+use App\Jobs\ProcessTrackingEventJob;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Response;
 
 class TrackingController extends Controller
 {
     /**
-     * Track Email Open (Pixel)
+     * Handle Email Open (Pixel)
      */
-    public function open($logId)
+    public function open(Request $request, string $token)
     {
-        $log = EmailLog::find($logId);
+        $log = EmailLog::where('tracking_token', $token)->first();
         
         if ($log) {
-            $emailId = $log->email_id;
-            
-            // Check if the email still exists, if not, try to find a new record for the same address
-            if (!\App\Models\Email::where('id', $emailId)->exists()) {
-                $currentEmail = \App\Models\Email::where('email', $log->email_address)->first();
-                if ($currentEmail) {
-                    $emailId = $currentEmail->id;
-                    $log->update(['email_id' => $emailId]);
-                } else {
-                    $emailId = null;
-                }
-            }
-
-            ContactActivity::create([
-                'email_id' => $emailId,
-                'campaign_id' => $log->campaign_id,
-                'type' => 'opened',
-                'meta' => [
-                    'ip' => request()->ip(),
-                    'user_agent' => request()->userAgent(),
-                ]
+            ProcessTrackingEventJob::dispatch($log->id, 'open', [
+                'ip' => $request->ip(),
+                'ua' => $request->userAgent(),
             ]);
-            
-            if ($emailId && $email = \App\Models\Email::find($emailId)) {
-                $email->update(['last_active_at' => now()]);
-            }
         }
 
-        // Return 1x1 transparent pixel
-        return response(base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'), 200)
-            ->header('Content-Type', 'image/gif')
-            ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        // Return 1x1 transparent PNG
+        $pixel = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+        
+        return response($pixel)
+            ->header('Content-Type', 'image/png')
+            ->header('Cache-Control', 'private, no-cache, no-cache=Set-Cookie, proxy-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     }
 
     /**
-     * Track Link Click
+     * Handle Link Click
      */
-    public function click(Request $request, $logId)
+    public function click(Request $request, string $token)
     {
-        $url = $request->get('u');
-        $log = EmailLog::find($logId);
+        $url = base64_decode($request->query('url'));
+        $log = EmailLog::where('tracking_token', $token)->first();
 
-        if ($log && $url) {
-            $emailId = $log->email_id;
-
-            if (!\App\Models\Email::where('id', $emailId)->exists()) {
-                $currentEmail = \App\Models\Email::where('email', $log->email_address)->first();
-                if ($currentEmail) {
-                    $emailId = $currentEmail->id;
-                    $log->update(['email_id' => $emailId]);
-                } else {
-                    $emailId = null;
-                }
-            }
-
-            ContactActivity::create([
-                'email_id' => $emailId,
-                'campaign_id' => $log->campaign_id,
-                'type' => 'clicked',
-                'url' => $url,
-                'meta' => [
-                    'ip' => request()->ip(),
-                    'user_agent' => request()->userAgent(),
-                ]
+        if ($log) {
+            ProcessTrackingEventJob::dispatch($log->id, 'click', [
+                'ip' => $request->ip(),
+                'ua' => $request->userAgent(),
+                'url' => $url
             ]);
-
-            if ($emailId && $email = \App\Models\Email::find($emailId)) {
-                $email->update(['last_active_at' => now()]);
-            }
         }
 
-        return redirect()->away($url ?? route('dashboard'));
+        return redirect()->away($url ?: '/');
+    }
+
+    /**
+     * Handle Unsubscribe
+     */
+    public function unsubscribe(Request $request, string $token)
+    {
+        $log = EmailLog::where('tracking_token', $token)->first();
+
+        if ($log && $log->email) {
+            $log->email->update([
+                'subscription_status' => 'unsubscribed',
+                'unsubscribed_at' => now()
+            ]);
+
+            ProcessTrackingEventJob::dispatch($log->id, 'unsubscribe', [
+                'ip' => $request->ip(),
+                'ua' => $request->userAgent(),
+            ]);
+
+            return view('auth.unsubscribe-success');
+        }
+
+        return abort(404);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Email;
 use App\Models\EmailLog;
 use App\Models\Unsubscribe;
 use App\Jobs\SendEmailBatchJob;
+use Illuminate\Support\Str;
 
 class CampaignService
 {
@@ -32,14 +33,15 @@ class CampaignService
             'started_at'       => now(),
         ]);
 
-        // Create pending log entries
+        // Create pending log entries with tracking tokens
         $logEntries = $validEmails->map(fn(Email $email) => [
-            'campaign_id'   => $campaign->id,
-            'email_id'      => $email->id,
-            'email_address' => $email->email,
-            'status'        => 'pending',
-            'created_at'    => now(),
-            'updated_at'    => now(),
+            'campaign_id'    => $campaign->id,
+            'email_id'       => $email->id,
+            'email_address'  => $email->email,
+            'tracking_token' => Str::random(32),
+            'status'         => 'pending',
+            'created_at'     => now(),
+            'updated_at'     => now(),
         ])->toArray();
 
         // Bulk insert log entries in chunks
@@ -132,16 +134,15 @@ class CampaignService
     public function getStats(Campaign $campaign): array
     {
         return [
-            'total'     => $campaign->total_recipients,
-            'sent'      => $campaign->logs()->where('status', 'sent')->count(),
-            'failed'    => $campaign->logs()->whereIn('status', ['failed', 'bounced'])->count(),
-            'pending'   => $campaign->logs()->where('status', 'pending')->count(),
-            'bounced'   => $campaign->logs()->where('status', 'bounced')->count(),
-            'complained'=> $campaign->logs()->where('status', 'complained')->count(),
+            'total'      => $campaign->total_recipients,
+            'sent'       => $campaign->logs()->where('status', 'sent')->count(),
+            'failed'     => $campaign->logs()->whereIn('status', ['failed', 'bounced'])->count(),
+            'pending'    => $campaign->logs()->where('status', 'pending')->count(),
+            'bounced'    => $campaign->logs()->where('status', 'bounced')->count(),
+            'opened'     => $campaign->logs()->where('open_count', '>', 0)->count(),
+            'clicked'    => $campaign->logs()->where('click_count', '>', 0)->count(),
             'success_rate' => $campaign->successRate(),
-            'failure_rate' => $campaign->failureRate(),
             'progress'     => $campaign->progress(),
-            'estimated_cost' => $campaign->estimatedCost(),
         ];
     }
 
