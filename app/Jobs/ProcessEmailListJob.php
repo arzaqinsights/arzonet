@@ -48,7 +48,7 @@ class ProcessEmailListJob implements ShouldQueue
             $emailListId = $this->emailListId;
             
             $jobs = [];
-            $chunkSize = 250; // Increased chunk size for efficiency
+            $chunkSize = 50; // Increased chunk size for efficiency
             $currentChunk = [];
 
             // STREAMING: No memory spike even with 1M rows
