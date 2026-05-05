@@ -337,7 +337,7 @@ class EmailListController extends Controller
 
             if (!empty($validEmails)) {
                 // Dispatch background job for validation and import
-                ProcessEmailListJob::dispatch($emailList->id, $validEmails);
+                ProcessEmailListJob::dispatch($emailList->id);
             } else {
                 $emailList->update(['status' => 'completed']);
             }

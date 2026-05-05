@@ -6,11 +6,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\EmailListImport;
+use Illuminate\Support\Facades\Storage;
 
 class FileParserService
 {
     /**
      * Parse an uploaded file and return headers + rows.
+     * (Used for mapping preview - limited to first few rows)
      */
     public function parse(UploadedFile $file): array
     {
@@ -23,35 +25,23 @@ class FileParserService
         };
     }
 
-    /**
-     * Parse CSV file with smart header detection.
-     */
     protected function parseCsv(UploadedFile $file): array
     {
         $path = $file->getRealPath();
         $handle = fopen($path, 'r');
         $allRows = [];
         
-        while (($row = fgetcsv($handle)) !== false) {
+        // Only load first 100 rows for preview/mapping
+        $count = 0;
+        while (($row = fgetcsv($handle)) !== false && $count < 100) {
             $allRows[] = $row;
+            $count++;
         }
         fclose($handle);
 
         if (empty($allRows)) throw new \RuntimeException('CSV file is empty.');
 
-        // Find the header row (skip "Title" rows)
-        $headerIndex = 0;
-        foreach ($allRows as $index => $row) {
-            $nonEmptyCount = count(array_filter($row, fn($c) => !empty(trim($c))));
-            $rowString = strtolower(implode(' ', $row));
-            
-            // If row has "email" or more than 2 columns, it's likely the header
-            if (str_contains($rowString, 'email') || $nonEmptyCount >= 3 || ($index > 0 && $nonEmptyCount > 1)) {
-                $headerIndex = $index;
-                break;
-            }
-        }
-
+        $headerIndex = $this->detectHeaderIndex($allRows);
         $headers = array_map(fn($h) => trim(preg_replace('/[\x{FEFF}]/u', '', $h)), $allRows[$headerIndex]);
         $rows = [];
 
@@ -69,9 +59,6 @@ class FileParserService
         ];
     }
 
-    /**
-     * Parse XLSX file with smart header detection.
-     */
     protected function parseXlsx(UploadedFile $file): array
     {
         $path = $file->getRealPath();
@@ -81,7 +68,9 @@ class FileParserService
         $worksheet = $spreadsheet->getActiveSheet();
 
         $allRows = [];
+        $count = 0;
         foreach ($worksheet->getRowIterator() as $row) {
+            if ($count >= 100) break;
             $cellIterator = $row->getCellIterator();
             $cellIterator->setIterateOnlyExistingCells(false);
             $rowData = [];
@@ -89,22 +78,12 @@ class FileParserService
                 $rowData[] = trim((string) $cell->getValue());
             }
             $allRows[] = $rowData;
+            $count++;
         }
 
         if (empty($allRows)) throw new \RuntimeException('Excel file is empty.');
 
-        // Find the header row
-        $headerIndex = 0;
-        foreach ($allRows as $index => $row) {
-            $nonEmptyCount = count(array_filter($row, fn($c) => !empty(trim($c))));
-            $rowString = strtolower(implode(' ', $row));
-            
-            if (str_contains($rowString, 'email') || $nonEmptyCount >= 3 || ($index > 0 && $nonEmptyCount > 1)) {
-                $headerIndex = $index;
-                break;
-            }
-        }
-
+        $headerIndex = $this->detectHeaderIndex($allRows);
         $headers = $allRows[$headerIndex];
         $rows = [];
 
@@ -123,113 +102,140 @@ class FileParserService
     }
 
     /**
-     * Parse a stored file (by path) with a given mapping.
+     * STREAMING PARSER: Yields mapped data row by row to prevent OOM errors.
      */
-    public function parseStoredFile(string $filePath, array $mapping): array
+    public function streamStoredFile(string $filePath, array $mapping): \Generator
     {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($filePath);
+        $fullPath = Storage::disk('local')->path($filePath);
 
         if (!file_exists($fullPath)) {
             throw new \RuntimeException("File not found: {$fullPath}");
         }
 
-        $allRows = [];
-
         if ($extension === 'csv') {
-            $handle = fopen($fullPath, 'r');
-            while (($row = fgetcsv($handle)) !== false) {
-                $allRows[] = $row;
-            }
-            fclose($handle);
+            yield from $this->streamCsv($fullPath, $mapping);
         } else {
-            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-            $reader->setReadDataOnly(true);
-            $spreadsheet = $reader->load($fullPath);
-            $worksheet = $spreadsheet->getActiveSheet();
-
-            foreach ($worksheet->getRowIterator() as $row) {
-                $cellIterator = $row->getCellIterator();
-                $cellIterator->setIterateOnlyExistingCells(false);
-                $rowData = [];
-                foreach ($cellIterator as $cell) {
-                    $rowData[] = trim((string) $cell->getValue());
-                }
-                $allRows[] = $rowData;
-            }
+            yield from $this->streamXlsx($fullPath, $mapping);
         }
-
-        if (empty($allRows)) return [];
-
-        // Smart Header Detection
-        $headerIndex = 0;
-        foreach ($allRows as $index => $row) {
-            $nonEmptyCount = count(array_filter($row, fn($c) => !empty(trim($c))));
-            $rowString = strtolower(implode(' ', $row));
-            if (str_contains($rowString, 'email') || $nonEmptyCount >= 3 || ($index > 0 && $nonEmptyCount > 1)) {
-                $headerIndex = $index;
-                break;
-            }
-        }
-
-        $headers = $allRows[$headerIndex];
-        $rows = [];
-        for ($i = $headerIndex + 1; $i < count($allRows); $i++) {
-            $rowData = $allRows[$i];
-            if (count($rowData) === count($headers)) {
-                $rows[] = array_combine($headers, $rowData);
-            }
-        }
-
-        return $this->applyMapping($rows, $headers, $mapping);
     }
 
-    /**
-     * Apply column mapping to extracted rows.
-     */
-    protected function applyMapping(array $rows, array $headers, array $mapping): array
+    protected function streamCsv(string $path, array $mapping): \Generator
     {
-        $emailColumn = $mapping['email'] ?? null;
-        if (!$emailColumn) {
-            throw new \InvalidArgumentException('Email column mapping is required.');
-        }
-
-        $result = [];
-        foreach ($rows as $row) {
-            $emailRaw = trim($row[$emailColumn] ?? '');
-            if (empty($emailRaw)) continue;
-
-            // Support multiple emails in one cell (separated by comma)
-            $emails = array_map('trim', explode(',', $emailRaw));
-
-            foreach ($emails as $email) {
-                if (empty($email)) continue;
-
-                $data = [
-                    'email' => strtolower($email),
-                    'name'  => null,
-                    'meta'  => []
-                ];
-
-                foreach ($mapping as $systemField => $excelColumn) {
-                    if ($excelColumn === $emailColumn || str_starts_with($systemField, '_')) continue;
-                    if (is_array($excelColumn)) continue;
-
-                    $value = trim($row[$excelColumn] ?? '');
-                    
-                    if ($systemField === 'name') {
-                        $data['name'] = $value;
-                    } else {
-                        $data['meta'][$systemField] = $value;
-                    }
-                }
-
-                if (empty($data['meta'])) $data['meta'] = null;
-                $result[] = $data;
+        $handle = fopen($path, 'r');
+        
+        // 1. Detect Headers
+        $firstRows = [];
+        for ($i = 0; $i < 10; $i++) {
+            if (($row = fgetcsv($handle)) !== false) {
+                $firstRows[] = $row;
             }
         }
+        
+        $headerIndex = $this->detectHeaderIndex($firstRows);
+        $headers = array_map(fn($h) => trim(preg_replace('/[\x{FEFF}]/u', '', $h)), $firstRows[$headerIndex]);
+        
+        // 2. Reset and skip to data
+        rewind($handle);
+        for ($i = 0; $i <= $headerIndex; $i++) {
+            fgetcsv($handle);
+        }
 
-        return $result;
+        // 3. Stream Rows
+        while (($row = fgetcsv($handle)) !== false) {
+            if (count($row) === count($headers)) {
+                $mapped = $this->mapSingleRow(array_combine($headers, $row), $mapping);
+                foreach ($mapped as $item) yield $item;
+            }
+        }
+        fclose($handle);
+    }
+
+    protected function streamXlsx(string $path, array $mapping): \Generator
+    {
+        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($path);
+        $worksheet = $spreadsheet->getActiveSheet();
+
+        $headerIndex = -1;
+        $headers = [];
+
+        foreach ($worksheet->getRowIterator() as $index => $row) {
+            $cellIterator = $row->getCellIterator();
+            $cellIterator->setIterateOnlyExistingCells(false);
+            $rowData = [];
+            foreach ($cellIterator as $cell) {
+                $rowData[] = trim((string) $cell->getValue());
+            }
+
+            if ($headerIndex === -1) {
+                // Simplified header detection for streaming
+                if (str_contains(strtolower(implode(' ', $rowData)), 'email')) {
+                    $headerIndex = $index;
+                    $headers = $rowData;
+                }
+                continue;
+            }
+
+            if (count($rowData) === count($headers)) {
+                $mapped = $this->mapSingleRow(array_combine($headers, $rowData), $mapping);
+                foreach ($mapped as $item) yield $item;
+            }
+        }
+    }
+
+    protected function mapSingleRow(array $row, array $mapping): array
+    {
+        $emailColumn = $mapping['email'] ?? null;
+        if (!$emailColumn) return [];
+
+        $emailRaw = trim($row[$emailColumn] ?? '');
+        if (empty($emailRaw)) return [];
+
+        $emails = array_map('trim', explode(',', $emailRaw));
+        $results = [];
+
+        foreach ($emails as $email) {
+            if (empty($email)) continue;
+
+            $data = [
+                'email' => strtolower($email),
+                'name'  => null,
+                'meta'  => []
+            ];
+
+            foreach ($mapping as $systemField => $excelColumn) {
+                if ($excelColumn === $emailColumn || str_starts_with($systemField, '_')) continue;
+                if (is_array($excelColumn)) continue;
+
+                $value = trim($row[$excelColumn] ?? '');
+                
+                if ($systemField === 'name') {
+                    $data['name'] = $value;
+                } else {
+                    $data['meta'][$systemField] = $value;
+                }
+            }
+
+            if (empty($data['meta'])) $data['meta'] = null;
+            $results[] = $data;
+        }
+
+        return $results;
+    }
+
+    protected function detectHeaderIndex(array $rows): int
+    {
+        foreach ($rows as $index => $row) {
+            $nonEmptyCount = count(array_filter($row, fn($c) => !empty(trim($c))));
+            $rowString = strtolower(implode(' ', $row));
+            
+            if (str_contains($rowString, 'email') || $nonEmptyCount >= 3 || ($index > 0 && $nonEmptyCount > 1)) {
+                return $index;
+            }
+        }
+        return 0;
     }
 
     /**
@@ -258,7 +264,6 @@ class FileParserService
             $cleanHeader = strtolower(trim($header));
             $matched = false;
 
-            // 1. Keyword Check
             foreach ($fieldKeywords as $field => $keywords) {
                 if (in_array($cleanHeader, $keywords)) {
                     $suggestions[$header] = $field;
@@ -268,16 +273,12 @@ class FileParserService
             }
             if ($matched) continue;
 
-            // 2. Sample Data Check (Fuzzy match)
             if (!empty($sampleRows)) {
                 $sampleValue = strtolower(trim($sampleRows[0][$header] ?? ''));
                 if (str_contains($sampleValue, '@') && str_contains($sampleValue, '.')) {
                     $suggestions[$header] = 'email';
                 } elseif (preg_match('/^\+?[0-9\s\-]{8,15}$/', $sampleValue)) {
                     $suggestions[$header] = 'phone';
-                } elseif (str_starts_with($sampleValue, 'http')) {
-                    if (str_contains($sampleValue, 'linkedin')) $suggestions[$header] = 'linkedin';
-                    else $suggestions[$header] = 'website';
                 }
             }
         }

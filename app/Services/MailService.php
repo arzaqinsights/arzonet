@@ -6,6 +6,8 @@ use App\Models\Sender;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\Mailer\Transport\Dsn;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 
 class MailService
 {
@@ -21,13 +23,11 @@ class MailService
     public function send(Sender $sender, string $to, string $subject, string $html, ?object $emailRecord = null, ?int $logId = null): ?string
     {
         $headers = [];
-        // Add automatic unsubscribe link if email record is a valid model
         if ($emailRecord instanceof \App\Models\Email) {
             $unsubUrl = $emailRecord->getUnsubscribeUrl($logId);
             $footer = '<br><br><hr><p style="font-size: 12px; color: #666;">You are receiving this because you subscribed via our list. <a href="' . $unsubUrl . '">Unsubscribe from this list</a></p>';
             $html .= $footer;
 
-            // Prepare native headers for email clients (Gmail/Apple Mail)
             $headers['List-Unsubscribe'] = '<' . $unsubUrl . '>';
             $headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
         }
@@ -36,17 +36,16 @@ class MailService
             return $this->sesService->sendSingleEmail($to, $subject, $html, $sender->email, $headers);
         }
 
-        // SMTP Logic
+        // SMTP Logic with isolated configuration
         try {
-            Mail::purge('dynamic_smtp');
             $this->configureSmtp($sender);
 
+            // Use the isolated mailer
             Mail::mailer('dynamic_smtp')->html($html, function ($message) use ($to, $subject, $sender, $headers) {
                 $message->to($to)
                     ->subject($subject)
                     ->from($sender->email, $sender->from_name);
                 
-                // Add List-Unsubscribe headers for native email client buttons
                 if (!empty($headers)) {
                     $msgHeaders = $message->getHeaders();
                     foreach ($headers as $key => $value) {
@@ -55,24 +54,33 @@ class MailService
                 }
             });
 
-            return "smtp_success_" . uniqid();
+            return "smtp_success_" . bin2hex(random_bytes(8));
         } catch (\Exception $e) {
-            Log::error("SMTP Send Error: " . $e->getMessage());
+            Log::error("SMTP Send Error to {$to} via {$sender->email}: " . $e->getMessage(), [
+                'host' => $sender->smtp_host,
+                'user' => $sender->smtp_username
+            ]);
             throw $e;
+        } finally {
+            // Clean up to prevent leakage between jobs in the same worker
+            Mail::purge('dynamic_smtp');
         }
     }
 
     protected function configureSmtp(Sender $sender): void
     {
+        // Purge old instance first
+        Mail::purge('dynamic_smtp');
+
         Config::set('mail.mailers.dynamic_smtp', [
             'transport' => 'smtp',
             'host' => $sender->smtp_host,
             'port' => $sender->smtp_port,
-            'encryption' => $sender->smtp_encryption === 'none' ? null : $sender->smtp_encryption,
+            'encryption' => ($sender->smtp_encryption === 'none' || empty($sender->smtp_encryption)) ? null : $sender->smtp_encryption,
             'username' => $sender->smtp_username,
             'password' => $sender->smtp_password,
-            'timeout' => null,
-            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            'timeout' => 30,
+            'auth_mode' => null,
         ]);
     }
 

@@ -19,7 +19,7 @@ class ProcessEmailListJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
-    public int $timeout = 600;
+    public int $timeout = 900; // Increased timeout for large file scanning
 
     public function __construct(
         public int $emailListId
@@ -28,7 +28,7 @@ class ProcessEmailListJob implements ShouldQueue
     public function handle(FileParserService $parser): void
     {
         $emailList = EmailList::findOrFail($this->emailListId);
-        Log::info("Initiating Parallel Processing for list: {$emailList->id}");
+        Log::info("Initiating Streamed Processing for list: {$emailList->id}");
 
         try {
             $emailList->update([
@@ -45,34 +45,66 @@ class ProcessEmailListJob implements ShouldQueue
             }
 
             $mapping = $emailList->column_mapping;
-            $data = $parser->parseStoredFile($emailList->file_path, $mapping);
-            
-            // Optimization: Split into micro-chunks of 50 for massive parallel DNS resolution
-            $chunkSize = 100;
-            $chunks = array_chunk($data, $chunkSize);
             $emailListId = $this->emailListId;
-
+            
             $jobs = [];
-            foreach ($chunks as $chunk) {
-                $jobs[] = new ImportEmailChunkJob($emailListId, $chunk);
+            $chunkSize = 250; // Increased chunk size for efficiency
+            $currentChunk = [];
+
+            // STREAMING: No memory spike even with 1M rows
+            foreach ($parser->streamStoredFile($emailList->file_path, $mapping) as $row) {
+                $currentChunk[] = $row;
+
+                if (count($currentChunk) >= $chunkSize) {
+                    $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk);
+                    $currentChunk = [];
+
+                    // Dispatch batches of 50 chunks to prevent huge batch initialization lag
+                    if (count($jobs) >= 50) {
+                        $this->dispatchBatch($jobs, $emailList);
+                        $jobs = [];
+                    }
+                }
             }
 
-            Bus::batch($jobs)
-                ->name("Import List: {$emailList->name}")
-                ->then(function (Batch $batch) use ($emailListId) {
-                    EmailList::find($emailListId)?->update(['status' => 'completed']);
-                    Log::info("Batch Import Finished for list: {$emailListId}");
-                })
-                ->catch(function (Batch $batch, \Throwable $e) use ($emailListId) {
-                    EmailList::find($emailListId)?->update(['status' => 'failed']);
-                    Log::error("Batch Import Failed for list: {$emailListId} - {$e->getMessage()}");
-                })
-                ->dispatch();
+            // Final chunk
+            if (!empty($currentChunk)) {
+                $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk);
+            }
+
+            if (!empty($jobs)) {
+                $this->dispatchBatch($jobs, $emailList);
+            }
+
+            // If no jobs were generated, mark as completed
+            if ($emailList->total_records === 0 && empty($jobs)) {
+                $emailList->update(['status' => 'completed']);
+            }
 
         } catch (\Exception $e) {
-            Log::error("ProcessEmailListJob Master Job failed: {$e->getMessage()}");
+            Log::error("ProcessEmailListJob Master Job failed: {$e->getMessage()}", [
+                'list_id' => $this->emailListId,
+                'trace' => $e->getTraceAsString()
+            ]);
             $emailList->update(['status' => 'failed']);
             throw $e;
         }
+    }
+
+    protected function dispatchBatch(array $jobs, EmailList $emailList): void
+    {
+        $emailListId = $emailList->id;
+        
+        Bus::batch($jobs)
+            ->name("Import List: {$emailList->name}")
+            ->then(function (Batch $batch) use ($emailListId) {
+                EmailList::find($emailListId)?->update(['status' => 'completed']);
+                Log::info("Batch Import Part Finished for list: {$emailListId}");
+            })
+            ->catch(function (Batch $batch, \Throwable $e) use ($emailListId) {
+                EmailList::find($emailListId)?->update(['status' => 'failed']);
+                Log::error("Batch Import Failed for list: {$emailListId} - {$e->getMessage()}");
+            })
+            ->dispatch();
     }
 }
