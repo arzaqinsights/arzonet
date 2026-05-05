@@ -7,6 +7,7 @@ use App\Models\Email;
 use App\Jobs\ProcessTrackingEventJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Log;
 
 class TrackingController extends Controller
 {
@@ -15,6 +16,7 @@ class TrackingController extends Controller
      */
     public function open(Request $request, string $token)
     {
+        Log::info("Tracking Open Request: token={$token}, IP=" . $request->ip());
         $log = EmailLog::where('tracking_token', $token)->first();
         
         if ($log) {
@@ -22,6 +24,8 @@ class TrackingController extends Controller
                 'ip' => $request->ip(),
                 'ua' => $request->userAgent(),
             ]);
+        } else {
+            Log::warning("Tracking Open Failed: Invalid Token {$token}");
         }
 
         // Return 1x1 transparent PNG
@@ -40,6 +44,7 @@ class TrackingController extends Controller
     public function click(Request $request, string $token)
     {
         $url = base64_decode($request->query('url'));
+        Log::info("Tracking Click Request: token={$token}, URL={$url}, IP=" . $request->ip());
         $log = EmailLog::where('tracking_token', $token)->first();
 
         if ($log) {
@@ -48,6 +53,8 @@ class TrackingController extends Controller
                 'ua' => $request->userAgent(),
                 'url' => $url
             ]);
+        } else {
+            Log::warning("Tracking Click Failed: Invalid Token {$token}");
         }
 
         return redirect()->away($url ?: '/');
