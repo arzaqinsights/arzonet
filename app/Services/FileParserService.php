@@ -31,7 +31,6 @@ class FileParserService
         $handle = fopen($path, 'r');
         $allRows = [];
         
-        // Only load first 100 rows for preview/mapping
         $count = 0;
         while (($row = fgetcsv($handle)) !== false && $count < 100) {
             $allRows[] = $row;
@@ -127,25 +126,49 @@ class FileParserService
         // 1. Detect Headers
         $firstRows = [];
         for ($i = 0; $i < 10; $i++) {
-            if (($row = fgetcsv($handle)) !== false) {
+            if (($row = fgetcsv($handle, 0, ',')) !== false) {
                 $firstRows[] = $row;
             }
         }
         
+        if (empty($firstRows)) return;
+
         $headerIndex = $this->detectHeaderIndex($firstRows);
-        $headers = array_map(fn($h) => trim(preg_replace('/[\x{FEFF}]/u', '', $h)), $firstRows[$headerIndex]);
+        $headers = array_map(fn($h) => trim(preg_replace('/[\x{FEFF}]/u', '', $h ?? '')), $firstRows[$headerIndex]);
+        $headerCount = count($headers);
         
         // 2. Reset and skip to data
         rewind($handle);
         for ($i = 0; $i <= $headerIndex; $i++) {
-            fgetcsv($handle);
+            fgetcsv($handle, 0, ',');
         }
 
         // 3. Stream Rows
-        while (($row = fgetcsv($handle)) !== false) {
-            if (count($row) === count($headers)) {
-                $mapped = $this->mapSingleRow(array_combine($headers, $row), $mapping);
+        $rowNumber = $headerIndex + 1;
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            $rowNumber++;
+            $columnCount = count($row);
+
+            // Handle Column Mismatch Safely (The FIX)
+            if ($columnCount !== $headerCount) {
+                \Illuminate\Support\Facades\Log::warning("CSV Column Mismatch at row {$rowNumber}: Expected {$headerCount}, got {$columnCount}. Adjusting row data.");
+                
+                if ($columnCount < $headerCount) {
+                    // Pad with nulls if missing columns
+                    $row = array_pad($row, $headerCount, null);
+                } else {
+                    // Trim extra columns (e.g., trailing commas)
+                    $row = array_slice($row, 0, $headerCount);
+                }
+            }
+
+            try {
+                $combined = array_combine($headers, $row);
+                $mapped = $this->mapSingleRow($combined, $mapping);
                 foreach ($mapped as $item) yield $item;
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to map CSV row {$rowNumber}: " . $e->getMessage());
+                continue;
             }
         }
         fclose($handle);
@@ -170,7 +193,6 @@ class FileParserService
             }
 
             if ($headerIndex === -1) {
-                // Simplified header detection for streaming
                 if (str_contains(strtolower(implode(' ', $rowData)), 'email')) {
                     $headerIndex = $index;
                     $headers = $rowData;
@@ -238,9 +260,6 @@ class FileParserService
         return 0;
     }
 
-    /**
-     * Auto-detect all mapping fields.
-     */
     public function autoDetectMappings(array $headers, array $sampleRows = []): array
     {
         $suggestions = [];
