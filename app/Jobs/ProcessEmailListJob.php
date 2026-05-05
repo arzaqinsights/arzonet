@@ -19,7 +19,7 @@ class ProcessEmailListJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
-    public int $timeout = 900; // Increased timeout for large file scanning
+    public int $timeout = 1800; // 30 minutes for extremely large files
 
     public function __construct(
         public int $emailListId
@@ -27,8 +27,13 @@ class ProcessEmailListJob implements ShouldQueue
 
     public function handle(FileParserService $parser): void
     {
-        $emailList = EmailList::findOrFail($this->emailListId);
-        Log::info("Initiating Streamed Processing for list: {$emailList->id}");
+        $emailList = EmailList::find($this->emailListId);
+        if (!$emailList) {
+            Log::error("ProcessEmailListJob failed: EmailList #{$this->emailListId} not found.");
+            return;
+        }
+
+        Log::info("Starting background processing for list: {$emailList->id} ({$emailList->name})");
 
         try {
             $emailList->update([
@@ -40,6 +45,7 @@ class ProcessEmailListJob implements ShouldQueue
             ]);
             
             if (!$emailList->file_path) {
+                Log::warning("ProcessEmailListJob: No file path for list #{$emailList->id}");
                 $emailList->update(['status' => 'completed']);
                 return;
             }
@@ -48,26 +54,29 @@ class ProcessEmailListJob implements ShouldQueue
             $emailListId = $this->emailListId;
             
             $jobs = [];
-            $chunkSize = 50; // Increased chunk size for efficiency
+            $chunkSize = 100; // Scalable chunk size (User requested 100-200)
             $currentChunk = [];
+            $processedCount = 0;
 
-            // STREAMING: No memory spike even with 1M rows
+            // STREAMING: Reads row by row using PHP Generators
             foreach ($parser->streamStoredFile($emailList->file_path, $mapping) as $row) {
                 $currentChunk[] = $row;
+                $processedCount++;
 
                 if (count($currentChunk) >= $chunkSize) {
                     $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk);
                     $currentChunk = [];
 
-                    // Dispatch batches of 50 chunks to prevent huge batch initialization lag
+                    // Dispatch batch every 50 chunks (5000 records) to maintain responsiveness
                     if (count($jobs) >= 50) {
                         $this->dispatchBatch($jobs, $emailList);
                         $jobs = [];
+                        Log::info("Dispatched 5000 records for list #{$emailListId}. Continuing...");
                     }
                 }
             }
 
-            // Final chunk
+            // Process the final chunk
             if (!empty($currentChunk)) {
                 $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk);
             }
@@ -76,21 +85,29 @@ class ProcessEmailListJob implements ShouldQueue
                 $this->dispatchBatch($jobs, $emailList);
             }
 
-            // If no jobs were generated, mark as completed
-            if ($emailList->total_records === 0 && empty($jobs)) {
+            Log::info("ProcessEmailListJob scan complete. Total rows scanned: {$processedCount} for list #{$emailListId}");
+
+            // If no records found at all
+            if ($processedCount === 0) {
                 $emailList->update(['status' => 'completed']);
             }
 
         } catch (\Exception $e) {
-            Log::error("ProcessEmailListJob Master Job failed: {$e->getMessage()}", [
-                'list_id' => $this->emailListId,
+            Log::error("CRITICAL: ProcessEmailListJob failed for list #{$this->emailListId}", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
+            
             $emailList->update(['status' => 'failed']);
             throw $e;
         }
     }
 
+    /**
+     * Dispatch a batch of chunks to the database queue.
+     */
     protected function dispatchBatch(array $jobs, EmailList $emailList): void
     {
         $emailListId = $emailList->id;
@@ -98,12 +115,15 @@ class ProcessEmailListJob implements ShouldQueue
         Bus::batch($jobs)
             ->name("Import List: {$emailList->name}")
             ->then(function (Batch $batch) use ($emailListId) {
-                EmailList::find($emailListId)?->update(['status' => 'completed']);
-                Log::info("Batch Import Part Finished for list: {$emailListId}");
+                $list = EmailList::find($emailListId);
+                if ($list && $list->status !== 'failed') {
+                    $list->update(['status' => 'completed']);
+                }
+                Log::info("Batch component finished successfully for list #{$emailListId}");
             })
             ->catch(function (Batch $batch, \Throwable $e) use ($emailListId) {
                 EmailList::find($emailListId)?->update(['status' => 'failed']);
-                Log::error("Batch Import Failed for list: {$emailListId} - {$e->getMessage()}");
+                Log::error("Batch processing failed for list #{$emailListId}: " . $e->getMessage());
             })
             ->dispatch();
     }

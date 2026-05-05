@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ImportEmailChunkJob implements ShouldQueue
 {
@@ -25,37 +26,54 @@ class ImportEmailChunkJob implements ShouldQueue
         public array $chunk
     ) {}
 
+    /**
+     * Process a chunk of emails using bulk insert.
+     */
     public function handle(EmailValidationService $validator): void
     {
+        // Safety check for batches
+        if ($this->batch()?->cancelled()) return;
+
         $emailList = EmailList::find($this->emailListId);
         if (!$emailList) return;
 
-        $skipDns = $emailList->column_mapping['_settings']['skip_dns'] ?? false;
+        try {
+            $skipDns = $emailList->column_mapping['_settings']['skip_dns'] ?? false;
 
-        $results = $validator->validateBatch($this->chunk, $this->emailListId, $skipDns);
-        $batchEntries = [];
+            // Perform bulk validation (Service already optimized for mass lookups)
+            $results = $validator->validateBatch($this->chunk, $this->emailListId, $skipDns);
+            $batchEntries = [];
 
-        foreach ($results['valid'] as $entry) {
-            $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid');
-        }
-        foreach ($results['invalid'] as $entry) {
-            $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid');
-        }
-        foreach ($results['duplicate'] as $entry) {
-            $batchEntries[] = $this->formatEntry($emailList, $entry, 'duplicate');
-        }
+            foreach ($results['valid'] as $entry) {
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid');
+            }
+            foreach ($results['invalid'] as $entry) {
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid');
+            }
+            foreach ($results['duplicate'] as $entry) {
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'duplicate');
+            }
 
-        if (!empty($batchEntries)) {
-            Email::insert($batchEntries);
-        }
+            if (!empty($batchEntries)) {
+                // BULK INSERT: Single query for the whole chunk
+                Email::insert($batchEntries);
+            }
 
-        // Update list stats in a single query (MUCH faster)
-        $emailList->update([
-            'total_records'   => $emailList->total_records + count($batchEntries),
-            'valid_count'     => $emailList->valid_count + count($results['valid']),
-            'invalid_count'   => $emailList->invalid_count + count($results['invalid']),
-            'duplicate_count' => $emailList->duplicate_count + count($results['duplicate']),
-        ]);
+            // ATOMIC UPDATE: Ensure stats are updated correctly without race conditions
+            $emailList->update([
+                'total_records'   => DB::raw('total_records + ' . count($batchEntries)),
+                'valid_count'     => DB::raw('valid_count + ' . count($results['valid'])),
+                'invalid_count'   => DB::raw('invalid_count + ' . count($results['invalid'])),
+                'duplicate_count' => DB::raw('duplicate_count + ' . count($results['duplicate'])),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("ImportEmailChunkJob failed for list #{$this->emailListId}: " . $e->getMessage(), [
+                'chunk_size' => count($this->chunk),
+                'first_email' => $this->chunk[0]['email'] ?? 'unknown'
+            ]);
+            throw $e;
+        }
     }
 
     protected function formatEntry($emailList, $entry, $status): array
