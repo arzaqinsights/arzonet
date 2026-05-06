@@ -14,7 +14,17 @@ class EmailListController extends Controller
     public function index()
     {
         $lists = EmailList::latest()->paginate(15);
-        return view('email-lists.index', compact('lists'));
+        
+        $globalStats = [
+            'total'        => \App\Models\Email::count(),
+            'subscribed'   => \App\Models\Email::where('subscription_status', 'subscribed')->count(),
+            'unsubscribed' => \App\Models\Email::whereNotNull('unsubscribed_at')->count(),
+            'bounced'      => \App\Models\EmailLog::where('status', 'bounced')->count(),
+            'invalid'      => \App\Models\Email::where('status', 'invalid')->count(),
+            'duplicate'    => \App\Models\Email::where('status', 'duplicate')->count(),
+        ];
+
+        return view('email-lists.index', compact('lists', 'globalStats'));
     }
 
     public function create()
@@ -79,7 +89,7 @@ class EmailListController extends Controller
 
             ProcessEmailListJob::dispatch($emailList->id);
 
-            return redirect()->route('email-lists.show', $emailList)->with('success', 'Bulk import started in background.');
+            return redirect()->route('admin.email-lists.show', $emailList)->with('success', 'Bulk import started in background.');
         }
 
         // 3. Handling Manual Add
@@ -88,7 +98,7 @@ class EmailListController extends Controller
                 'signup_source' => $request->signup_source ?? 'Manual Entry',
                 'status' => 'completed',
             ]);
-            return redirect()->route('email-lists.show', $emailList)->with('success', 'Empty list created. Add contacts manually.');
+            return redirect()->route('admin.email-lists.show', $emailList)->with('success', 'Empty list created. Add contacts manually.');
         }
     }
 
@@ -135,12 +145,13 @@ class EmailListController extends Controller
         ProcessEmailListJob::dispatch($emailList->id);
 
         return redirect()
-            ->route('email-lists.show', $emailList)
+            ->route('admin.email-lists.show', $emailList)
             ->with('success', 'CRM Import started. Contacts will appear shortly.');
     }
 
     public function show(EmailList $emailList)
     {
+        $emailList->recalculateStats();
         $emailList->load('emails');
         $stats = [
             'total'     => $emailList->total_records,
@@ -188,7 +199,7 @@ class EmailListController extends Controller
     {
         if ($emailList->file_path) Storage::disk('local')->delete($emailList->file_path);
         $emailList->delete();
-        return redirect()->route('email-lists.index')->with('success', 'Email list deleted successfully.');
+        return redirect()->route('admin.email-lists.index')->with('success', 'Email list deleted successfully.');
     }
 
     public function checkStatus(EmailList $emailList)
@@ -272,7 +283,7 @@ class EmailListController extends Controller
 
             ProcessEmailListJob::dispatch($emailList->id);
 
-            return redirect()->route('email-lists.show', $emailList)->with('success', 'Bulk import started in background.');
+            return redirect()->route('admin.email-lists.show', $emailList)->with('success', 'Bulk import started in background.');
         }
     }
 }

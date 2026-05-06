@@ -4,12 +4,12 @@
 
 @section('header-actions')
     <div class="flex items-center gap-2">
-        <a href="{{ route('campaigns.index') }}" class="btn btn-ghost btn-xs font-bold uppercase tracking-widest text-surface-400 hover:text-surface-600">
+        <a href="{{ route('admin.campaigns.index') }}" class="btn btn-ghost btn-xs font-bold uppercase tracking-widest text-surface-400 hover:text-surface-600">
             <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
             Back
         </a>
         <div class="h-4 w-px bg-surface-200 mx-1"></div>
-        <a href="{{ route('campaigns.report', $campaign) }}" class="btn btn-primary btn-xs font-black uppercase tracking-widest px-4 py-2">
+        <a href="{{ route('admin.campaigns.report', $campaign) }}" class="btn btn-primary btn-xs font-black uppercase tracking-widest px-4 py-2">
             Analytics
         </a>
     </div>
@@ -59,32 +59,32 @@
 
             <div class="flex items-center gap-2">
                 @if(in_array($campaign->status, ['draft', 'scheduled']))
-                    <form action="{{ route('campaigns.send', $campaign) }}" method="POST">
+                    <form action="{{ route('admin.campaigns.send', $campaign) }}" method="POST">
                         @csrf
                         <button class="btn btn-success btn-sm px-6 font-black uppercase text-[10px] tracking-widest">Launch</button>
                     </form>
                 @endif
                 @if($campaign->status === 'sending')
-                    <form action="{{ route('campaigns.pause', $campaign) }}" method="POST">
+                    <form action="{{ route('admin.campaigns.pause', $campaign) }}" method="POST">
                         @csrf
                         <button class="btn btn-warning btn-sm px-6 font-black uppercase text-[10px] tracking-widest">Pause</button>
                     </form>
                 @endif
                 @if($campaign->status === 'paused')
-                    <form action="{{ route('campaigns.resume', $campaign) }}" method="POST">
+                    <form action="{{ route('admin.campaigns.resume', $campaign) }}" method="POST">
                         @csrf
                         <button class="btn btn-success btn-sm px-6 font-black uppercase text-[10px] tracking-widest">Resume</button>
                     </form>
                 @endif
                 @if(in_array($campaign->status, ['sending', 'paused', 'scheduled']))
-                    <form action="{{ route('campaigns.cancel', $campaign) }}" method="POST">
+                    <form action="{{ route('admin.campaigns.cancel', $campaign) }}" method="POST">
                         @csrf
                         <button class="btn btn-ghost btn-sm text-red-600 font-bold uppercase text-[10px] tracking-widest">Abort</button>
                     </form>
                 @endif
                 
                 @if($stats['failed'] > 0)
-                    <form action="{{ route('campaigns.retry-failed', $campaign) }}" method="POST">
+                    <form action="{{ route('admin.campaigns.retry-failed', $campaign) }}" method="POST">
                         @csrf
                         <button class="btn btn-warning btn-sm px-6 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-amber-100">
                             Retry Failures
@@ -187,7 +187,7 @@ function campaignDashboard() {
 
         pollStatus() {
             setInterval(() => {
-                fetch('{{ route("campaigns.status", $campaign) }}')
+                fetch('{{ route("admin.campaigns.status", $campaign) }}')
                     .then(r => r.json())
                     .then(data => {
                         this.sent = data.sent_count;

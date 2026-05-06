@@ -15,7 +15,7 @@
         </div>
 
         {{-- Single Add --}}
-        <form x-show="!showBulk" action="{{ route('blacklist.store') }}" method="POST" class="flex items-end gap-4">
+        <form x-show="!showBulk" action="{{ route('admin.blacklist.store') }}" method="POST" class="flex items-end gap-4">
             @csrf
             <div class="flex-1">
                 <label class="form-label">Email Address</label>
@@ -32,7 +32,7 @@
         </form>
 
         {{-- Bulk Add --}}
-        <form x-show="showBulk" x-cloak action="{{ route('blacklist.bulk-store') }}" method="POST" class="space-y-4">
+        <form x-show="showBulk" x-cloak action="{{ route('admin.blacklist.bulk-store') }}" method="POST" class="space-y-4">
             @csrf
             <div>
                 <label class="form-label">Email Addresses (one per line)</label>
@@ -68,7 +68,7 @@
                     <td class="text-surface-400">{{ $entry->reason ?? '—' }}</td>
                     <td class="text-xs text-surface-400">{{ $entry->created_at->diffForHumans() }}</td>
                     <td>
-                        <form action="{{ route('blacklist.destroy', $entry) }}" method="POST" onsubmit="return confirm('Unblock this email?')">
+                        <form action="{{ route('admin.blacklist.destroy', $entry) }}" method="POST" onsubmit="return confirm('Unblock this email?')">
                             @csrf @method('DELETE')
                             <button class="btn-ghost btn-sm text-emerald-400 hover:text-emerald-300">Unblock</button>
                         </form>

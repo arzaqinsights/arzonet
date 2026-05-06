@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    <form action="{{ route('email-lists.store') }}" method="POST" enctype="multipart/form-data" id="wizard-form">
+    <form action="{{ route('admin.email-lists.store') }}" method="POST" enctype="multipart/form-data" id="wizard-form">
         @csrf
         <input type="hidden" name="import_type" :value="method">
 

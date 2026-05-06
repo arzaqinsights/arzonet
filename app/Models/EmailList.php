@@ -52,4 +52,13 @@ class EmailList extends Model
     {
         return $this->hasMany(Email::class)->where('status', 'duplicate');
     }
+    public function recalculateStats(): void
+    {
+        $this->update([
+            'total_records'   => $this->emails()->count(),
+            'valid_count'     => $this->emails()->where('status', 'valid')->count(),
+            'invalid_count'   => $this->emails()->where('status', 'invalid')->count(),
+            'duplicate_count' => $this->emails()->where('status', 'duplicate')->count(),
+        ]);
+    }
 }

@@ -37,11 +37,7 @@ class ProcessEmailListJob implements ShouldQueue
 
         try {
             $emailList->update([
-                'status' => 'processing', 
-                'total_records' => 0, 
-                'valid_count' => 0, 
-                'invalid_count' => 0, 
-                'duplicate_count' => 0
+                'status' => 'processing',
             ]);
             
             if (!$emailList->file_path) {
@@ -117,6 +113,7 @@ class ProcessEmailListJob implements ShouldQueue
             ->then(function (Batch $batch) use ($emailListId) {
                 $list = EmailList::find($emailListId);
                 if ($list && $list->status !== 'failed') {
+                    $list->recalculateStats();
                     $list->update(['status' => 'completed']);
                 }
                 Log::info("Batch component finished successfully for list #{$emailListId}");

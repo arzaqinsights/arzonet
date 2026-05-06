@@ -17,12 +17,12 @@
                     intelligent retries to transform your bulk sending strategy.
                 </p>
                 <div class="flex flex-wrap items-center gap-6 mb-10">
-                    <form action="" class="w-full md:w-xl">
+                    <form action="{{ route('auth.start') }}" method="POST" class="w-full md:w-xl">
                         @csrf
                         <div class="border-2 rounded-full flex items-center relative w-full">
-                            <input class="form-control p-4 pr-28 w-full rounded-full ring-0 outline-0" type="email"
+                            <input class="form-control p-4 pr-28 w-full rounded-full ring-0 outline-0" type="email" name="email" required
                                 placeholder="Email Address">
-                            <button class="absolute right-1 rounded-full text-white px-6 py-3 bg-surface-800 ">Get
+                            <button type="submit" class="absolute right-1 rounded-full text-white px-6 py-3 bg-surface-800 ">Get
                                 Started</button>
                         </div>
                     </form>

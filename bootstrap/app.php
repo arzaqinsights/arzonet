@@ -13,12 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             // Admin subdomain routes: admin.email.test (local) / admin.domain.com (prod)
             $adminDomain = 'admin.' . parse_url(config('app.url'), PHP_URL_HOST);
-            Route::middleware('web')
+            Route::middleware(['web', 'auth'])
                 ->domain($adminDomain)
                 ->group(base_path('routes/admin.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->redirectUsersTo(fn() => route('admin.dashboard'));
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
         ]);

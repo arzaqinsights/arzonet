@@ -3,7 +3,7 @@
 @section('heading', 'Campaigns')
 
 @section('header-actions')
-    <a href="{{ route('campaigns.create') }}" class="btn btn-primary shadow-xl shadow-primary-200">
+    <a href="{{ route('admin.campaigns.create') }}" class="btn btn-primary shadow-xl shadow-primary-200">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         New Campaign
     </a>
@@ -61,7 +61,7 @@
                     @foreach($campaigns as $campaign)
                     <tr class="group border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
                         <td class="!pl-8 !py-5">
-                            <a href="{{ route('campaigns.show', $campaign) }}" class="text-sm font-black text-surface-900 hover:text-primary-600 block mb-0.5">{{ $campaign->name }}</a>
+                            <a href="{{ route('admin.campaigns.show', $campaign) }}" class="text-sm font-black text-surface-900 hover:text-primary-600 block mb-0.5">{{ $campaign->name }}</a>
                             <p class="text-[9px] font-bold text-surface-400 uppercase tracking-tighter">{{ $campaign->created_at->diffForHumans() }}</p>
                         </td>
                         <td>
@@ -94,10 +94,10 @@
                         </td>
                         <td class="text-right !pr-8">
                             <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href="{{ route('campaigns.show', $campaign) }}" class="p-2 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="View Report">
+                                <a href="{{ route('admin.campaigns.show', $campaign) }}" class="p-2 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="View Report">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                                 </a>
-                                <form action="{{ route('campaigns.destroy', $campaign) }}" method="POST" onsubmit="return confirm('Permanently delete this campaign?')">
+                                <form action="{{ route('admin.campaigns.destroy', $campaign) }}" method="POST" onsubmit="return confirm('Permanently delete this campaign?')">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="p-2 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete Campaign">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -121,7 +121,7 @@
         </div>
         <h3 class="text-3xl font-black text-surface-900 mb-3">Launch Your First Mission</h3>
         <p class="text-surface-500 mb-10 max-w-md mx-auto text-lg leading-relaxed">No campaigns found. Start your first high-performance marketing mission today.</p>
-        <a href="{{ route('campaigns.create') }}" class="btn btn-primary px-12 py-4 shadow-xl shadow-primary-200">Create New Campaign</a>
+        <a href="{{ route('admin.campaigns.create') }}" class="btn btn-primary px-12 py-4 shadow-xl shadow-primary-200">Create New Campaign</a>
     </div>
     @endif
 </div>

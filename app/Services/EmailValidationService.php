@@ -23,13 +23,9 @@ class EmailValidationService
         // Blacklist lookup
         $blacklisted = array_flip($this->getBlacklistedEmails());
 
-        // Global DB lookup (Emails already in the CRM in OTHER lists)
+        // Global DB lookup (Emails already in the CRM)
         $batchEmails = collect($emailData)->pluck('email')->map(fn($e) => strtolower(trim($e)))->filter()->toArray();
-        $query = Email::whereIn('email', $batchEmails);
-        if ($currentListId) {
-            $query->where('email_list_id', '!=', $currentListId);
-        }
-        $globallyExisting = array_flip($query->pluck('email')->map(fn($e) => strtolower($e))->toArray());
+        $globallyExisting = array_flip(Email::whereIn('email', $batchEmails)->pluck('email')->map(fn($e) => strtolower($e))->toArray());
 
         // Massively Expanded Trusted domains to skip DNS check (The "Fast-Lane" list)
         $trustedDomains = array_flip([

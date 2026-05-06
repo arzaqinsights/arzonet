@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-6xl mx-auto animate-slide-up" x-data="campaignCreator()">
-    <form action="{{ route('campaigns.store') }}" method="POST">
+    <form action="{{ route('admin.campaigns.store') }}" method="POST">
         @csrf
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
@@ -104,7 +104,7 @@
                 </div>
 
                 <div class="flex items-center gap-4">
-                    <a href="{{ route('campaigns.index') }}" class="btn btn-ghost px-8 py-3 text-sm font-bold flex-1">Cancel</a>
+                    <a href="{{ route('admin.campaigns.index') }}" class="btn btn-ghost px-8 py-3 text-sm font-bold flex-1">Cancel</a>
                     <button type="submit" class="btn btn-primary px-12 py-3 text-sm font-black shadow-xl shadow-primary-200 flex-1 justify-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         Launch Campaign
@@ -179,7 +179,7 @@ function campaignCreator() {
         updatePreview() {
             if (!this.emailListId || !this.templateId) return;
 
-            fetch('{{ route("campaigns.preview") }}', {
+            fetch('{{ route("admin.campaigns.preview") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

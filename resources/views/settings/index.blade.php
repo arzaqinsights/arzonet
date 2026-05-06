@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-3xl mx-auto animate-fade-in">
-    <form action="{{ route('settings.update') }}" method="POST">
+    <form action="{{ route('admin.settings.update') }}" method="POST">
         @csrf @method('PUT')
 
         <div class="space-y-6">

@@ -64,19 +64,37 @@ body {
 .border{
     border: 1px solid var(--color-surface-300);
 }
+.border-color{
+    border-color: var(--color-surface-300);
+}
 
+.scrollbar::-webkit-scrollbar{
+    width: 0px !important;
+    height: 0px !important;
+}
+.scrollbar::-webkit-scrollbar-thumb{
+    background: var(--color-brand);
+    border-radius: 4px;
+}
+.scrollbar::-webkit-scrollbar-track{
+    background: var(--color-surface-100);
+    border-radius: 4px;
+}
+.scrollbar{
+    scrollbar-width: none !important;
+}
 /* ── Cards ── */
 .glass-card {
     background: white;
     border: 1px solid var(--color-surface-200);
-    border-radius: 0.75rem;
+    border-radius: 4px;
     box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
 }
 
 .glass-card-hover {
     background: white;
     border: 1px solid var(--color-surface-200);
-    border-radius: 0.75rem;
+    border-radius: 4px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -90,7 +108,7 @@ body {
 .stat-card {
     background: white;
     border: 1px solid var(--color-surface-200);
-    border-radius: 0.75rem;
+    border-radius: 4px;
     padding: 1.5rem;
     transition: all 0.2s ease;
 }
@@ -103,7 +121,7 @@ body {
 .stat-card-icon {
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 0.5rem;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -117,14 +135,14 @@ body {
     width: 100%;
     height: 0.375rem;
     background: var(--color-surface-100);
-    border-radius: 1rem;
+    border-radius: 4px;
     overflow: hidden;
 }
 
 .progress-bar-fill {
     height: 100%;
     background: var(--color-brand);
-    border-radius: 1rem;
+    border-radius: 4px;
     transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -135,7 +153,7 @@ body {
     justify-content: center;
     gap: 0.5rem;
     padding: 0.625rem 1.25rem;
-    border-radius: 0.5rem;
+    border-radius: 4px;
     font-weight: 600;
     font-size: 0.875rem;
     transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -192,57 +210,15 @@ body {
 .btn-sm {
     padding: 0.375rem 0.875rem;
     font-size: 0.8125rem;
-    border-radius: 0.375rem;
+    border-radius: 4px;
 }
 
 .btn-lg {
     padding: 0.875rem 1.75rem;
     font-size: 1rem;
-    border-radius: 0.625rem;
+    border-radius: 4px;
 }
 
-/* ── Admin Sidebar (Dark) ── */
-.sidebar {
-    background: var(--color-surface-950);
-    border-right: 1px solid var(--color-surface-800);
-}
-
-.sidebar-link {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.6875rem 1rem;
-    margin: 0.125rem 0.75rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-surface-400);
-    transition: all 0.15s ease;
-    text-decoration: none;
-}
-
-.sidebar-link:hover {
-    background: var(--color-surface-800);
-    color: white;
-}
-
-.sidebar-link.active {
-    background: var(--accent-bg-subtle);
-    color: var(--color-brand);
-    font-weight: 600;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand) 20%, transparent);
-}
-
-.sidebar-section-label {
-    font-size: 0.625rem;
-    font-weight: 700;
-    color: var(--color-surface-600);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 0 1.75rem;
-    margin-top: 1.5rem;
-    margin-bottom: 0.375rem;
-}
 
 /* ── Tables ── */
 .data-table {
@@ -282,7 +258,7 @@ body {
 /* ── Badges ── */
 .badge {
     padding: 0.1875rem 0.625rem;
-    border-radius: 0.375rem;
+    border-radius: 4px;
     font-size: 0.6875rem;
     font-weight: 600;
     display: inline-flex;
@@ -303,7 +279,7 @@ body {
     width: 100%;
     padding: 0.5625rem 0.875rem;
     border: 1px solid var(--color-surface-300);
-    border-radius: 0.5rem;
+    border-radius: 4px;
     font-size: 0.875rem;
     color: var(--color-surface-900);
     background: white;
@@ -332,7 +308,7 @@ body {
     width: 100%;
     padding: 0.5625rem 0.875rem;
     border: 1px solid var(--color-surface-300);
-    border-radius: 0.5rem;
+    border-radius: 4px;
     font-size: 0.875rem;
     background: white;
     color: var(--color-surface-900);
@@ -353,7 +329,7 @@ body {
     right: 1.5rem;
     background: white;
     border: 1px solid var(--color-surface-200);
-    border-radius: 0.75rem;
+    border-radius: 4px;
     padding: 1rem 1.25rem;
     box-shadow: 0 10px 40px rgba(0,0,0,0.12);
     z-index: 1000;
@@ -382,7 +358,7 @@ body {
 .feature-card {
     background: white;
     border: 1px solid var(--color-surface-200);
-    border-radius: 1rem;
+    border-radius: 4px;
     padding: 1.5rem;
     transition: all 0.2s ease;
     position: relative;
@@ -414,7 +390,7 @@ body {
 .pricing-card {
     background: white;
     border: 1px solid var(--color-surface-200);
-    border-radius: 1.25rem;
+    border-radius: 4px;
     padding: 2rem;
     position: relative;
     transition: all 0.2s ease;

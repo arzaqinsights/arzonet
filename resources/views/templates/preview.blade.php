@@ -14,7 +14,7 @@
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showTestModal = false"></div>
             <div class="glass-card p-6 w-full max-w-md relative z-10">
                 <h3 class="text-lg font-semibold text-white mb-4">Send Test Email</h3>
-                <form action="{{ route('templates.send-test', $template) }}" method="POST">
+                <form action="{{ route('admin.templates.send-test', $template) }}" method="POST">
                     @csrf
                     <div class="space-y-4">
                         <div>
@@ -46,7 +46,7 @@
         </div>
     </div>
 
-    <a href="{{ route('templates.edit', $template) }}" class="btn-ghost btn-sm">Edit</a>
+    <a href="{{ route('admin.templates.edit', $template) }}" class="btn-ghost btn-sm">Edit</a>
 @endsection
 
 @section('content')

@@ -29,7 +29,7 @@
             </div>
             
             <div class="flex items-center gap-3 w-full xl:w-auto">
-                <a href="{{ route('templates.index') }}" class="btn btn-ghost px-6 py-3 text-sm font-bold flex-1 xl:flex-none text-center">Cancel</a>
+                <a href="{{ route('admin.templates.index') }}" class="btn btn-ghost px-6 py-3 text-sm font-bold flex-1 xl:flex-none text-center">Cancel</a>
                 <button @click="saveTemplate()" class="btn btn-primary px-10 py-3 text-sm font-black shadow-xl shadow-primary-100 flex-1 xl:flex-none justify-center gap-2" :disabled="saving">
                     <span x-show="saving" class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
                     <svg x-show="!saving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
@@ -58,7 +58,7 @@
     </div>
 
     {{-- ── Form Controller ── --}}
-    <form id="template-form" action="{{ route('templates.update', $template) }}" method="POST" class="hidden">
+    <form id="template-form" action="{{ route('admin.templates.update', $template) }}" method="POST" class="hidden">
         @csrf @method('PUT')
         <input type="hidden" name="name" :value="name">
         <input type="hidden" name="subject" :value="subject">

@@ -28,7 +28,7 @@
                 </div>
             </div>
 
-            <form action="{{ route('senders.store') }}" method="POST" class="space-y-6">
+            <form action="{{ route('admin.senders.store') }}" method="POST" class="space-y-6">
                 @csrf
                 <input type="hidden" name="type" x-bind:value="type">
                 
@@ -137,7 +137,7 @@
                     <td>
                         <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                             @if($sender->type === 'ses' && $sender->status !== 'verified')
-                            <form action="{{ route('senders.retry', $sender) }}" method="POST">
+                            <form action="{{ route('admin.senders.retry', $sender) }}" method="POST">
                                 @csrf
                                 <button type="submit" class="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Check Status / Retry">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -145,13 +145,13 @@
                             </form>
                             @endif
 
-                            <form action="{{ route('senders.test', $sender) }}" method="POST">
+                            <form action="{{ route('admin.senders.test', $sender) }}" method="POST">
                                 @csrf
                                 <button type="submit" class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Test Connection">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                                 </button>
                             </form>
-                            <form action="{{ route('senders.destroy', $sender) }}" method="POST" onsubmit="return confirm('Remove this sender?')">
+                            <form action="{{ route('admin.senders.destroy', $sender) }}" method="POST" onsubmit="return confirm('Remove this sender?')">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="p-2 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>

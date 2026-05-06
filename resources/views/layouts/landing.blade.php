@@ -23,16 +23,16 @@
     <nav class="sticky top-0 z-50 w-full left-0 bg-white/95 backdrop-blur-md border-b border-gray-100">
         <div class="container flex items-center justify-between py-4">
             <a href="{{ route('home') }}" class="flex items-center gap-2.5">
-                <img src="{{ asset('images/logo/logo.png') }}" class="md:h-12 h-9 shrink-0 object-contain"></a>
+                <img src="{{ asset('images/logo/logo.png') }}" class="md:h-10 h-8 shrink-0 object-contain"></a>
 
             <div class="hidden md:flex items-center gap-8 text-base text-black uppercase">
                 <a href="{{ route('home') }}#features" class="hover:text-gray-900 transition-colors">Features</a>
                 <a href="{{ route('home') }}#pricing" class="hover:text-gray-900 transition-colors">Pricing</a>
                 <a href="{{ route('home') }}#faq" class="hover:text-gray-900 transition-colors">FAQ</a>
                 <div class="flex gap-4">
-                    <a href="{{ config('app.url') }}/admin"
+                    <a href="{{ route('login') }}"
                     class="text-base text-white rounded-sm font-semibold bg-surface-800 px-6 py-3 transition-all">Sign In</a>
-                <a href="{{ config('app.url') }}/admin" class="text-base text-white rounded-sm font-semibold bg-brand px-6 py-3 transition-all">Get Started</a>
+                <a href="{{ route('register') }}" class="text-base text-white rounded-sm font-semibold bg-brand px-6 py-3 transition-all">Get Started</a>
                 </div>
             </div>
             <button class="md:hidden">
@@ -64,7 +64,7 @@
                     <a href="{{ route('home') }}#features" class="hover:text-gray-900 transition-colors">Features</a>
                     <a href="{{ route('home') }}#pricing" class="hover:text-gray-900 transition-colors">Pricing</a>
                     <a href="{{ route('home') }}#faq" class="hover:text-gray-900 transition-colors">FAQ</a>
-                    <a href="{{ config('app.url') }}/admin" class="hover:text-gray-900 transition-colors">Admin
+                    <a href="{{ route('login') }}" class="hover:text-gray-900 transition-colors">Admin
                         Login</a>
                 </div>
 

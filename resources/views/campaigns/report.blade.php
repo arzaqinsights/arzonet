@@ -4,7 +4,7 @@
 
 @section('header-actions')
     <div class="flex items-center gap-3">
-        <a href="{{ route('campaigns.show', $campaign) }}" class="btn btn-ghost btn-sm">Back to Campaign</a>
+        <a href="{{ route('admin.campaigns.show', $campaign) }}" class="btn btn-ghost btn-sm">Back to Campaign</a>
         <button onclick="window.print()" class="btn btn-primary btn-sm">Download PDF</button>
     </div>
 @endsection
