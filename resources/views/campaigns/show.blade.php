@@ -143,6 +143,21 @@
         </div>
     </div>
 
+    {{-- Live Telemetry Row --}}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" x-show="status === 'sending'">
+        <div class="bg-indigo-600 p-4 rounded-xl shadow-lg shadow-indigo-100">
+            <p class="text-[9px] font-black text-indigo-100 uppercase tracking-widest mb-1">Sending Speed</p>
+            <div class="flex items-baseline gap-1">
+                <p class="text-xl font-black text-white" x-text="speed">0</p>
+                <p class="text-[10px] font-bold text-indigo-200">emails/sec</p>
+            </div>
+        </div>
+        <div class="bg-surface-900 p-4 rounded-xl shadow-lg shadow-surface-200">
+            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Time Remaining</p>
+            <p class="text-xl font-black text-white" x-text="eta || 'Calculating...'">Calculating...</p>
+        </div>
+    </div>
+
     {{-- ── Compact Activity Log ── --}}
     <div class="glass-card overflow-hidden border-surface-200">
         <div class="px-6 py-4 bg-surface-50/50 border-b border-surface-100 flex items-center justify-between">
@@ -234,6 +249,9 @@ function campaignDashboard() {
         failed: {{ $stats['failed'] }},
         pending: {{ $stats['pending'] }},
         progress: {{ $stats['progress'] }},
+        speed: {{ $campaign->currentSpeed() }},
+        eta: '{{ $campaign->estimatedCompletion() }}',
+        status: '{{ $campaign->status }}',
         showTestModal: false,
 
         pollStatus() {
@@ -245,6 +263,9 @@ function campaignDashboard() {
                         this.failed = data.failed_count;
                         this.total = data.total;
                         this.progress = data.progress;
+                        this.speed = data.speed;
+                        this.eta = data.eta;
+                        this.status = data.status;
                         this.pending = data.total - data.sent_count - data.failed_count;
 
                         if (data.status === 'completed' || data.status === 'cancelled') {

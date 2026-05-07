@@ -220,4 +220,36 @@ class SESService
             return null;
         }
     }
+
+    /**
+     * Fetch the SES sending quota for the account.
+     * 
+     * @return array [Max24HourSend, MaxSendRate, SentLast24Hours]
+     */
+    public function getSendQuota(): array
+    {
+        if (!$this->client) {
+            return [
+                'Max24HourSend' => 200,
+                'MaxSendRate' => 1,
+                'SentLast24Hours' => 0
+            ];
+        }
+
+        try {
+            $result = $this->client->getSendQuota();
+            return [
+                'Max24HourSend' => (float) $result->get('Max24HourSend'),
+                'MaxSendRate' => (float) $result->get('MaxSendRate'),
+                'SentLast24Hours' => (float) $result->get('SentLast24Hours'),
+            ];
+        } catch (AwsException $e) {
+            Log::error('SES GetSendQuota Error: ' . $e->getMessage());
+            return [
+                'Max24HourSend' => 200,
+                'MaxSendRate' => 1,
+                'SentLast24Hours' => 0
+            ];
+        }
+    }
 }

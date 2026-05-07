@@ -233,6 +233,8 @@ class CampaignController extends Controller
             'failed_count'=> $campaign->failed_count,
             'total'       => $campaign->total_recipients,
             'progress'    => $campaign->progress(),
+            'speed'       => $campaign->currentSpeed(),
+            'eta'         => $campaign->estimatedCompletion(),
         ]);
     }
 

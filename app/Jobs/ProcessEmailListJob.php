@@ -51,7 +51,7 @@ class ProcessEmailListJob implements ShouldQueue
             $emailListId = $this->emailListId;
             
             $jobs = [];
-            $chunkSize = 100; 
+            $chunkSize = 50; 
             $currentChunk = [];
             $processedCount = 0;
 

@@ -117,6 +117,39 @@ class Campaign extends Model
         return round(($complaints / $this->total_recipients) * 100, 1);
     }
 
+    public function currentSpeed(): float
+    {
+        $key = "campaign_{$this->id}_speed";
+        $timestamps = \Illuminate\Support\Facades\Redis::lrange($key, 0, -1);
+        
+        if (count($timestamps) < 2) return 0;
+
+        $first = (float) end($timestamps);
+        $last = (float) reset($timestamps);
+        $diff = $last - $first;
+
+        if ($diff <= 0) return 0;
+
+        return round(count($timestamps) / $diff, 1);
+    }
+
+    public function estimatedCompletion(): ?string
+    {
+        if ($this->status !== 'sending') return null;
+
+        $speed = $this->currentSpeed();
+        if ($speed <= 0) return 'Calculating...';
+
+        $remaining = $this->total_recipients - ($this->sent_count + $this->failed_count);
+        if ($remaining <= 0) return 'Finishing...';
+
+        $seconds = (int) ($remaining / $speed);
+        
+        if ($seconds < 60) return $seconds . 's';
+        if ($seconds < 3600) return ceil($seconds / 60) . 'm';
+        return ceil($seconds / 3600) . 'h';
+    }
+
     public function estimatedCost(): float
     {
         return $this->total_recipients * config('emailplatform.cost_per_email');
