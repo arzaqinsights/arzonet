@@ -36,6 +36,14 @@ Route::name('admin.')->group(function () {
         Route::delete('/{emailList}/emails/{emailId}',[EmailListController::class, 'destroyEmail'])->name('destroy-email');
         Route::post('/{emailList}/add-contact',      [EmailListController::class, 'addContact'])->name('add-contact');
         Route::post('/{emailList}/import-more',      [EmailListController::class, 'importMore'])->name('import-more');
+        Route::post('/{emailList}/undo-import/{logId}', [EmailListController::class, 'undoImport'])->name('undo-import');
+        Route::post('/{emailList}/scrub', [EmailListController::class, 'scrubList'])->name('scrub');
+        Route::post('/{emailList}/bulk-action',      [EmailListController::class, 'bulkAction'])->name('bulk-action');
+        Route::get('/{emailList}/export',            [EmailListController::class, 'exportContacts'])->name('export');
+        Route::get('/{emailList}/fix-invalid',       [EmailListController::class, 'fixInvalid'])->name('fix-invalid');
+        Route::post('/{emailList}/save-invalid',     [EmailListController::class, 'saveInvalid'])->name('save-invalid');
+        Route::patch('/{emailList}/update-name',     [EmailListController::class, 'updateName'])->name('update-name');
+        Route::get('/check-mx',                      [EmailListController::class, 'checkMX'])->name('check-mx');
         Route::delete('/{emailList}',                [EmailListController::class, 'destroy'])->name('destroy');
     });
 

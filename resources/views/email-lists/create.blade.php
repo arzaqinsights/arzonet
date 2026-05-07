@@ -1,147 +1,182 @@
 @extends('layouts.app')
-@section('title', 'Import Contacts Wizard')
-@section('heading', 'Import Wizard')
+
+@section('title', 'Create Audience')
+@section('heading', 'Create New List')
 
 @section('content')
-<div class="max-w-5xl mx-auto" x-data="importWizard()">
-    {{-- ── Step Indicator ── --}}
-    <div class="mb-12">
-        <div class="flex items-center justify-between relative">
-            <div class="absolute top-1/2 left-0 w-full h-0.5 bg-surface-100 -translate-y-1/2 z-0"></div>
-            <div class="absolute top-1/2 left-0 h-0.5 bg-primary-500 -translate-y-1/2 z-0 transition-all duration-500" :style="'width: ' + ((step-1)/2 * 100) + '%'"></div>
-            
-            <template x-for="s in [1, 2, 3]">
-                <div class="relative z-10 flex flex-col items-center">
-                    <div :class="step >= s ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-surface-400 border-surface-200'"
-                         class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-black transition-colors duration-500 shadow-sm"
-                         x-text="s"></div>
-                    <span :class="step >= s ? 'text-primary-700 font-bold' : 'text-surface-400 font-medium'"
-                          class="text-[10px] uppercase tracking-widest mt-2 bg-surface-50 px-2"
-                          x-text="getStepLabel(s)"></span>
-                </div>
-            </template>
-        </div>
-    </div>
-
+<div class="" x-data="importWizard()">
     <form action="{{ route('admin.email-lists.store') }}" method="POST" enctype="multipart/form-data" id="wizard-form">
         @csrf
         <input type="hidden" name="import_type" :value="method">
+        <input type="hidden" name="name" value="Audience List - {{ now()->format('Y-m-d h:i A') }}">
+        <input type="hidden" name="signup_source" value="Direct Import">
 
-        {{-- ── Step 1: Choose Method ── --}}
-        <div x-show="step === 1" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="space-y-8">
-            <div class="text-center mb-8">
-                <h2 class="text-3xl font-black text-surface-900">How would you like to add contacts?</h2>
-                <p class="text-surface-500 mt-2">Select the method that works best for your data.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {{-- Method: Upload --}}
-                <button type="button" @click="selectMethod('upload')" 
-                        class="group p-8 bg-white border-2 border-surface-100 rounded-3xl text-left hover:border-primary-500 hover:shadow-xl hover:shadow-primary-100/50 transition-all duration-300">
-                    <div class="w-16 h-16 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                    </div>
-                    <h3 class="text-xl font-black text-surface-900">Upload a File</h3>
-                    <p class="text-surface-500 mt-2 leading-relaxed">Import contacts from a CSV or Excel file. Best for large lists with custom data.</p>
-                    <div class="mt-6 flex items-center text-primary-600 font-bold text-sm">
-                        Select this method
-                        <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                    </div>
-                </button>
-
-                {{-- Method: Paste --}}
-                <button type="button" @click="selectMethod('paste')" 
-                        class="group p-8 bg-white border-2 border-surface-100 rounded-3xl text-left hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-100/50 transition-all duration-300">
-                    <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                    </div>
-                    <h3 class="text-xl font-black text-surface-900">Copy and Paste</h3>
-                    <p class="text-surface-500 mt-2 leading-relaxed">Simply paste names and emails from another document. Fastest for quick imports.</p>
-                    <div class="mt-6 flex items-center text-indigo-600 font-bold text-sm">
-                        Select this method
-                        <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                    </div>
-                </button>
-            </div>
-        </div>
-
-        {{-- ── Step 2: Organize ── --}}
-        <div x-show="step === 2" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-8" x-transition:enter-end="opacity-100 translate-x-0" class="space-y-8" x-cloak>
-            <div class="glass-card p-10">
-                <h2 class="text-2xl font-black text-surface-900 mb-2">Let's organize your contacts</h2>
-                <p class="text-surface-500 mb-8">This helps you filter and target your audience later.</p>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="space-y-6">
-                        <div>
-                            <label class="form-label">List Name</label>
-                            <input type="text" name="name" x-model="listName" class="form-input text-lg py-3" placeholder="e.g. Summer Sale Leads" required>
-                        </div>
-                        <div>
-                            <label class="form-label">Segment Tag (Optional)</label>
-                            <input type="text" name="segment_name" class="form-input" placeholder="e.g. VIP Customers">
-                        </div>
-                    </div>
-                    <div class="space-y-6">
-                        <div>
-                            <label class="form-label">Signup Source</label>
-                            <select name="signup_source" class="form-input py-3">
-                                <option value="Website Widget">Website Widget</option>
-                                <option value="Landing Page">Landing Page</option>
-                                <option value="Mobile App">Mobile App</option>
-                                <option value="Event/Trade Show">Event/Trade Show</option>
-                                <option value="Partner Import">Partner Import</option>
-                                <option value="Referral">Referral</option>
-                                <option value="Manual Entry" selected>Manual Entry</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="p-4 bg-surface-50 rounded-2xl border border-surface-100">
-                            <p class="text-xs text-surface-500 italic">"Organizing your list makes your CRM more powerful by allowing you to track exactly where your leads come from."</p>
-                        </div>
-                    </div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            {{-- Left Column: Method Selection --}}
+            <div class="lg:col-span-4 space-y-4">
+                <div class="mb-6">
+                    <h2 class="text-base font-black text-surface-800 uppercase">Import Method</h2>
+                    <p class="text-[10px] text-surface-500 font-bold mt-2 uppercase">Add contacts to your list. Choose the method that works best for you.</p>
                 </div>
+
+                {{-- Option 1: Upload --}}
+                <button type="button" @click="method = 'upload'"
+                        :class="method === 'upload' ? 'border-brand ring-1 ring-brand bg-brand/5' : 'border-color bg-white hover:border-brand/50'"
+                        class="w-full text-left p-6 border-2 rounded-sm transition-all group relative">
+                    <div x-show="method === 'upload'" class="absolute right-4 top-1/2 -translate-y-1/2 text-brand">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
+                    </div>
+                    <div class="flex items-start gap-5 pr-8">
+                        <div class="w-20 h-20 rounded-sm flex items-center justify-center shrink-0 transition-colors"
+                             :class="method === 'upload' ? 'bg-brand text-white shadow-lg shadow-brand/30' : 'bg-surface-200 text-surface-900 group-hover:bg-brand/10 group-hover:text-brand'">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-black uppercase text-surface-900 tracking-wide" :class="method === 'upload' ? 'text-brand' : ''">Upload File</h3>
+                            <p class="mt-2 text-[11px] text-surface-500 font-bold leading-relaxed">Import contacts from a CSV or Excel file. Best for large lists with custom data fields.</p>
+                        </div>
+                    </div>
+                </button>
+
+                {{-- Option 2: Paste --}}
+                <button type="button" @click="method = 'paste'"
+                        :class="method === 'paste' ? 'border-brand ring-1 ring-brand bg-brand/5' : 'border-color bg-white hover:border-brand/50'"
+                        class="w-full text-left p-6 border-2 rounded-sm transition-all group relative">
+                    <div x-show="method === 'paste'" class="absolute right-4 top-1/2 -translate-y-1/2 text-brand">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
+                    </div>
+                    <div class="flex items-start gap-5 pr-8">
+                        <div class="w-20 h-20 rounded-sm flex items-center justify-center shrink-0 transition-colors"
+                             :class="method === 'paste' ? 'bg-brand text-white shadow-lg shadow-brand/30' : 'bg-surface-200 text-surface-900 group-hover:bg-brand/10 group-hover:text-brand'">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-black uppercase text-surface-900 tracking-wide" :class="method === 'paste' ? 'text-brand' : ''">Copy & Paste</h3>
+                            <p class="mt-2 text-[11px] text-surface-500 font-bold leading-relaxed">Paste names and emails directly from Excel or any text document. Fastest for quick imports.</p>
+                        </div>
+                    </div>
+                </button>
+
+                {{-- Option 3: Manual --}}
+                <button type="button" @click="method = 'manual'"
+                        :class="method === 'manual' ? 'border-brand ring-1 ring-brand bg-brand/5' : 'border-color bg-white hover:border-brand/50'"
+                        class="w-full text-left p-6 border-2 rounded-sm transition-all group relative">
+                    <div x-show="method === 'manual'" class="absolute right-4 top-1/2 -translate-y-1/2 text-brand">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
+                    </div>
+                    <div class="flex items-start gap-5 pr-8">
+                        <div class="w-20 h-20 rounded-sm flex items-center justify-center shrink-0 transition-colors"
+                             :class="method === 'manual' ? 'bg-brand text-white shadow-lg shadow-brand/30' : 'bg-surface-200 text-surface-900 group-hover:bg-brand/10 group-hover:text-brand'">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-black uppercase text-surface-900 tracking-wide" :class="method === 'manual' ? 'text-brand' : ''">Manual Entry</h3>
+                            <p class="mt-2 text-[11px] text-surface-500 font-bold leading-relaxed">Quickly type in a single contact manually. Good for testing or one-off additions.</p>
+                        </div>
+                    </div>
+                </button>
             </div>
 
-            <div class="flex items-center justify-between">
-                <button type="button" @click="step = 1" class="btn btn-ghost px-8">Back</button>
-                <button type="button" @click="nextStep()" class="btn btn-primary px-12 py-3 shadow-lg shadow-primary-200" :disabled="!listName">Continue to Import</button>
-            </div>
-        </div>
+            {{-- Right Column: Action Block --}}
+            <div class="lg:col-span-8">
+                <div class="bg-white border border-gray-100 rounded-sm flex flex-col min-h-[500px] shadow-2xl shadow-gray-200/50">
+                    
+                    {{-- Dynamic Header --}}
+                    <div class="p-6 border-b border-color flex items-center justify-between bg-surface-50/50">
+                        <div>
+                            <h2 class="text-xl font-black text-surface-900 uppercase tracking-tight" x-text="
+                                method === 'upload' ? 'Upload Source File' :
+                                (method === 'paste' ? 'Paste Data' : 'Add Contact')
+                            "></h2>
+                            <p class="text-[10px] text-surface-400 font-bold mt-1 uppercase tracking-widest" x-text="
+                                method === 'upload' ? 'Data Ingestion Protocol' : 'Direct Data Entry'
+                            "></p>
+                        </div>
+                        <div class="w-10 h-10 bg-white border border-gray-100 rounded-sm flex items-center justify-center text-brand">
+                            <svg x-show="method === 'upload'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <svg x-show="method === 'paste'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                            <svg x-show="method === 'manual'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </div>
+                    </div>
 
-        {{-- ── Step 3: Input Data ── --}}
-        <div x-show="step === 3" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-8" x-transition:enter-end="opacity-100 translate-x-0" class="space-y-8" x-cloak>
-            {{-- Upload Section --}}
-            <template x-if="method === 'upload'">
-                <div class="space-y-6">
-                    <div class="glass-card p-12 border-2 border-dashed border-primary-200 bg-primary-50/10 text-center relative group overflow-hidden">
-                        <input type="file" name="file" id="file-upload" class="hidden" @change="handleFile($event)" accept=".csv,.xlsx,.xls,.txt">
-                        <label for="file-upload" class="cursor-pointer block relative z-10">
-                            <div class="w-24 h-24 bg-white rounded-3xl shadow-sm flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <svg class="w-12 h-12 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    {{-- Dynamic Content Area --}}
+                    <div class="p-6 flex-1 flex flex-col justify-center">
+                        
+                        {{-- Upload Section --}}
+                        <div x-show="method === 'upload'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
+                            <div class="border-2 border-dashed border-brand/30 bg-brand/5 hover:bg-brand/10 hover:border-brand/50 rounded-sm p-12 text-center relative group transition-all cursor-pointer" @click="document.getElementById('file-upload').click()">
+                                <input type="file" name="file" id="file-upload" class="hidden" @change="handleFile($event)" accept=".csv,.xlsx,.xls,.txt">
+                                <div class="relative z-10 pointer-events-none">
+                                    <div class="w-20 h-20 bg-white shadow-xl shadow-brand/10 border border-brand/10 rounded-sm flex items-center justify-center mx-auto mb-8 text-brand font-black transition-transform group-hover:-translate-y-2">
+                                        <svg x-show="!fileName" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                        <span x-show="fileName" class="text-[12px] uppercase tracking-widest" x-text="fileName.split('.').pop()"></span>
+                                    </div>
+                                    <h3 class="text-2xl font-black text-surface-900 uppercase tracking-tight" x-text="fileName || 'Click to Browse Files'"></h3>
+                                    <p class="text-surface-500 mt-3 text-[12px] font-bold">Supported Formats: CSV, XLSX, XLS, TXT (Max 10MB)</p>
+                                    
+                                    <!-- <div x-show="fileName" class="mt-6 inline-flex items-center gap-2 text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-sm uppercase tracking-widest border border-emerald-100">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                        File Ready
+                                    </div> -->
+                                </div>
                             </div>
-                            <h3 class="text-2xl font-black text-surface-900" x-text="fileName || 'Click or drag your file here'"></h3>
-                            <p class="text-surface-500 mt-2">Maximum file size: 10MB. Supports CSV, XLSX, and TXT.</p>
-                        </label>
+                        </div>
+
+                        {{-- Paste Section --}}
+                        <div x-show="method === 'paste'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" x-cloak>
+                            <label class="block text-[11px] font-black text-surface-900 uppercase tracking-[0.2em] mb-4">Paste Contacts Below</label>
+                            <div class="relative">
+                                <textarea name="emails_text" x-model="pasteData" 
+                                          class="w-full bg-white border-2 border-gray-100 rounded-sm p-6 h-50.5 font-mono text-sm text-surface-900 focus:bg-white focus:border-brand transition-all outline-none resize-none shadow-inner" 
+                                          placeholder="john@example.com, John Doe&#10;jane@agency.com, Jane Smith"></textarea>
+                                <div class="absolute bottom-4 right-4 flex gap-2">
+                                    <span class="text-[10px] font-black text-surface-300 uppercase tracking-widest bg-white px-2 py-1 rounded border border-gray-100" x-text="pasteData ? pasteData.split('\n').filter(l => l.trim().length > 0).length + ' lines' : '0 lines'"></span>
+                                </div>
+                            </div>
+                            <p class="text-[10px] font-bold text-surface-400 uppercase tracking-widest mt-4 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Tip: Paste raw CSV data or tab-separated columns directly from Excel.
+                            </p>
+                        </div>
+
+                        {{-- Manual Entry Section --}}
+                        <div x-show="method === 'manual'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-8" x-transition:enter-end="opacity-100 translate-y-0" x-cloak class="max-w-md mx-auto py-9.5 w-full">
+                            <!-- <div class="text-center mb-8">
+                                <div class="w-16 h-16 bg-surface-50 rounded-sm flex items-center justify-center mx-auto mb-4 text-brand border border-gray-100">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                                </div>
+                                <h3 class="text-xl font-black text-surface-900 uppercase">Single Contact</h3>
+                                <p class="text-[11px] text-surface-400 font-bold mt-2 uppercase tracking-widest">Add directly to a new list</p>
+                            </div> -->
+
+                            <div class="space-y-10">
+                                <div>
+                                    <label class="block text-xs font-black text-surface-900 uppercase tracking-[0.2em] mb-2">Email Address *</label>
+                                    <input type="email" name="manual_email" x-model="manualEmail" class="w-full bg-white border-2 border-gray-200 rounded-sm px-5 py-4 text-sm font-bold text-surface-900 focus:bg-white focus:border-brand transition-all outline-none" placeholder="e.g. j.doe@company.com">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-surface-900 uppercase tracking-[0.2em] mb-2">Full Name (Optional)</label>
+                                    <input type="text" name="manual_name" x-model="manualName" class="w-full bg-white border-2 border-gray-200 rounded-sm px-5 py-4 text-sm font-bold text-surface-900 focus:bg-white focus:border-brand transition-all outline-none" placeholder="e.g. John Doe">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {{-- Dynamic Footer --}}
+                    <div class="p-6 border-t border-color flex items-center justify-between">
+                        <div class="text-[10px] font-bold text-surface-400 uppercase tracking-widest flex items-center gap-2">
+                            <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                            Secure Import
+                        </div>
+                        <button type="submit" 
+                                class="bg-brand text-white px-10 py-4 rounded-sm text-[11px] font-black uppercase tracking-[0.2em] transition-all hover:bg-brand/90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-brand/20 flex items-center gap-3" 
+                                :disabled="method === 'upload' ? !fileName : (method === 'paste' ? !pasteData : !manualEmail)">
+                            Proceed to Import
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </button>
                     </div>
                 </div>
-            </template>
-
-            {{-- Paste Section --}}
-            <template x-if="method === 'paste'">
-                <div class="glass-card p-10">
-                    <label class="form-label text-lg font-black mb-4">Paste your contacts below</label>
-                    <textarea name="emails_text" x-model="pasteData" class="form-input h-80 font-mono text-sm p-6" placeholder="john@example.com&#10;jane@company.com&#10;..."></textarea>
-                    <p class="text-xs text-surface-400 mt-4 italic">Tip: You can paste columns from Excel or just a list of emails.</p>
-                </div>
-            </template>
-
-            <div class="flex items-center justify-between">
-                <button type="button" @click="step = 2" class="btn btn-ghost px-8">Back</button>
-                <button type="submit" class="btn btn-primary px-12 py-3 shadow-lg shadow-primary-200" 
-                        :disabled="method === 'upload' ? !fileName : !pasteData">
-                    Complete and Continue to Mapping
-                </button>
             </div>
         </div>
     </form>
@@ -150,24 +185,11 @@
 <script>
 function importWizard() {
     return {
-        step: 1,
         method: 'upload',
-        listName: '',
         fileName: '',
         pasteData: '',
-
-        getStepLabel(s) {
-            return ['Select Method', 'Organize', 'Import'][s-1];
-        },
-
-        selectMethod(m) {
-            this.method = m;
-            this.step = 2;
-        },
-
-        nextStep() {
-            if (this.step < 3) this.step++;
-        },
+        manualEmail: '',
+        manualName: '',
 
         handleFile(e) {
             if (e.target.files.length) {

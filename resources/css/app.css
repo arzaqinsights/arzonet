@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=Righteous&display=swap');
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -34,6 +33,7 @@
        When you update --color-brand in the :root block below, also update
        these 9 shades to match your chosen color's palette. */
     --color-brand: #ff6b4a;
+    --color-secondary: #134E8E;
 }
 
 /* ── Single Brand Color Variable ── */

@@ -10,10 +10,13 @@ class Email extends Model
 {
     protected $fillable = [
         'email_list_id',
+        'activity_log_id',
         'email',
         'name',
         'status',
         'subscription_status',
+        'is_archived',
+        'archived_at',
         'signup_source',
         'segment_name',
         'reason',
@@ -30,6 +33,8 @@ class Email extends Model
         return [
             'meta' => 'array',
             'tags' => 'array',
+            'is_archived' => 'boolean',
+            'archived_at' => 'datetime',
             'unsubscribed_at' => 'datetime',
             'last_active_at' => 'datetime',
             'last_engaged_at' => 'datetime',

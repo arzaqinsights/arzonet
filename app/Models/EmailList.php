@@ -13,6 +13,7 @@ class EmailList extends Model
         'original_filename',
         'signup_source',
         'segment_name',
+        'tags',
         'column_mapping',
         'total_records',
         'valid_count',
@@ -28,9 +29,14 @@ class EmailList extends Model
         ];
     }
 
-    public function emails(): HasMany
+    public function emails()
     {
         return $this->hasMany(Email::class);
+    }
+
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class)->latest();
     }
 
     public function campaigns(): HasMany
@@ -55,10 +61,10 @@ class EmailList extends Model
     public function recalculateStats(): void
     {
         $this->update([
-            'total_records'   => $this->emails()->count(),
-            'valid_count'     => $this->emails()->where('status', 'valid')->count(),
-            'invalid_count'   => $this->emails()->where('status', 'invalid')->count(),
-            'duplicate_count' => $this->emails()->where('status', 'duplicate')->count(),
+            'total_records'   => $this->emails()->where('is_archived', false)->count(),
+            'valid_count'     => $this->emails()->where('is_archived', false)->where('status', 'valid')->count(),
+            'invalid_count'   => $this->emails()->where('is_archived', false)->where('status', 'invalid')->count(),
+            'duplicate_count' => $this->emails()->where('is_archived', false)->where('status', 'duplicate')->count(),
         ]);
     }
 }

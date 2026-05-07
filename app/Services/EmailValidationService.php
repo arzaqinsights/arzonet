@@ -16,6 +16,8 @@ class EmailValidationService
         $valid = [];
         $invalid = [];
         $duplicates = [];
+        $toRestore = [];
+        $toValid = []; // Records currently 'duplicate' that should be promoted to 'valid'
         $seen = [];
         
         // ── Step 1: Prepare Cross-Batch Lookups ──
@@ -23,9 +25,19 @@ class EmailValidationService
         // Blacklist lookup
         $blacklisted = array_flip($this->getBlacklistedEmails());
 
-        // Global DB lookup (Emails already in the CRM)
+        // List-specific DB lookup (STRICTLY scoped to this list only)
         $batchEmails = collect($emailData)->pluck('email')->map(fn($e) => strtolower(trim($e)))->filter()->toArray();
-        $globallyExisting = array_flip(Email::whereIn('email', $batchEmails)->pluck('email')->map(fn($e) => strtolower($e))->toArray());
+        
+        if (!$currentListId) {
+            // If no list ID, we can't check duplicates safely. 
+            // In the context of this app, imports MUST be scoped.
+            $existingRecords = collect();
+        } else {
+            $existingRecords = Email::where('email_list_id', $currentListId)
+                ->whereIn('email', $batchEmails)
+                ->get(['email', 'status', 'is_archived'])
+                ->keyBy(fn($item) => strtolower($item->email));
+        }
 
         // Massively Expanded Trusted domains to skip DNS check (The "Fast-Lane" list)
         $trustedDomains = array_flip([
@@ -67,9 +79,33 @@ class EmailValidationService
                 continue;
             }
 
-            // 3. Global Duplicate check (Already in CRM)
-            if (isset($globallyExisting[$email])) {
-                $entry['reason'] = 'Email already exists in another list';
+            // 3. Duplicate check (Already in THIS list)
+            if (isset($existingRecords[$email])) {
+                $record = $existingRecords[$email];
+                
+                // If permanently deleted from THIS list, mark as banned
+                if ($record->status === 'permanent_delete') {
+                    $entry['reason'] = 'Banishment active (Permanently deleted from this list)';
+                    $entry['status'] = 'invalid';
+                    $invalid[] = $entry;
+                    continue;
+                }
+
+                // If archived, mark for restoration/update (Top Priority)
+                if ($record->is_archived) {
+                    $entry['status'] = 'to_restore';
+                    $toRestore[] = $entry;
+                    continue;
+                }
+
+                // If existing record is 'duplicate', mark for promotion to 'valid'
+                if ($record->status === 'duplicate') {
+                    $entry['status'] = 'to_valid';
+                    $toValid[] = $entry;
+                    continue;
+                }
+
+                $entry['reason'] = 'Email already exists and is active/valid in this list';
                 $entry['status'] = 'duplicate';
                 $duplicates[] = $entry;
                 continue;
@@ -109,6 +145,8 @@ class EmailValidationService
             'valid'     => $valid,
             'invalid'   => $invalid,
             'duplicate' => $duplicates,
+            'to_restore'=> $toRestore,
+            'to_valid'  => $toValid,
         ];
     }
 

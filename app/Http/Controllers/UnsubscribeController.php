@@ -61,14 +61,8 @@ class UnsubscribeController extends Controller
             abort(403, 'Invalid request.');
         }
 
-        // 1. Mark this specific record as unsubscribed
+        // 1. Mark ONLY this specific record as unsubscribed (Isolated to this list)
         $email->update([
-            'subscription_status' => 'unsubscribed',
-            'unsubscribed_at' => now(),
-        ]);
-
-        // 2. GLOBAL UNSUBSCRIBE: Mark every record with this email as unsubscribed
-        Email::where('email', $email->email)->update([
             'subscription_status' => 'unsubscribed',
             'unsubscribed_at' => now(),
         ]);

@@ -22,7 +22,8 @@ class ProcessEmailListJob implements ShouldQueue
     public int $timeout = 1800; // 30 minutes for extremely large files
 
     public function __construct(
-        public int $emailListId
+        public int $emailListId,
+        public ?int $activityLogId = null
     ) {}
 
     public function handle(FileParserService $parser): void
@@ -50,50 +51,46 @@ class ProcessEmailListJob implements ShouldQueue
             $emailListId = $this->emailListId;
             
             $jobs = [];
-            $chunkSize = 100; // Scalable chunk size (User requested 100-200)
+            $chunkSize = 100; 
             $currentChunk = [];
             $processedCount = 0;
 
-            // STREAMING: Reads row by row using PHP Generators
             foreach ($parser->streamStoredFile($emailList->file_path, $mapping) as $row) {
                 $currentChunk[] = $row;
                 $processedCount++;
 
                 if (count($currentChunk) >= $chunkSize) {
-                    $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk);
+                    $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
                     $currentChunk = [];
 
-                    // Dispatch batch every 50 chunks (5000 records) to maintain responsiveness
                     if (count($jobs) >= 50) {
                         $this->dispatchBatch($jobs, $emailList);
                         $jobs = [];
-                        Log::info("Dispatched 5000 records for list #{$emailListId}. Continuing...");
                     }
                 }
             }
 
-            // Process the final chunk
             if (!empty($currentChunk)) {
-                $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk);
+                $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
             }
 
             if (!empty($jobs)) {
                 $this->dispatchBatch($jobs, $emailList);
             }
 
-            Log::info("ProcessEmailListJob scan complete. Total rows scanned: {$processedCount} for list #{$emailListId}");
-
-            // If no records found at all
-            if ($processedCount === 0) {
-                $emailList->update(['status' => 'completed']);
+            // Update total rows in log if we have it
+            if ($this->activityLogId) {
+                $log = \App\Models\ActivityLog::find($this->activityLogId);
+                if ($log) {
+                    $log->update([
+                        'details' => array_merge($log->details, ['total_in_file' => $processedCount])
+                    ]);
+                }
             }
 
         } catch (\Exception $e) {
             Log::error("CRITICAL: ProcessEmailListJob failed for list #{$this->emailListId}", [
                 'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
             ]);
             
             $emailList->update(['status' => 'failed']);
@@ -101,27 +98,53 @@ class ProcessEmailListJob implements ShouldQueue
         }
     }
 
-    /**
-     * Dispatch a batch of chunks to the database queue.
-     */
     protected function dispatchBatch(array $jobs, EmailList $emailList): void
     {
         $emailListId = $emailList->id;
+        $logId = $this->activityLogId;
         
-        Bus::batch($jobs)
+        $batch = Bus::batch($jobs)
             ->name("Import List: {$emailList->name}")
-            ->then(function (Batch $batch) use ($emailListId) {
+            ->then(function (Batch $batch) use ($emailListId, $logId) {
                 $list = EmailList::find($emailListId);
                 if ($list && $list->status !== 'failed') {
                     $list->recalculateStats();
                     $list->update(['status' => 'completed']);
+                    
+                    if ($logId) {
+                        $log = \App\Models\ActivityLog::find($logId);
+                        if ($log) {
+                            // Read the atomic session counters accumulated by chunks
+                            $log->refresh();
+                            $sValid     = (int) $log->session_valid_count;
+                            $sInvalid   = (int) $log->session_invalid_count;
+                            $sDuplicate = (int) $log->session_duplicate_count;
+
+                            $log->update([
+                                'details' => array_merge($log->details ?? [], [
+                                    'status'      => 'completed',
+                                    'processed'   => $sValid + $sInvalid + $sDuplicate,
+                                    'valid'       => $sValid,
+                                    'duplicate'   => $sDuplicate,
+                                    'invalid'     => $sInvalid,
+                                    'finished_at' => now()->toDateTimeString(),
+                                ]),
+                                // Reset counters after finalizing
+                                'session_valid_count'     => 0,
+                                'session_invalid_count'   => 0,
+                                'session_duplicate_count' => 0,
+                            ]);
+                        }
+                    }
                 }
-                Log::info("Batch component finished successfully for list #{$emailListId}");
             })
             ->catch(function (Batch $batch, \Throwable $e) use ($emailListId) {
                 EmailList::find($emailListId)?->update(['status' => 'failed']);
-                Log::error("Batch processing failed for list #{$emailListId}: " . $e->getMessage());
             })
             ->dispatch();
+
+        if ($logId) {
+            \App\Models\ActivityLog::where('id', $logId)->update(['batch_id' => $batch->id]);
+        }
     }
 }

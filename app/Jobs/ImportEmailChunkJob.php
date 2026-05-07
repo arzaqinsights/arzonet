@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\ActivityLog;
 use App\Models\EmailList;
 use App\Models\Email;
 use App\Services\EmailValidationService;
@@ -23,7 +24,8 @@ class ImportEmailChunkJob implements ShouldQueue
 
     public function __construct(
         public int $emailListId,
-        public array $chunk
+        public array $chunk,
+        public ?int $activityLogId = null
     ) {}
 
     /**
@@ -31,7 +33,6 @@ class ImportEmailChunkJob implements ShouldQueue
      */
     public function handle(EmailValidationService $validator): void
     {
-        // Safety check for batches
         if ($this->batch()?->cancelled()) return;
 
         $emailList = EmailList::find($this->emailListId);
@@ -40,37 +41,67 @@ class ImportEmailChunkJob implements ShouldQueue
         try {
             $skipDns = $emailList->column_mapping['_settings']['skip_dns'] ?? false;
 
-            // Perform bulk validation (Service already optimized for mass lookups)
             $results = $validator->validateBatch($this->chunk, $this->emailListId, $skipDns);
-            $batchEntries = [];
 
+            // ── Step 1: Build new inserts (valid + invalid only) ──
+            $batchEntries = [];
             foreach ($results['valid'] as $entry) {
                 $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid');
             }
             foreach ($results['invalid'] as $entry) {
                 $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid');
             }
-            foreach ($results['duplicate'] as $entry) {
-                $batchEntries[] = $this->formatEntry($emailList, $entry, 'duplicate');
+            // Duplicates are NOT inserted — they already exist
+
+            // ── Step 2: Restore archived & promote duplicate→valid (NO activity_log_id link) ──
+            // We intentionally do NOT set activity_log_id on restored/promoted records.
+            // This keeps them out of the undo scope — undo should only delete NEW inserts.
+            $repairableEntries = array_merge($results['to_restore'], $results['to_valid']);
+            foreach ($repairableEntries as $entry) {
+                Email::where('email_list_id', $this->emailListId)
+                    ->where('email', $entry['email'])
+                    ->update([
+                        'is_archived'         => false,
+                        'archived_at'         => null,
+                        'name'                => DB::raw("COALESCE(NULLIF(name,''), " . DB::getPdo()->quote($entry['name'] ?? '') . ")"),
+                        'status'              => 'valid',
+                        'subscription_status' => 'subscribed',
+                    ]);
             }
 
+            // ── Step 3: Insert new records ──
             if (!empty($batchEntries)) {
-                // BULK INSERT: Single query for the whole chunk
                 Email::insert($batchEntries);
             }
 
-            // ATOMIC UPDATE: Ensure stats are updated correctly without race conditions
+            // ── Step 4: Atomic increment of session counters on the activity log ──
+            // These dedicated integer columns handle concurrent chunk updates safely.
+            $countValid     = count($results['valid']) + count($results['to_restore']) + count($results['to_valid']);
+            $countInvalid   = count($results['invalid']);
+            $countDuplicate = count($results['duplicate']);
+
+            if ($this->activityLogId) {
+                DB::table('activity_logs')
+                    ->where('id', $this->activityLogId)
+                    ->update([
+                        'session_valid_count'     => DB::raw("session_valid_count + $countValid"),
+                        'session_invalid_count'   => DB::raw("session_invalid_count + $countInvalid"),
+                        'session_duplicate_count' => DB::raw("session_duplicate_count + $countDuplicate"),
+                    ]);
+            }
+
+            // ── Step 5: Atomic update list-level stats ──
             $emailList->update([
                 'total_records'   => DB::raw('total_records + ' . count($batchEntries)),
-                'valid_count'     => DB::raw('valid_count + ' . count($results['valid'])),
-                'invalid_count'   => DB::raw('invalid_count + ' . count($results['invalid'])),
-                'duplicate_count' => DB::raw('duplicate_count + ' . count($results['duplicate'])),
+                'valid_count'     => DB::raw('valid_count + ' . $countValid),
+                'invalid_count'   => DB::raw('invalid_count + ' . $countInvalid),
+                'duplicate_count' => DB::raw('duplicate_count - ' . count($results['to_valid']) . ' + ' . $countDuplicate),
             ]);
 
         } catch (\Exception $e) {
             Log::error("ImportEmailChunkJob failed for list #{$this->emailListId}: " . $e->getMessage(), [
-                'chunk_size' => count($this->chunk),
-                'first_email' => $this->chunk[0]['email'] ?? 'unknown'
+                'chunk_size'  => count($this->chunk),
+                'first_email' => $this->chunk[0]['email'] ?? 'unknown',
             ]);
             throw $e;
         }
@@ -79,17 +110,18 @@ class ImportEmailChunkJob implements ShouldQueue
     protected function formatEntry($emailList, $entry, $status): array
     {
         return [
-            'email_list_id'      => $emailList->id,
-            'email'              => $entry['email'],
-            'name'               => $entry['name'] ?? null,
-            'status'             => $status,
-            'subscription_status'=> $status === 'valid' ? 'subscribed' : 'unsubscribed',
-            'signup_source'      => $emailList->signup_source,
-            'segment_name'       => $emailList->segment_name,
-            'reason'             => $entry['reason'] ?? null,
-            'meta'               => isset($entry['meta']) ? json_encode($entry['meta']) : null,
-            'created_at'         => now(),
-            'updated_at'         => now(),
+            'email_list_id'       => $emailList->id,
+            'activity_log_id'     => $this->activityLogId, // Only new inserts get this link
+            'email'               => $entry['email'],
+            'name'                => $entry['name'] ?? null,
+            'status'              => $status,
+            'subscription_status' => ($status === 'invalid') ? 'unsubscribed' : 'subscribed',
+            'signup_source'       => $emailList->signup_source,
+            'segment_name'        => $emailList->segment_name,
+            'reason'              => $entry['reason'] ?? null,
+            'meta'                => isset($entry['meta']) ? json_encode($entry['meta']) : null,
+            'created_at'          => now(),
+            'updated_at'          => now(),
         ];
     }
 }

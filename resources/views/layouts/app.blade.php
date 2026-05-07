@@ -9,16 +9,19 @@
     <meta name="description" content="Advanced Bulk Email Sending Platform">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=Righteous&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
         rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
     @stack('head')
 </head>
 
 <body x-data class="min-h-screen flex flex-col" style="background: var(--color-surface-50);">
 
     {{-- ── Global Navbar ── --}}
-    <nav class="sticky top-0 z-50 w-full bg-white border-b border-color py-3 flex items-center justify-between">
+    <nav class="sticky top-0 z-50 w-full bg-white border-b border-color py-2 flex items-center justify-between">
         <div class="flex items-center justify-between w-full gap-4 px-4">
 
             <div class="flex items-center gap-6">
@@ -34,11 +37,11 @@
                 </a>
             </div>
 
-            <div class="flex items-center gap-3 md:gap-5">
+            <div class="flex w-3/4 items-center gap-3 md:gap-5">
 
                 {{-- Global Search (mock) --}}
                 <div
-                    class="hidden md:flex items-center bg-gray-50 border border-gray-200 rounded-sm px-3 py-3 focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/30 transition-all">
+                    class="hidden md:flex items-center bg-gray-50 border border-gray-200 rounded-sm px-3 py-2 w-full focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/30 transition-all">
                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -242,9 +245,9 @@
                     <!-- <p class="px-3.5 my-3 text-[10px] flex items-center gap-2 font-bold text-gray-400 tracking-wider uppercase">{{ $section }} <span class="w-full h-px bg-gray-200"></span></p> -->
                     @foreach($links as $link)
                         <a href="{{ route($link['route']) }}"
-                            class="flex items-center p-2 mb-2 rounded-sm text-sm gap-2 {{ request()->routeIs($link['active']) ? 'bg-surface-200 text-surface-900 font-semibold' : 'text-surface-800 hover:bg-surface-100' }}">
+                            class="flex items-center p-2 mb-2 rounded-sm text-sm gap-2 {{ request()->routeIs($link['active']) ? 'bg-surface-200 text-black font-semibold' : 'text-surface-800 hover:bg-surface-100' }}">
                             <svg class="w-4 h-4 shrink-0"
-                                fill="{{ request()->routeIs($link['active']) ? 'currentColor' : 'none' }}" stroke="currentColor"
+                                fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 {!! $link['icon'] !!}
                             </svg>
@@ -273,12 +276,12 @@
         </aside>
 
         {{-- ── Main Content ── --}}
-        <main class="w-full ml-[260px] overflow-y-auto bg-surface-100">
+        <main class="w-full ml-[260px] overflow-y-auto bg-surface-0">
             @if(View::hasSection('heading') || View::hasSection('header-actions'))
                 <div
-                    class="fixed top-18 z-40 left-[260px] w-[calc(100%-260px)] flex justify-between items-center bg-surface-0 px-6 py-4 border-b border-color">
+                    class="fixed top-16 z-40 left-[260px] w-[calc(100%-260px)] flex justify-between items-center bg-surface-0 px-6 py-4 border-b border-color">
                     @if(View::hasSection('heading'))
-                        <h1 class="font-black text-lg">@yield('heading')</h1>
+                        <h1 class="font-black uppercase text-lg">@yield('heading')</h1>
                     @endif
                     @if(View::hasSection('header-actions'))
                         @yield('header-actions')
@@ -288,49 +291,11 @@
 
             {{-- Flash Messages --}}
             @if(session('success'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4500)" x-transition
-                    class="toast border-l-4 m-6 mb-0"
-                    style="border-left-color: #16a34a; position: relative; bottom: auto; right: auto; max-width: none; animation: none;">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                        style="background: #f0fdf4; color: #16a34a;">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-semibold text-gray-800">Success</p>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ session('success') }}</p>
-                    </div>
-                    <button @click="show = false" class="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+                <x-toast type="success" :message="session('success')" />
             @endif
+
             @if(session('error'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 6000)" x-transition
-                    class="toast border-l-4 m-6 mb-0"
-                    style="border-left-color: #dc2626; position: relative; bottom: auto; right: auto; max-width: none; animation: none;">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                        style="background: #fef2f2; color: #dc2626;">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-semibold text-gray-800">Error</p>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ session('error') }}</p>
-                    </div>
-                    <button @click="show = false" class="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+                <x-toast type="error" :message="session('error')" />
             @endif
 
             {{-- Page Content --}}

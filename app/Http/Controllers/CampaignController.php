@@ -63,12 +63,10 @@ class CampaignController extends Controller
 
         $emailList = EmailList::findOrFail($request->email_list_id);
         
-        // Calculate eligible recipients (Valid + Subscribed)
-        $unsubscribedEmails = \App\Models\Unsubscribe::pluck('email')->toArray();
+        // Calculate eligible recipients (Valid + Subscribed) - Isolated to this list only
         $eligibleCount = $emailList->emails()
             ->valid()
             ->subscribed()
-            ->whereNotIn('email', $unsubscribedEmails)
             ->count();
 
         $campaign = Campaign::create([
@@ -96,11 +94,9 @@ class CampaignController extends Controller
 
         // If draft, show expected recipients. If sending/completed, show logs.
         if ($campaign->status === 'draft') {
-            $unsubscribedEmails = \App\Models\Unsubscribe::pluck('email')->toArray();
             $recentLogs = $campaign->emailList->emails()
                 ->valid()
                 ->subscribed()
-                ->whereNotIn('email', $unsubscribedEmails)
                 ->latest()
                 ->take(20)
                 ->get()

@@ -19,6 +19,9 @@
         {{-- Filtering headers to show only those with data --}}
         @php
             $activeHeaders = [];
+            $initialMappings = [];
+            $usedTargets = [];
+
             foreach ($headers as $header) {
                 $hasData = false;
                 foreach ($sampleRows as $row) {
@@ -27,8 +30,41 @@
                         break;
                     }
                 }
-                if ($hasData)
+                if ($hasData) {
                     $activeHeaders[] = $header;
+                    
+                    // ── SMART AUTO-MAPPING LOGIC ──
+                    $h = strtolower($header);
+                    $target = '';
+
+                    // 1. Explicit Suggestions from Service
+                    if (isset($autoSuggestions[$header])) {
+                        $target = $autoSuggestions[$header];
+                    } 
+                    // 2. Heuristic Matching
+                    else {
+                        if (str_contains($h, 'email') || str_contains($h, 'mail')) $target = 'email';
+                        elseif (str_contains($h, 'name')) {
+                             if (str_contains($h, 'first')) $target = 'first_name';
+                             elseif (str_contains($h, 'last')) $target = 'last_name';
+                             else $target = 'name';
+                        }
+                        elseif (str_contains($h, 'company') || str_contains($h, 'firm') || str_contains($h, 'organization')) $target = 'company';
+                        elseif (str_contains($h, 'phone') || str_contains($h, 'mobile') || str_contains($h, 'contact')) $target = 'phone';
+                        elseif (str_contains($h, 'city')) $target = 'city';
+                        elseif (str_contains($h, 'state')) $target = 'state';
+                        elseif (str_contains($h, 'country')) $target = 'country';
+                        elseif (str_contains($h, 'title') || str_contains($h, 'designation')) $target = 'job_title';
+                    }
+
+                    // 3. Uniqueness Enforcement (Only auto-map a target once)
+                    if ($target && in_array($target, $usedTargets)) {
+                        $target = ''; 
+                    }
+
+                    if ($target) $usedTargets[] = $target;
+                    $initialMappings[$header] = $target;
+                }
             }
         @endphp
 
@@ -53,14 +89,6 @@
                 <div class="divide-y divide-gray-200">
                     @foreach($activeHeaders as $index => $header)
                         @php
-                            $isEmail = (str_contains(strtolower($header), 'email') || str_contains(strtolower($header), 'mail'));
-                            $isName = (str_contains(strtolower($header), 'name'));
-                            $initialValue = $isEmail ? 'email' : ($isName ? 'name' : '');
-
-                            if (isset($autoSuggestions[$header])) {
-                                $initialValue = $autoSuggestions[$header];
-                            }
-
                             $samples = [];
                             foreach (array_slice($sampleRows, 0, 4) as $row) {
                                 if (!empty($row[$header])) {
@@ -69,8 +97,7 @@
                             }
                         @endphp
 
-                        <div class="grid grid-cols-12 gap-4 px-6 py-3 items-center hover:bg-surface-50 transition-colors"
-                            x-data="{ selected: '{{ $initialValue }}' }">
+                        <div class="grid grid-cols-12 gap-4 px-6 py-3 items-center hover:bg-surface-50 transition-colors">
                             {{-- 1. Excel Header --}}
                             <div class="col-span-3">
                                 <h4 class="text-sm text-surface-900 truncate">{{ $header }}</h4>
@@ -87,41 +114,41 @@
                             {{-- 3. System Mapping --}}
                             <div class="col-span-4">
                                 <div class="relative">
-                                    <select name="mapping[{{ $header }}]" x-model="selected"
+                                    <select name="mapping[{{ $header }}]" x-model="mappings['{{ $header }}']"
                                         class="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-100 rounded-sm font-bold text-[11px] uppercase tracking-wider transition-all appearance-none outline-none focus:border-brand"
-                                        :class="selected ? 'text-surface-600 border-surface-600/30 bg-surface-600/5' : 'text-surface-400'">
+                                        :class="mappings['{{ $header }}'] ? 'text-surface-600 border-surface-600/30 bg-surface-600/5' : 'text-surface-400'">
                                         <option value="">— Skip Column —</option>
                                         <optgroup label="Main Identity" class="bg-white">
-                                            <option value="email">Email Address *</option>
-                                            <option value="name">Full Name</option>
-                                            <option value="first_name">First Name</option>
-                                            <option value="last_name">Last Name</option>
+                                            <option value="email" :disabled="isOptionDisabled('email', '{{ $header }}')" x-text="getOptionText('email', 'Email Address *', '{{ $header }}')"></option>
+                                            <option value="name" :disabled="isOptionDisabled('name', '{{ $header }}')" x-text="getOptionText('name', 'Full Name', '{{ $header }}')"></option>
+                                            <option value="first_name" :disabled="isOptionDisabled('first_name', '{{ $header }}')" x-text="getOptionText('first_name', 'First Name', '{{ $header }}')"></option>
+                                            <option value="last_name" :disabled="isOptionDisabled('last_name', '{{ $header }}')" x-text="getOptionText('last_name', 'Last Name', '{{ $header }}')"></option>
                                         </optgroup>
                                         <optgroup label="Corporate" class="bg-white">
-                                            <option value="company">Company</option>
-                                            <option value="job_title">Job Title</option>
-                                            <option value="department">Department</option>
-                                            <option value="industry">Industry</option>
-                                            <option value="website">Website</option>
+                                            <option value="company" :disabled="isOptionDisabled('company', '{{ $header }}')" x-text="getOptionText('company', 'Company', '{{ $header }}')"></option>
+                                            <option value="job_title" :disabled="isOptionDisabled('job_title', '{{ $header }}')" x-text="getOptionText('job_title', 'Job Title', '{{ $header }}')"></option>
+                                            <option value="department" :disabled="isOptionDisabled('department', '{{ $header }}')" x-text="getOptionText('department', 'Department', '{{ $header }}')"></option>
+                                            <option value="industry" :disabled="isOptionDisabled('industry', '{{ $header }}')" x-text="getOptionText('industry', 'Industry', '{{ $header }}')"></option>
+                                            <option value="website" :disabled="isOptionDisabled('website', '{{ $header }}')" x-text="getOptionText('website', 'Website', '{{ $header }}')"></option>
                                         </optgroup>
                                         <optgroup label="Communication" class="bg-white">
-                                            <option value="phone">Phone Number</option>
-                                            <option value="city">City</option>
-                                            <option value="state">State</option>
-                                            <option value="zip">Zip Code</option>
-                                            <option value="country">Country</option>
-                                            <option value="address">Address</option>
+                                            <option value="phone" :disabled="isOptionDisabled('phone', '{{ $header }}')" x-text="getOptionText('phone', 'Phone Number', '{{ $header }}')"></option>
+                                            <option value="city" :disabled="isOptionDisabled('city', '{{ $header }}')" x-text="getOptionText('city', 'City', '{{ $header }}')"></option>
+                                            <option value="state" :disabled="isOptionDisabled('state', '{{ $header }}')" x-text="getOptionText('state', 'State', '{{ $header }}')"></option>
+                                            <option value="zip" :disabled="isOptionDisabled('zip', '{{ $header }}')" x-text="getOptionText('zip', 'Zip Code', '{{ $header }}')"></option>
+                                            <option value="country" :disabled="isOptionDisabled('country', '{{ $header }}')" x-text="getOptionText('country', 'Country', '{{ $header }}')"></option>
+                                            <option value="address" :disabled="isOptionDisabled('address', '{{ $header }}')" x-text="getOptionText('address', 'Address', '{{ $header }}')"></option>
                                         </optgroup>
                                         <optgroup label="Internal" class="bg-white">
-                                            <option value="segment_name">Segment</option>
-                                            <option value="signup_source">Source</option>
+                                            <option value="segment_name" :disabled="isOptionDisabled('segment_name', '{{ $header }}')" x-text="getOptionText('segment_name', 'Segment', '{{ $header }}')"></option>
+                                            <option value="signup_source" :disabled="isOptionDisabled('signup_source', '{{ $header }}')" x-text="getOptionText('signup_source', 'Source', '{{ $header }}')"></option>
                                             @for($i = 1; $i <= 10; $i++)
-                                                <option value="custom_{{ $i }}">Custom Field {{ $i }}</option>
+                                                <option value="custom_{{ $i }}" :disabled="isOptionDisabled('custom_{{ $i }}', '{{ $header }}')" x-text="getOptionText('custom_{{ $i }}', 'Custom Field {{ $i }}', '{{ $header }}')"></option>
                                             @endfor
                                         </optgroup>
                                     </select>
                                     <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                                        :class="selected ? 'text-brand' : 'text-surface-300'">
+                                        :class="mappings['{{ $header }}'] ? 'text-brand' : 'text-surface-300'">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                                                 d="M19 9l-7 7-7-7" />
@@ -171,21 +198,40 @@
     <script>
         function mappingAssistant() {
             return {
-                validateAndSubmit() {
-                    const form = document.getElementById('mapping-form');
-                    const selects = form.querySelectorAll('select[name^="mapping"]');
-                    let emailMapped = false;
-
-                    selects.forEach(select => {
-                        if (select.value === 'email') emailMapped = true;
+                mappings: @json($initialMappings),
+                
+                isOptionDisabled(val, currentHeader) {
+                    if (!val) return false;
+                    // Check if this value is selected by ANY other header
+                    return Object.entries(this.mappings).some(([header, selectedVal]) => {
+                        return header !== currentHeader && selectedVal === val;
                     });
+                },
+
+                getOptionText(val, label, currentHeader) {
+                    if (this.isOptionDisabled(val, currentHeader)) {
+                        return label + ' (Mapped)';
+                    }
+                    return label;
+                },
+
+                validateAndSubmit() {
+                    const emailMapped = Object.values(this.mappings).includes('email');
 
                     if (!emailMapped) {
                         alert('Primary Email column is required.');
                         return;
                     }
 
-                    form.submit();
+                    // Final check for duplicates (should be impossible with disabled options, but for safety)
+                    const selectedValues = Object.values(this.mappings).filter(v => v !== '');
+                    const uniqueValues = [...new Set(selectedValues)];
+                    if (selectedValues.length !== uniqueValues.length) {
+                        alert('Duplicate mapping detected. Each target field can only be mapped once.');
+                        return;
+                    }
+
+                    document.getElementById('mapping-form').submit();
                 }
             };
         }

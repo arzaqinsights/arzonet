@@ -1,42 +1,117 @@
 @foreach($emails as $email)
-<tr class="group hover:bg-surface-50/50 transition-all duration-200 border-b border-color last:border-0">
+@php
+    $mapping = $emailList->column_mapping ?? [];
+    $displayedFields = [];
+    foreach(['company', 'job_title', 'phone', 'city'] as $field) {
+        if (isset($mapping[$field])) $displayedFields[] = $field;
+    }
+    foreach($mapping as $key => $val) {
+        if (str_starts_with($key, 'custom_')) $displayedFields[] = $key;
+    }
+@endphp
+<tr x-data="{ 
+        editing: false, 
+        saving: false,
+        row: {
+            id: {{ $email->id }},
+            email: '{{ $email->email }}',
+            name: '{{ $email->name ?? '' }}',
+            segment_name: '{{ $email->segment_name ?? '' }}',
+            tags: '{{ $email->tags ?? '' }}',
+            subscription_status: '{{ $email->subscription_status ?? 'subscribed' }}',
+            is_archived: {{ $email->is_archived ? 'true' : 'false' }},
+            meta: @js($email->meta ?? [])
+        },
+        save() {
+            this.saving = true;
+            fetch(`{{ route('admin.email-lists.update-email', [$emailList, ':id']) }}`.replace(':id', this.row.id), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').content,
+                },
+                body: JSON.stringify(this.row)
+            })
+            .then(r => r.json())
+            .then(() => {
+                this.saving = false;
+                this.editing = false;
+            });
+        }
+    }" 
+    class="group hover:bg-surface-50/50 transition-all duration-200 border-b border-color last:border-0"
+    :class="editing ? 'bg-surface-50/80' : (selectedIds.includes({{ $email->id }}) ? 'bg-brand/5' : '')">
+    
+    {{-- Checkbox Column --}}
+    <td class="px-8 py-4 whitespace-nowrap sticky left-0 bg-white z-9">
+        <input type="checkbox" :value="{{ $email->id }}" x-model="selectedIds" class="w-4 h-4 rounded-sm border-gray-200 text-brand focus:ring-brand focus:ring-offset-0 cursor-pointer">
+    </td>
+
     {{-- Email Column --}}
     <td class="px-8 py-4 whitespace-nowrap">
-        <div class="font-bold text-surface-900 text-sm">{{ $email->email }}</div>
+        <template x-if="!editing">
+            <div class="font-bold text-surface-900 text-sm flex items-center gap-2">
+                <span x-text="row.email"></span>
+                <template x-if="row.is_archived">
+                    <span class="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[8px] font-black uppercase tracking-widest rounded-sm border border-gray-200">Archived</span>
+                </template>
+            </div>
+        </template>
+        <template x-if="editing">
+            <input type="email" x-model="row.email" class="w-full px-2 py-1 bg-white border border-gray-200 rounded-sm text-sm font-bold focus:ring-0 focus:outline-none">
+        </template>
     </td>
 
     {{-- Name Column --}}
     <td class="px-8 py-4 whitespace-nowrap">
-        <div class="text-xs text-surface-600 font-bold">{{ $email->name ?? '—' }}</div>
+        <template x-if="!editing">
+            <div class="text-xs text-surface-600 font-bold" x-text="row.name || '—'"></div>
+        </template>
+        <template x-if="editing">
+            <input type="text" x-model="row.name" class="w-full px-2 py-1 bg-white border border-gray-100 rounded-sm text-xs font-bold focus:ring-0 focus:outline-none">
+        </template>
     </td>
 
     {{-- Dynamic CRM Columns --}}
-    @php
-        $mapping = $emailList->column_mapping ?? [];
-        $displayedFields = [];
-        foreach(['company', 'job_title', 'phone', 'city'] as $field) {
-            if (isset($mapping[$field])) $displayedFields[] = $field;
-        }
-        foreach($mapping as $key => $val) {
-            if (str_starts_with($key, 'custom_')) $displayedFields[] = $key;
-        }
-    @endphp
-
     @foreach($displayedFields as $field)
         <td class="px-8 py-4 whitespace-nowrap">
-            <div class="text-xs text-surface-500 font-bold">
-                {{ $email->meta[$field] ?? '—' }}
-            </div>
+            <template x-if="!editing">
+                <div class="text-xs text-surface-500 font-bold" x-text="row.meta['{{ $field }}'] || '—'"></div>
+            </template>
+            <template x-if="editing">
+                <input type="text" x-model="row.meta['{{ $field }}']" class="w-full px-2 py-1 bg-white border border-gray-100 rounded-sm text-xs font-bold focus:ring-0 focus:outline-none">
+            </template>
         </td>
     @endforeach
 
-    {{-- Status Column --}}
-    <td class="px-8 py-4 whitespace-nowrap">
+    {{-- Segment Column --}}
+    <td class="px-8 py-4 whitespace-nowrap text-center">
+        <template x-if="!editing">
+            <div class="text-[10px] font-bold text-surface-600 uppercase tracking-widest" x-text="row.segment_name || '—'"></div>
+        </template>
+        <template x-if="editing">
+            <input type="text" x-model="row.segment_name" class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[10px] font-bold focus:ring-0 focus:outline-none">
+        </template>
+    </td>
+
+    {{-- Tag Column --}}
+    <td class="px-8 py-4 whitespace-nowrap text-center">
+        <template x-if="!editing">
+            <div class="inline-flex px-2 py-0.5 rounded-sm bg-brand/5 text-brand text-[9px] font-black uppercase tracking-widest border border-brand/10" x-text="row.tags || '—'"></div>
+        </template>
+        <template x-if="editing">
+            <input type="text" x-model="row.tags" class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[9px] font-bold uppercase focus:ring-0 focus:outline-none">
+        </template>
+    </td>
+
+    {{-- Health/Status Column --}}
+    <td class="px-8 py-4 whitespace-nowrap text-center">
         @php
             $status = match($email->status) {
                 'valid' => ['label' => 'Clean', 'cls' => 'bg-emerald-50 text-emerald-600 border-emerald-100'],
                 'invalid' => ['label' => 'Broken', 'cls' => 'bg-red-50 text-red-600 border-red-100'],
                 'duplicate' => ['label' => 'Cloned', 'cls' => 'bg-amber-50 text-amber-600 border-amber-100'],
+                'permanent_delete' => ['label' => 'Banned', 'cls' => 'bg-surface-900 text-white border-transparent'],
                 default => ['label' => 'Unknown', 'cls' => 'bg-surface-100 text-surface-600 border-surface-200'],
             };
         @endphp
@@ -46,35 +121,49 @@
     </td>
 
     {{-- Subscription Column --}}
-    <td class="px-8 py-4 whitespace-nowrap">
-        @php
-            $subStatus = match($email->subscription_status) {
-                'subscribed' => ['icon' => 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', 'cls' => 'text-emerald-500'],
-                'unsubscribed' => ['icon' => 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z', 'cls' => 'text-red-400'],
-                'bounced' => ['icon' => 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', 'cls' => 'text-amber-500'],
-                default => ['icon' => 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 'cls' => 'text-surface-300'],
-            };
-        @endphp
-        <div class="flex items-center gap-2 {{ $subStatus['cls'] }}">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="{{ $subStatus['icon'] }}"/></svg>
-            <span class="text-[10px] font-black uppercase tracking-tighter">{{ $email->subscription_status ?? 'subscribed' }}</span>
-        </div>
-    </td>
-
-    {{-- Date Columns --}}
-    <td class="px-8 py-4 whitespace-nowrap">
-        <div class="text-[10px] text-surface-400 font-bold uppercase tracking-tighter">{{ $email->created_at?->format('d M, Y') ?? '—' }}</div>
+    <td class="px-8 py-4 whitespace-nowrap text-center">
+        <template x-if="!editing">
+            <div class="flex items-center justify-center gap-2" :class="{
+                'text-emerald-500': row.subscription_status === 'subscribed',
+                'text-red-400': row.subscription_status === 'unsubscribed',
+                'text-amber-500': row.subscription_status === 'bounced'
+            }">
+                <span class="text-[10px] font-black uppercase tracking-tighter" x-text="row.subscription_status"></span>
+            </div>
+        </template>
+        <template x-if="editing">
+            <select x-model="row.subscription_status" class="bg-white border border-gray-100 text-[10px] font-black uppercase rounded-sm focus:ring-0 focus:outline-none p-1">
+                <option value="subscribed">Subscribed</option>
+                <option value="unsubscribed">Unsubscribed</option>
+                <option value="bounced">Bounced</option>
+            </select>
+        </template>
     </td>
 
     {{-- Actions Column --}}
     <td class="px-8 py-4 text-right">
-        <div class="flex justify-end gap-1 transition-all duration-200">
-            <button @click="editContact({{ $email->id }})" class="p-2 text-surface-400 hover:text-brand hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all" title="Modify Record">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            </button>
-            <button @click="deleteEmail({{ $email->id }})" class="p-2 text-surface-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all" title="Purge Record">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-            </button>
+        <div class="flex justify-end gap-1">
+            <template x-if="!editing">
+                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button @click="editing = true" class="p-2 text-surface-400 hover:text-brand hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button @click="deleteEmail(row.id)" class="p-2 text-surface-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
+            </template>
+            <template x-if="editing">
+                <div class="flex gap-1">
+                    <button @click="save()" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-sm" :disabled="saving">
+                        <svg x-show="!saving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="saving" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </button>
+                    <button @click="editing = false" class="p-2 text-red-500 hover:bg-red-50 rounded-sm" :disabled="saving">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </template>
         </div>
     </td>
 </tr>
