@@ -37,7 +37,7 @@ class TemplateController extends Controller
         ]);
 
         return redirect()
-            ->route('templates.index')
+            ->route('admin.templates.index')
             ->with('success', 'Template created successfully.');
     }
 
@@ -58,7 +58,7 @@ class TemplateController extends Controller
         $template->update($request->only('name', 'subject', 'html_content', 'json_design'));
 
         return redirect()
-            ->route('templates.index')
+            ->route('admin.templates.index')
             ->with('success', 'Template updated successfully.');
     }
 
@@ -74,7 +74,7 @@ class TemplateController extends Controller
         $template->delete();
 
         return redirect()
-            ->route('templates.index')
+            ->route('admin.templates.index')
             ->with('success', 'Template deleted successfully.');
     }
 
