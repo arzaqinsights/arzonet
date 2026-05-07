@@ -15,3 +15,5 @@ use App\Http\Controllers\SnsController;
 */
 
 Route::post('/sns/webhook', [SnsController::class, 'handle']);
+Route::get('/email-statuses', [SnsController::class, 'index']);
+
