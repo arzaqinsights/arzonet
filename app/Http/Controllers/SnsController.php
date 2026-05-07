@@ -74,36 +74,42 @@ class SnsController extends Controller
     protected function handleBounce(array $message)
     {
         $bounce = $message['bounce'];
+        $bounceType = $bounce['bounceType']; // Permanent, Transient
         $sesMessageId = $message['mail']['messageId'] ?? null;
 
         foreach ($bounce['bouncedRecipients'] as $recipient) {
             $email = $recipient['emailAddress'];
+            $reason = $recipient['diagnosticCode'] ?? ($bounce['bounceSubType'] ?? 'SES Bounce');
 
-            // Update suppression list
-            EmailStatus::updateOrCreate(
-                ['email' => $email],
-                ['status' => 'bounced']
-            );
+            // 1. Global Suppression
+            if ($bounceType === 'Permanent') {
+                EmailStatus::updateOrCreate(['email' => $email], ['status' => 'bounced']);
+            }
 
-            // Update local Email records if they exist
+            // 2. Update local Email records
             Email::where('email', $email)->update([
                 'status' => 'invalid',
                 'subscription_status' => 'bounced',
-                'reason' => 'SES Bounce'
+                'reason' => $reason
             ]);
 
-            // ── Real-time Analytics Link ──
+            // 3. Update EmailLog (Analytics)
             if ($sesMessageId) {
                 \App\Models\EmailLog::where('message_id', $sesMessageId)
                     ->where('email_address', $email)
                     ->update([
                         'status' => 'bounced',
-                        'bounce_type' => $bounce['bounceType'] ?? null,
-                        'bounce_reason' => $bounce['bounceSubType'] ?? null,
+                        'bounce_type' => strtolower($bounceType),
+                        'bounce_reason' => $reason,
                     ]);
+                
+                $log = \App\Models\EmailLog::where('message_id', $sesMessageId)->where('email_address', $email)->first();
+                if ($log) {
+                    \App\Jobs\ProcessTrackingEventJob::dispatch($log->id, 'bounce', ['reason' => $reason]);
+                }
             }
 
-            Log::warning('Email Suppressed (Bounce): ' . $email);
+            Log::warning('Email Suppressed (Bounce): ' . $email . ' - ' . $reason);
         }
     }
 
@@ -115,13 +121,10 @@ class SnsController extends Controller
         foreach ($complaint['complainedRecipients'] as $recipient) {
             $email = $recipient['emailAddress'];
 
-            // Update suppression list
-            EmailStatus::updateOrCreate(
-                ['email' => $email],
-                ['status' => 'complaint']
-            );
+            // 1. Global Suppression
+            EmailStatus::updateOrCreate(['email' => $email], ['status' => 'complaint']);
 
-            // Update local Email records if they exist
+            // 2. Update local Email records
             Email::where('email', $email)->update([
                 'status' => 'invalid',
                 'subscription_status' => 'unsubscribed',
@@ -129,13 +132,16 @@ class SnsController extends Controller
                 'reason' => 'SES Complaint'
             ]);
 
-            // ── Real-time Analytics Link ──
+            // 3. Update EmailLog (Analytics)
             if ($sesMessageId) {
                 \App\Models\EmailLog::where('message_id', $sesMessageId)
                     ->where('email_address', $email)
-                    ->update([
-                        'status' => 'complaint'
-                    ]);
+                    ->update(['status' => 'complaint']);
+
+                $log = \App\Models\EmailLog::where('message_id', $sesMessageId)->where('email_address', $email)->first();
+                if ($log) {
+                    \App\Jobs\ProcessTrackingEventJob::dispatch($log->id, 'complaint', []);
+                }
             }
 
             Log::warning('Email Suppressed (Complaint): ' . $email);
@@ -148,10 +154,14 @@ class SnsController extends Controller
         $deliveryTime = $message['delivery']['timestamp'] ?? now();
 
         if ($sesMessageId) {
-            \App\Models\EmailLog::where('message_id', $sesMessageId)->update([
-                'status' => 'delivered',
-                'delivered_at' => $deliveryTime
-            ]);
+            $log = \App\Models\EmailLog::where('message_id', $sesMessageId)->first();
+            if ($log) {
+                $log->update([
+                    'status' => 'delivered',
+                    'delivered_at' => $deliveryTime
+                ]);
+                \App\Jobs\ProcessTrackingEventJob::dispatch($log->id, 'delivery', []);
+            }
         }
 
         Log::info('SES Delivery', ['recipients' => $message['delivery']['recipients']]);

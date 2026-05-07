@@ -12,8 +12,18 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            // Admin subdomain routes: admin.email.test (local) / admin.domain.com (prod)
             $adminDomain = 'admin.' . parse_url(config('app.url'), PHP_URL_HOST);
+            
+            // 1. Public Tracking Routes on Admin Subdomain (No Auth)
+            Route::middleware(['web'])
+                ->domain($adminDomain)
+                ->group(function() {
+                    Route::get('/t/o/{token}',   [\App\Http\Controllers\TrackingController::class, 'open'])->name('admin.track.open');
+                    Route::get('/t/c/{token}',   [\App\Http\Controllers\TrackingController::class, 'click'])->name('admin.track.click');
+                    Route::get('/unsubscribe/{token}', [\App\Http\Controllers\TrackingController::class, 'unsubscribe'])->name('admin.unsubscribe');
+                });
+
+            // 2. Authenticated Admin Routes
             Route::middleware(['web', 'auth'])
                 ->domain($adminDomain)
                 ->group(base_path('routes/admin.php'));
@@ -23,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn() => route('admin.dashboard'));
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
+            'api/sns/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

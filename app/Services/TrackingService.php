@@ -13,8 +13,14 @@ class TrackingService
      */
     public function injectTracking(string $html, EmailLog $log): string
     {
+        // Use the current request host if APP_URL is local/test, to ensure links work in production
+        $baseUrl = config('app.url');
+        if (str_contains($baseUrl, 'localhost') || str_contains($baseUrl, '.test')) {
+             $baseUrl = 'https://' . request()->getHost();
+        }
+
         // 1. Inject Tracking Pixel
-        $pixelUrl = route('track.open', ['token' => $log->tracking_token]);
+        $pixelUrl = $baseUrl . '/t/o/' . $log->tracking_token;
         $pixelHtml = '<img src="' . $pixelUrl . '" width="1" height="1" style="display:none !important;" alt="" />';
         
         if (str_contains($html, '</body>')) {
@@ -24,7 +30,7 @@ class TrackingService
         }
 
         // 2. Rewrite Links
-        $html = preg_replace_callback('/<a\s+(?:[^>]*?\s+)?href="([^"]*)"([^>]*)>/i', function ($matches) use ($log) {
+        $html = preg_replace_callback('/<a\s+(?:[^>]*?\s+)?href="([^"]*)"([^>]*)>/i', function ($matches) use ($log, $baseUrl) {
             $url = $matches[1];
             $rest = $matches[2];
 
@@ -33,16 +39,13 @@ class TrackingService
                 return $matches[0];
             }
 
-            $trackingUrl = route('track.click', [
-                'token' => $log->tracking_token,
-                'url'   => base64_encode($url)
-            ]);
+            $trackingUrl = $baseUrl . '/t/c/' . $log->tracking_token . '?url=' . base64_encode($url);
 
             return '<a href="' . $trackingUrl . '"' . $rest . '>';
         }, $html);
 
         // 3. Unsubscribe Link (if tag exists)
-        $unsubUrl = route('unsubscribe', ['token' => $log->tracking_token]);
+        $unsubUrl = $baseUrl . '/unsubscribe/' . $log->tracking_token;
         $html = str_replace(['{unsubscribe_url}', '{{unsubscribe_url}}'], $unsubUrl, $html);
 
         return $html;
