@@ -106,7 +106,7 @@ function templateEditor() {
                     let formData = new FormData();
                     formData.append('file', file.attachments[0]);
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                    fetch('{{ route("media.upload") }}', { method: 'POST', body: formData })
+                    fetch('{{ route("admin.media.upload") }}', { method: 'POST', body: formData })
                     .then(r => r.json()).then(data => {
                         if (data.success) done({ url: data.url });
                         else alert('Upload failed: ' + data.message);
