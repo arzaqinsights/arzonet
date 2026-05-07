@@ -52,7 +52,7 @@ class CampaignService
         }
 
         // Dispatch batch jobs
-        $batchSize = $campaign->batch_size ?: 100;
+        $batchSize = $campaign->batch_size ?: 25;
         $emailIds = $validEmails->pluck('id')->toArray();
         $chunks = array_chunk($emailIds, $batchSize);
 

@@ -15,6 +15,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\DB;
 use Aws\Exception\AwsException;
 use App\Services\MailService;
 use Exception;
@@ -59,49 +60,42 @@ class SendEmailBatchJob implements ShouldQueue
         }
 
         $template = $campaign->template;
-        $emails = Email::whereIn('id', $this->emailIds)->subscribed()->get();
+        
+        // ── 2. PRELOAD LOGS & EMAILS (Zero DB inside loop) ──
+        $emails = Email::whereIn('id', $this->emailIds)->subscribed()->get()->keyBy('id');
+        $logs = EmailLog::where('campaign_id', $campaign->id)
+            ->whereIn('email_id', $this->emailIds)
+            ->get()
+            ->keyBy('email_id');
 
-        // ── 2. Determine Sending Rate ──
         $safeRate = $quotaManager->getSafeRate();
         $campaignRate = (float) ($campaign->emails_per_minute / 60.0);
         $effectiveRate = min($safeRate, $campaignRate);
 
-        $senders = null;
-        $specificSender = $campaign->sender;
-        
-        if ($specificSender) {
-            if ($specificSender->status !== 'verified') {
-                $campaign->update(['status' => 'cancelled', 'error_message' => "Sender {$specificSender->email} not verified."]);
-                return;
-            }
-            $senders = collect([$specificSender]);
-        } else {
-            $senders = \App\Models\Sender::where('status', 'verified')->get();
-            if ($senders->isEmpty()) {
-                $campaign->update(['status' => 'cancelled', 'error_message' => "No verified senders available."]);
-                return;
-            }
+        $senders = $campaign->sender ? collect([$campaign->sender]) : \App\Models\Sender::where('status', 'verified')->get();
+        if ($senders->isEmpty()) {
+            $campaign->update(['status' => 'cancelled', 'error_message' => "No verified senders available."]);
+            return;
         }
 
         $senderIndex = 0;
         $senderCount = $senders->count();
+        $results = [
+            'sent' => [],
+            'failed' => [],
+            'sent_count' => 0,
+            'failed_count' => 0
+        ];
 
-        foreach ($emails as $email) {
-            $campaign->refresh();
-            if (in_array($campaign->status, ['paused', 'cancelled'])) return;
+        foreach ($this->emailIds as $emailId) {
+            $email = $emails->get($emailId);
+            $log = $logs->get($emailId);
 
-            $log = EmailLog::where('campaign_id', $campaign->id)
-                ->where('email_id', $email->id)
-                ->first();
-
-            if (!$log || $log->status === 'sent') continue;
+            if (!$email || !$log || $log->status === 'sent') continue;
 
             // ── 3. Distributed Throttling ──
-            $throttled = !$quotaManager->throttle('ses_global_limit', $effectiveRate);
-            
-            if ($throttled) {
-                // If throttled, release back to queue with delay
-                $this->release(1); // Try again in 1 second
+            if (!$quotaManager->throttle('ses_global_limit', $effectiveRate)) {
+                $this->release(1);
                 return;
             }
 
@@ -119,7 +113,6 @@ class SendEmailBatchJob implements ShouldQueue
                 $currentSender = $senders[$senderIndex % $senderCount];
                 $senderIndex++;
 
-                $startTime = microtime(true);
                 $messageId = $mailService->send(
                     sender: $currentSender,
                     to: $email->email,
@@ -129,69 +122,77 @@ class SendEmailBatchJob implements ShouldQueue
                     logId: $log->id
                 );
 
-                $log->update([
-                    'status'     => 'sent',
-                    'sent_at'    => now(),
+                $results['sent'][] = [
+                    'id' => $log->id,
                     'message_id' => $messageId,
-                ]);
+                ];
+                $results['sent_count']++;
 
-                $campaign->increment('sent_count');
-                $usageTracker->incrementSent();
-
-                // Track live sending speed
-                $this->trackSendingSpeed($campaign, microtime(true) - $startTime);
+                // Track speed via Redis (No DB write)
+                $this->trackSendingSpeed($campaign);
 
             } catch (AwsException $e) {
                 if ($e->getAwsErrorCode() === 'Throttling') {
-                    $this->release(2); // AWS Throttling, back off
+                    $this->release(2);
                     return;
                 }
-                $this->handleFailure($log, $campaign, $usageTracker, $e->getAwsErrorMessage() ?: $e->getMessage());
+                $results['failed'][] = ['id' => $log->id, 'error' => $e->getAwsErrorMessage() ?: $e->getMessage()];
+                $results['failed_count']++;
             } catch (Exception $e) {
-                $this->handleFailure($log, $campaign, $usageTracker, $e->getMessage());
+                $results['failed'][] = ['id' => $log->id, 'error' => $e->getMessage()];
+                $results['failed_count']++;
             }
         }
+
+        // ── 4. BATCH UPDATES (Minimized DB I/O) ──
+        DB::transaction(function() use ($results, $campaign, $usageTracker) {
+            foreach ($results['sent'] as $sent) {
+                EmailLog::where('id', $sent['id'])->update([
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                    'message_id' => $sent['message_id']
+                ]);
+            }
+
+            foreach ($results['failed'] as $failed) {
+                EmailLog::where('id', $failed['id'])->update([
+                    'status' => 'failed',
+                    'error_message' => substr($failed['error'], 0, 255)
+                ]);
+            }
+
+            if ($results['sent_count'] > 0) {
+                $campaign->increment('sent_count', $results['sent_count']);
+                $usageTracker->incrementSent($results['sent_count']);
+            }
+
+            if ($results['failed_count'] > 0) {
+                $campaign->increment('failed_count', $results['failed_count']);
+                $usageTracker->incrementFailed($results['failed_count']);
+            }
+        });
 
         $this->checkCompletion($campaign);
     }
 
     protected function shouldAutoPause(Campaign $campaign): bool
     {
-        // Only check if we've sent at least 50 emails to avoid early false positives
         if ($campaign->sent_count < 50) return false;
-
-        $bounceRate = $campaign->bounceRate();
-        $complaintRate = $campaign->complaintRate();
-
-        return ($bounceRate > 3.0) || ($complaintRate > 0.1);
+        return ($campaign->bounceRate() > 3.0) || ($campaign->complaintRate() > 0.1);
     }
 
-    protected function trackSendingSpeed(Campaign $campaign, float $duration)
+    protected function trackSendingSpeed(Campaign $campaign)
     {
         $key = "campaign_{$campaign->id}_speed";
         Redis::lpush($key, microtime(true));
-        Redis::ltrim($key, 0, 9); // Keep last 10 sends
+        Redis::ltrim($key, 0, 19); 
         Redis::expire($key, 60);
-    }
-
-    protected function handleFailure(EmailLog $log, Campaign $campaign, UsageTrackingService $usageTracker, string $message)
-    {
-        Log::warning("Error sending email to {$log->email_address}: $message");
-        
-        $log->update([
-            'status' => 'failed',
-            'error_message' => substr($message, 0, 500),
-        ]);
-
-        $campaign->increment('failed_count');
-        $usageTracker->incrementFailed();
     }
 
     protected function checkCompletion(Campaign $campaign)
     {
         $campaign->refresh();
-        $totalProcessed = $campaign->sent_count + $campaign->failed_count;
-        if ($totalProcessed >= $campaign->total_recipients) {
+        if (($campaign->sent_count + $campaign->failed_count) >= $campaign->total_recipients) {
             $campaign->update([
                 'status'       => 'completed',
                 'completed_at' => now(),
