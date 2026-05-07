@@ -82,7 +82,7 @@ class CampaignController extends Controller
         ]);
 
         return redirect()
-            ->route('campaigns.show', $campaign)
+            ->route('admin.campaigns.show', $campaign)
             ->with('success', 'Campaign created successfully.');
     }
 
@@ -240,7 +240,7 @@ class CampaignController extends Controller
     {
         $campaign->delete();
         return redirect()
-            ->route('campaigns.index')
+            ->route('admin.campaigns.index')
             ->with('success', 'Campaign deleted successfully.');
     }
 
@@ -255,7 +255,7 @@ class CampaignController extends Controller
         $newCampaign->completed_at = null;
         $newCampaign->save();
 
-        return redirect()->route('campaigns.show', $newCampaign)->with('success', 'Campaign cloned successfully.');
+        return redirect()->route('admin.campaigns.show', $newCampaign)->with('success', 'Campaign cloned successfully.');
     }
 
     public function sendTest(Request $request, Campaign $campaign, CampaignService $campaignService)
