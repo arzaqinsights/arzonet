@@ -58,6 +58,21 @@
             </div>
 
             <div class="flex items-center gap-2">
+                {{-- Clone Button --}}
+                <form action="{{ route('admin.campaigns.clone', $campaign) }}" method="POST" onsubmit="return confirm('Clone this campaign?')">
+                    @csrf
+                    <button class="btn btn-ghost btn-sm text-surface-600 font-bold uppercase text-[10px] tracking-widest border border-surface-200">
+                        Clone
+                    </button>
+                </form>
+
+                {{-- Test Email Button --}}
+                <button @click="showTestModal = true" class="btn btn-ghost btn-sm text-indigo-600 font-bold uppercase text-[10px] tracking-widest border border-indigo-100 bg-indigo-50/30">
+                    Test Send
+                </button>
+
+                <div class="h-6 w-px bg-surface-100 mx-1"></div>
+
                 @if(in_array($campaign->status, ['draft', 'scheduled']))
                     <form action="{{ route('admin.campaigns.send', $campaign) }}" method="POST">
                         @csrf
@@ -176,6 +191,41 @@
     </div>
 </div>
 
+{{-- ── Test Email Modal ── --}}
+<div x-show="showTestModal" 
+     class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/40 backdrop-blur-sm"
+     x-cloak
+     x-transition:enter="transition ease-out duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0">
+    
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up" @click.away="showTestModal = false">
+        <div class="p-6 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
+            <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest">Send Test Email</h3>
+            <button @click="showTestModal = false" class="text-surface-400 hover:text-surface-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form action="{{ route('admin.campaigns.send-test', $campaign) }}" method="POST" class="p-6">
+            @csrf
+            <p class="text-xs text-surface-500 font-medium mb-4">Send a preview of this campaign to verify the design and personalization.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-1.5">Recipient Address</label>
+                    <input type="email" name="email" required placeholder="e.g. you@company.com" 
+                           class="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm font-bold focus:bg-white focus:border-indigo-500 outline-none transition-all">
+                </div>
+                <button type="submit" class="w-full btn btn-primary py-3 font-black uppercase tracking-widest text-xs">
+                    Dispatch Test
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 function campaignDashboard() {
     return {
@@ -184,6 +234,7 @@ function campaignDashboard() {
         failed: {{ $stats['failed'] }},
         pending: {{ $stats['pending'] }},
         progress: {{ $stats['progress'] }},
+        showTestModal: false,
 
         pollStatus() {
             setInterval(() => {

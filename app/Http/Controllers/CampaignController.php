@@ -184,6 +184,8 @@ class CampaignController extends Controller
             'clicks'        => $campaign->activities()->where('type', 'clicked')->count(),
             'unique_clicks' => $campaign->activities()->where('type', 'clicked')->distinct('email_id')->count(),
             'unsubscribes'  => $campaign->unsubscribes()->count(),
+            'bounces'       => $campaign->logs()->where('status', 'bounced')->count(),
+            'complaints'    => $campaign->logs()->where('status', 'complaint')->count(),
         ];
 
         // Top clicked links
@@ -240,5 +242,33 @@ class CampaignController extends Controller
         return redirect()
             ->route('campaigns.index')
             ->with('success', 'Campaign deleted successfully.');
+    }
+
+    public function clone(Campaign $campaign)
+    {
+        $newCampaign = $campaign->replicate();
+        $newCampaign->name = $campaign->name . ' (Clone)';
+        $newCampaign->status = 'draft';
+        $newCampaign->sent_count = 0;
+        $newCampaign->failed_count = 0;
+        $newCampaign->started_at = null;
+        $newCampaign->completed_at = null;
+        $newCampaign->save();
+
+        return redirect()->route('campaigns.show', $newCampaign)->with('success', 'Campaign cloned successfully.');
+    }
+
+    public function sendTest(Request $request, Campaign $campaign, CampaignService $campaignService)
+    {
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        try {
+            $campaignService->sendTestEmail($campaign, $request->email);
+            return back()->with('success', 'Test email sent to ' . $request->email);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to send test email: ' . $e->getMessage());
+        }
     }
 }

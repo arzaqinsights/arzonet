@@ -18,12 +18,14 @@ class CampaignService
     {
         // Get valid emails excluding unsubscribed (Global Check)
         $unsubscribedEmails = Unsubscribe::pluck('email')->toArray();
+        $suppressedEmails = \App\Models\EmailStatus::whereIn('status', ['bounced', 'complaint'])->pluck('email')->toArray();
+        $allExclusions = array_merge($unsubscribedEmails, $suppressedEmails);
 
         $validEmails = $campaign->emailList
             ->emails()
             ->valid()
             ->subscribed() // Respect individual subscription status
-            ->whereNotIn('email', $unsubscribedEmails)
+            ->whereNotIn('email', $allExclusions)
             ->get();
 
         // Update total recipients
@@ -177,5 +179,14 @@ class CampaignService
                 ->onQueue('bulk')
                 ->delay(now()->addSeconds($delay));
         }
+    }
+
+    public function sendTestEmail(Campaign $campaign, string $testEmail): void
+    {
+        \App\Jobs\SendTestEmailJob::dispatch(
+            $testEmail,
+            $campaign->template_id,
+            $campaign->sender_id
+        )->onQueue('high');
     }
 }

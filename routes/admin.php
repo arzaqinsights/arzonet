@@ -72,6 +72,8 @@ Route::name('admin.')->group(function () {
         Route::post('/{campaign}/retry-failed', [CampaignController::class, 'retryFailed'])->name('retry-failed');
         Route::get('/{campaign}/report',        [CampaignController::class, 'report'])->name('report');
         Route::get('/{campaign}/status',        [CampaignController::class, 'checkStatus'])->name('status');
+        Route::post('/{campaign}/clone',        [CampaignController::class, 'clone'])->name('clone');
+        Route::post('/{campaign}/send-test',    [CampaignController::class, 'sendTest'])->name('send-test');
         Route::post('/preview',                 [CampaignController::class, 'preview'])->name('preview');
         Route::delete('/{campaign}',            [CampaignController::class, 'destroy'])->name('destroy');
     });

@@ -32,7 +32,7 @@
     </div>
 
     {{-- ── Funnel Stats ── --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-6">
         <div class="stat-card">
             <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Total Sent</p>
             <p class="text-2xl font-black text-surface-900 mt-1">{{ number_format($stats['sent']) }}</p>
@@ -46,8 +46,12 @@
             <p class="text-2xl font-black text-indigo-600 mt-1">{{ number_format($stats['clicks']) }}</p>
         </div>
         <div class="stat-card">
-            <p class="text-[10px] font-black text-red-500 uppercase tracking-widest">Bounces/Failed</p>
-            <p class="text-2xl font-black text-red-600 mt-1">{{ number_format($stats['failed']) }}</p>
+            <p class="text-[10px] font-black text-red-500 uppercase tracking-widest">Bounces</p>
+            <p class="text-2xl font-black text-red-600 mt-1">{{ number_format($stats['bounces']) }}</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-[10px] font-black text-orange-500 uppercase tracking-widest">Complaints</p>
+            <p class="text-2xl font-black text-orange-600 mt-1">{{ number_format($stats['complaints']) }}</p>
         </div>
         <div class="stat-card border-l-4 border-red-500 bg-red-50/20">
             <p class="text-[10px] font-black text-red-700 uppercase tracking-widest">Unsubscribes</p>

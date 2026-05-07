@@ -85,8 +85,36 @@ class Campaign extends Model
     {
         if ($this->total_recipients === 0) return 0;
         
-        $reached = $this->logs()->whereIn('status', ['sent', 'failed', 'bounced'])->count();
+        $reached = $this->logs()->whereIn('status', ['sent', 'failed', 'bounced', 'delivered'])->count();
         return round(($reached / $this->total_recipients) * 100, 1);
+    }
+
+    public function openRate(): float
+    {
+        if ($this->sent_count === 0) return 0;
+        $uniqueOpens = $this->logs()->where('open_count', '>', 0)->count();
+        return round(($uniqueOpens / $this->sent_count) * 100, 1);
+    }
+
+    public function clickRate(): float
+    {
+        if ($this->sent_count === 0) return 0;
+        $uniqueClicks = $this->logs()->where('click_count', '>', 0)->count();
+        return round(($uniqueClicks / $this->sent_count) * 100, 1);
+    }
+
+    public function bounceRate(): float
+    {
+        if ($this->total_recipients === 0) return 0;
+        $bounces = $this->logs()->where('status', 'bounced')->count();
+        return round(($bounces / $this->total_recipients) * 100, 1);
+    }
+
+    public function complaintRate(): float
+    {
+        if ($this->total_recipients === 0) return 0;
+        $complaints = $this->logs()->where('status', 'complaint')->count();
+        return round(($complaints / $this->total_recipients) * 100, 1);
     }
 
     public function estimatedCost(): float
