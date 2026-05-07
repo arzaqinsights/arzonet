@@ -74,6 +74,8 @@ class SnsController extends Controller
     protected function handleBounce(array $message)
     {
         $bounce = $message['bounce'];
+        $sesMessageId = $message['mail']['messageId'] ?? null;
+
         foreach ($bounce['bouncedRecipients'] as $recipient) {
             $email = $recipient['emailAddress'];
 
@@ -90,6 +92,17 @@ class SnsController extends Controller
                 'reason' => 'SES Bounce'
             ]);
 
+            // ── Real-time Analytics Link ──
+            if ($sesMessageId) {
+                \App\Models\EmailLog::where('message_id', $sesMessageId)
+                    ->where('email_address', $email)
+                    ->update([
+                        'status' => 'bounced',
+                        'bounce_type' => $bounce['bounceType'] ?? null,
+                        'bounce_reason' => $bounce['bounceSubType'] ?? null,
+                    ]);
+            }
+
             Log::warning('Email Suppressed (Bounce): ' . $email);
         }
     }
@@ -97,6 +110,8 @@ class SnsController extends Controller
     protected function handleComplaint(array $message)
     {
         $complaint = $message['complaint'];
+        $sesMessageId = $message['mail']['messageId'] ?? null;
+
         foreach ($complaint['complainedRecipients'] as $recipient) {
             $email = $recipient['emailAddress'];
 
@@ -114,13 +129,31 @@ class SnsController extends Controller
                 'reason' => 'SES Complaint'
             ]);
 
+            // ── Real-time Analytics Link ──
+            if ($sesMessageId) {
+                \App\Models\EmailLog::where('message_id', $sesMessageId)
+                    ->where('email_address', $email)
+                    ->update([
+                        'status' => 'complaint'
+                    ]);
+            }
+
             Log::warning('Email Suppressed (Complaint): ' . $email);
         }
     }
 
     protected function handleDelivery(array $message)
     {
-        // Deliveries are logged for analytics, but don't affect suppression usually
+        $sesMessageId = $message['mail']['messageId'] ?? null;
+        $deliveryTime = $message['delivery']['timestamp'] ?? now();
+
+        if ($sesMessageId) {
+            \App\Models\EmailLog::where('message_id', $sesMessageId)->update([
+                'status' => 'delivered',
+                'delivered_at' => $deliveryTime
+            ]);
+        }
+
         Log::info('SES Delivery', ['recipients' => $message['delivery']['recipients']]);
     }
 }

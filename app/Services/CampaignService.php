@@ -52,11 +52,12 @@ class CampaignService
         }
 
         // Dispatch batch jobs
-        $batchSize = $campaign->batch_size ?: config('emailplatform.batch_size', 50);
+        $batchSize = $campaign->batch_size ?: 100;
         $emailIds = $validEmails->pluck('id')->toArray();
         $chunks = array_chunk($emailIds, $batchSize);
 
         foreach ($chunks as $index => $chunk) {
+            // High-speed dispatch: reduce artificial delays
             $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
