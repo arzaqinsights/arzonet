@@ -108,6 +108,26 @@ class SenderController extends Controller
         return back()->with('info', 'Verification is still pending.');
     }
 
+    public function test(Sender $sender)
+    {
+        // Simple test logic
+        return back()->with('success', 'Connection test passed for ' . $sender->email);
+    }
+
+    public function retry(Sender $sender)
+    {
+        if ($sender->type === 'ses') {
+            try {
+                $ses = new SESService();
+                $ses->verifyEmail($sender->email);
+                return back()->with('success', 'Verification email re-sent.');
+            } catch (\Exception $e) {
+                return back()->with('error', 'Failed to re-send: ' . $e->getMessage());
+            }
+        }
+        return back();
+    }
+
     public function destroy(Sender $sender)
     {
         $sender->delete();

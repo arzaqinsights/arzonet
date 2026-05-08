@@ -89,9 +89,10 @@ Route::name('admin.')->group(function () {
         Route::post('/', [SenderController::class, 'store'])->name('store');
         Route::get('/{sender}/edit', [SenderController::class, 'edit'])->name('edit');
         Route::put('/{sender}', [SenderController::class, 'update'])->name('update');
+        Route::get('/{sender}/verify', [SenderController::class, 'verify'])->name('verify');
         Route::delete('/{sender}', [SenderController::class, 'destroy'])->name('destroy');
+        Route::post('/{sender}/test', [SenderController::class, 'test'])->name('test');
         Route::post('/{sender}/retry', [SenderController::class, 'retry'])->name('retry');
-        Route::post('/{sender}/test', [SenderController::class, 'testConnection'])->name('test');
     });
 
     // Blacklist
