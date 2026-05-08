@@ -102,14 +102,14 @@ class Campaign extends Model
     public function openRate(): float
     {
         if ($this->sent_count === 0) return 0;
-        $uniqueOpens = $this->logs()->where('open_count', '>', 0)->count();
+        $uniqueOpens = $this->activities()->where('type', 'opened')->distinct('email_id')->count();
         return round(($uniqueOpens / $this->sent_count) * 100, 1);
     }
 
     public function clickRate(): float
     {
         if ($this->sent_count === 0) return 0;
-        $uniqueClicks = $this->logs()->where('click_count', '>', 0)->count();
+        $uniqueClicks = $this->activities()->where('type', 'clicked')->distinct('email_id')->count();
         return round(($uniqueClicks / $this->sent_count) * 100, 1);
     }
 
