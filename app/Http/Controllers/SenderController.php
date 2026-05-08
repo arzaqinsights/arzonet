@@ -56,13 +56,40 @@ class SenderController extends Controller
         if ($type === 'ses') {
             try {
                 $ses = new SESService();
-                $ses->verifyEmail($sender->email);
+                // 1. Check if already verified in AWS account
+                if ($ses->getVerificationStatus($sender->email) === 'Success') {
+                    $sender->update(['status' => 'verified', 'verified_at' => now()]);
+                } else {
+                    // 2. If not, trigger new verification
+                    $ses->verifyEmail($sender->email);
+                }
             } catch (\Exception $e) {}
         }
 
         if ($type === 'sendgrid') {
             try {
-                \Illuminate\Support\Facades\Http::withToken(config('services.sendgrid.key'))
+                $sgKey = config('services.sendgrid.key');
+                // 1. Check if already verified in SendGrid account
+                $response = \Illuminate\Support\Facades\Http::withToken($sgKey)
+                    ->get('https://api.sendgrid.com/v3/verified_senders');
+                
+                if ($response->successful()) {
+                    $results = $response->json()['results'] ?? [];
+                    $targetEmail = strtolower($sender->email);
+                    
+                    foreach ($results as $v) {
+                        if (strtolower($v['from_email']) === $targetEmail && ($v['verified'] ?? false)) {
+                            $sender->update([
+                                'status' => 'verified', 
+                                'verified_at' => now()
+                            ]);
+                            return redirect()->route('admin.senders.index')->with('success', 'Existing SendGrid Sender recognized and active!');
+                        }
+                    }
+                }
+
+                // 2. If not found or not verified, trigger request
+                \Illuminate\Support\Facades\Http::withToken($sgKey)
                     ->post('https://api.sendgrid.com/v3/verified_senders', [
                         'nickname' => $sender->from_name,
                         'from_email' => $sender->email,
