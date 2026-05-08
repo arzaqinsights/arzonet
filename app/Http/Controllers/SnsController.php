@@ -105,6 +105,11 @@ class SnsController extends Controller
                 
                 $log = \App\Models\EmailLog::where('message_id', $sesMessageId)->where('email_address', $email)->first();
                 if ($log) {
+                    $campaign = $log->campaign;
+                    if ($campaign && $log->status !== 'bounced') {
+                        $campaign->decrement('sent_count');
+                        $campaign->increment('bounce_count');
+                    }
                     \App\Jobs\ProcessTrackingEventJob::dispatch($log->id, 'bounce', ['reason' => $reason]);
                 }
             }

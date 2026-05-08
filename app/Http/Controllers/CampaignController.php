@@ -73,6 +73,7 @@ class CampaignController extends Controller
 
         $campaign = Campaign::create([
             'name'              => $request->name,
+            'subject'           => $request->subject,
             'email_list_id'     => $request->email_list_id,
             'template_id'       => $request->template_id,
             'sender_id'         => $request->sender_id,
@@ -223,19 +224,28 @@ class CampaignController extends Controller
         $emailList = EmailList::findOrFail($request->email_list_id);
 
         $sampleEmail = $emailList->emails()->valid()->first();
+        
         $sampleData = $sampleEmail ? [
-            'name'  => $sampleEmail->name ?? 'John Doe',
+            'name'  => $sampleEmail->name ?? 'Recipient',
             'email' => $sampleEmail->email,
-            'meta'  => $sampleEmail->meta ?? [],
+            'meta'  => is_array($sampleEmail->meta) ? $sampleEmail->meta : json_decode($sampleEmail->meta ?? '[]', true),
+            'unsubscribe_url' => url('/unsubscribe/sample'),
         ] : null;
 
-        $previewHtml = $personalizer->preview($template->html_content, $sampleData);
-        $previewSubject = $personalizer->preview($template->subject, $sampleData);
+        $previewHtml = $personalizer->preview($template->html_content ?? '', $sampleData);
+        
+        // Failsafe: If preview is empty, use raw content
+        if (empty($previewHtml)) {
+            $previewHtml = $template->html_content;
+        }
+
+        $subjectSource = $request->subject ?: $template->subject;
+        $previewSubject = $personalizer->preview($subjectSource ?? '', $sampleData);
 
         return response()->json([
-            'html'              => $previewHtml,
-            'total_recipients'  => $emailList->valid_count,
-            'subject'           => $previewSubject,
+            'html' => $previewHtml,
+            'subject' => $previewSubject,
+            'total_recipients' => $emailList->emails()->valid()->subscribed()->count()
         ]);
     }
 

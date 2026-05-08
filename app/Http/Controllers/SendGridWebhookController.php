@@ -40,7 +40,7 @@ class SendGridWebhookController extends Controller
                             $log->update(['status' => 'bounced', 'error_message' => $event['reason'] ?? 'Bounced']);
                             if ($campaign) {
                                 $campaign->decrement('sent_count');
-                                $campaign->increment('failed_count');
+                                $campaign->increment('bounce_count');
                             }
                         }
                         break;

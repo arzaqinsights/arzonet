@@ -39,7 +39,11 @@ class UsageTrackingService
      */
     public function getUsageStats(): array
     {
-        $limits = config('emailplatform.limits');
+        $limits = config('emailplatform.limits') ?? [
+            'daily' => 0,
+            'weekly' => 0,
+            'monthly' => 0,
+        ];
 
         $daily = UsageStat::where('date', today()->toDateString())->first();
         $dailySent = $daily->emails_sent ?? 0;

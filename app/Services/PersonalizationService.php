@@ -14,6 +14,7 @@ class PersonalizationService
         // Build variables map
         $variables = [
             'full_name'  => $recipientData['name'] ?? $defaults['name'] ?? 'Recipient',
+            'name'       => $recipientData['name'] ?? $defaults['name'] ?? 'Recipient',
             'email'      => $recipientData['email'] ?? '',
         ];
 
@@ -52,9 +53,6 @@ class PersonalizationService
 
         // Fallback for old style @{{name}} if any
         $result = str_ireplace('@{{name}}', $variables['full_name'], $result);
-
-        // Clean up remaining tags
-        $result = preg_replace('/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/', '', $result);
 
         return $result;
     }

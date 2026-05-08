@@ -50,6 +50,68 @@
     </div>
 
     {{-- Main Analytics Grid --}}
+    {{-- Dynamic Progress Engine --}}
+    <div class="glass-card p-8 rounded-md mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-4">
+                <div @class([
+                    'w-12 h-12 rounded-md flex items-center justify-center shadow-lg',
+                    'bg-primary-500 text-white animate-pulse' => $campaign->status === 'sending',
+                    'bg-surface-100 text-surface-400' => $campaign->status !== 'sending',
+                ])>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-surface-900 uppercase tracking-tight">Dispatch Performance</h3>
+                    <p class="text-xs text-surface-400 font-bold uppercase tracking-widest">
+                        Status: <span @class([
+                            'text-primary-600' => $campaign->status === 'sending',
+                            'text-emerald-600' => $campaign->status === 'completed',
+                            'text-surface-600' => $campaign->status === 'draft',
+                        ])>{{ $campaign->status }}</span>
+                    </p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-2xl font-black text-surface-900">{{ number_format($campaign->progress(), 1) }}%</p>
+                <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Overall Completion</p>
+            </div>
+        </div>
+
+        {{-- Multi-Segment Progress Bar --}}
+        <div class="h-4 w-full bg-surface-100 rounded-md overflow-hidden flex border border-surface-200">
+            @php 
+                $total = max(1, $campaign->total_recipients);
+                $sentP = ($campaign->sent_count / $total) * 100;
+                $bounceP = ($campaign->bounce_count / $total) * 100;
+                $failedP = ($campaign->failed_count / $total) * 100;
+            @endphp
+            <div class="h-full bg-primary-500 transition-all duration-1000 shadow-inner" style="width: {{ $sentP }}%"></div>
+            <div class="h-full bg-rose-500 transition-all duration-1000" style="width: {{ $bounceP }}%"></div>
+            <div class="h-full bg-amber-500 transition-all duration-1000" style="width: {{ $failedP }}%"></div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-6 mt-6">
+            <div class="text-center p-4 rounded-md bg-surface-50">
+                <p class="text-xl font-black text-primary-600">{{ number_format($campaign->sent_count) }}</p>
+                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mt-1">Successfully Sent</p>
+            </div>
+            <div class="text-center p-4 rounded-md bg-surface-50">
+                <p class="text-xl font-black text-rose-600">{{ number_format($campaign->bounce_count) }}</p>
+                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mt-1">Bounced (Rejected)</p>
+            </div>
+            <div class="text-center p-4 rounded-md bg-surface-50">
+                <p class="text-xl font-black text-amber-600">{{ number_format($campaign->failed_count) }}</p>
+                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mt-1">Failed (Dispatch Error)</p>
+            </div>
+            <div class="text-center p-4 rounded-md bg-surface-50">
+                <p class="text-xl font-black text-surface-900">{{ number_format(max(0, $campaign->total_recipients - ($campaign->sent_count + $campaign->failed_count + $campaign->bounce_count))) }}</p>
+                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mt-1">Remaining</p>
+            </div>
+        </div>
+    </div>
+
+    {{-- Main Stats Dashboard --}}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="glass-card p-6 rounded-md border-b-4 border-primary-500">
             <div class="flex items-center justify-between mb-4">
@@ -262,3 +324,24 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    @if($campaign->status === 'sending')
+    // Auto-refresh stats every 10 seconds if campaign is sending
+    setInterval(() => {
+        fetch(window.location.href, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Update the Progress Engine and Stats Grid
+            document.querySelector('.animate-slide-up').innerHTML = doc.querySelector('.animate-slide-up').innerHTML;
+        });
+    }, 10000);
+    @endif
+</script>
+@endpush

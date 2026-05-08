@@ -29,4 +29,10 @@ return [
     ],
 
     'cost_per_email' => 0.0001,
+
+    'limits' => [
+        'daily' => 10000,
+        'weekly' => 50000,
+        'monthly' => 200000,
+    ],
 ];

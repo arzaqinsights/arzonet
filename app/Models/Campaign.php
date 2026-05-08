@@ -10,6 +10,7 @@ class Campaign extends Model
 {
     protected $fillable = [
         'name',
+        'subject',
         'email_list_id',
         'template_id',
         'sender_id',
@@ -22,6 +23,7 @@ class Campaign extends Model
         'failed_count',
         'emails_per_minute',
         'batch_size',
+        'bounce_count',
     ];
 
     protected function casts(): array
