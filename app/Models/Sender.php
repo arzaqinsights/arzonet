@@ -13,19 +13,29 @@ class Sender extends Model
         'user_id',
         'email',
         'status',
-        'type', // ses, smtp
+        'type', // ses, smtp, sendgrid
         'from_name',
+        'emails_per_second',
+        'emails_per_minute',
+        'daily_limit',
         'ses_identity',
         'smtp_host',
         'smtp_port',
         'smtp_username',
         'smtp_password',
         'smtp_encryption',
+        'ses_key',
+        'ses_secret',
+        'ses_region',
+        'sendgrid_api_key',
         'verified_at',
     ];
 
     protected $casts = [
         'verified_at' => 'datetime',
+        'emails_per_second' => 'integer',
+        'emails_per_minute' => 'integer',
+        'daily_limit' => 'integer',
     ];
 
     /**

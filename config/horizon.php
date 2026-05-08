@@ -185,15 +185,34 @@ return [
                 'timeout' => 60,
             ],
 
-            'supervisor-bulk' => [
+            'supervisor-ses' => [
                 'connection' => 'redis',
-                'queue' => ['bulk'],
-                'balance' => false,
-                'maxProcesses' => 30,
+                'queue' => ['bulk-ses'],
+                'balance' => 'auto',
+                'maxProcesses' => 50,
                 'memory' => 256,
                 'tries' => 1,
                 'timeout' => 900,
-                'nice' => 0,
+            ],
+
+            'supervisor-sendgrid' => [
+                'connection' => 'redis',
+                'queue' => ['bulk-sendgrid'],
+                'balance' => 'auto',
+                'maxProcesses' => 20,
+                'memory' => 256,
+                'tries' => 1,
+                'timeout' => 900,
+            ],
+
+            'supervisor-smtp' => [
+                'connection' => 'redis',
+                'queue' => ['bulk-smtp'],
+                'balance' => 'auto',
+                'maxProcesses' => 5,
+                'memory' => 256,
+                'tries' => 1,
+                'timeout' => 900,
             ],
 
         ],
@@ -202,8 +221,14 @@ return [
             'supervisor-1' => [
                 'maxProcesses' => 3,
             ],
-            'supervisor-bulk' => [
-                'maxProcesses' => 10,
+            'supervisor-ses' => [
+                'maxProcesses' => 5,
+            ],
+            'supervisor-sendgrid' => [
+                'maxProcesses' => 2,
+            ],
+            'supervisor-smtp' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],

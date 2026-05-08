@@ -32,19 +32,33 @@ class MailService
             $headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
         }
 
+        // 1. AWS SES (Identity Specific)
         if ($sender->type === 'ses') {
+            // Use sender specific credentials if available
+            if ($sender->ses_key && $sender->ses_secret) {
+                $customSes = new SESService([
+                    'key' => $sender->ses_key,
+                    'secret' => $sender->ses_secret,
+                    'region' => $sender->ses_region ?? 'us-east-1'
+                ]);
+                return $customSes->sendSingleEmail($to, $subject, $html, $sender->email, $headers);
+            }
             return $this->sesService->sendSingleEmail($to, $subject, $html, $sender->email, $headers);
         }
 
-        // SMTP Logic with isolated configuration
+        // 2. SendGrid (API Based)
+        if ($sender->type === 'sendgrid') {
+            return $this->sendViaSendGrid($sender, $to, $subject, $html, $headers);
+        }
+
+        // 3. SMTP (Standard)
         try {
             $this->configureSmtp($sender);
 
-            // Use the isolated mailer
             Mail::mailer('dynamic_smtp')->html($html, function ($message) use ($to, $subject, $sender, $headers) {
                 $message->to($to)
-                    ->subject($subject)
-                    ->from($sender->email, $sender->from_name);
+                        ->subject($subject)
+                        ->from($sender->email, $sender->from_name);
                 
                 if (!empty($headers)) {
                     $msgHeaders = $message->getHeaders();
@@ -56,15 +70,36 @@ class MailService
 
             return "smtp_success_" . bin2hex(random_bytes(8));
         } catch (\Exception $e) {
-            Log::error("SMTP Send Error to {$to} via {$sender->email}: " . $e->getMessage(), [
-                'host' => $sender->smtp_host,
-                'user' => $sender->smtp_username
-            ]);
+            Log::error("SMTP Error: " . $e->getMessage());
             throw $e;
         } finally {
-            // Clean up to prevent leakage between jobs in the same worker
             Mail::purge('dynamic_smtp');
         }
+    }
+
+    protected function sendViaSendGrid(Sender $sender, string $to, string $subject, string $html, array $headers): ?string
+    {
+        $response = \Illuminate\Support\Facades\Http::withToken($sender->sendgrid_api_key)
+            ->post('https://api.sendgrid.com/v3/mail/send', [
+                'personalizations' => [[
+                    'to' => [['email' => $to]],
+                    'subject' => $subject,
+                ]],
+                'from' => [
+                    'email' => $sender->email,
+                    'name' => $sender->from_name
+                ],
+                'content' => [[
+                    'type' => 'text/html',
+                    'value' => $html
+                ]]
+            ]);
+
+        if ($response->successful()) {
+            return $response->header('X-Message-Id') ?: 'sg_success_' . bin2hex(random_bytes(8));
+        }
+
+        throw new \Exception("SendGrid Error: " . $response->body());
     }
 
     protected function configureSmtp(Sender $sender): void

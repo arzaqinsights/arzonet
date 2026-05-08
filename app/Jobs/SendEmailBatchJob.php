@@ -113,6 +113,21 @@ class SendEmailBatchJob implements ShouldQueue
                 $currentSender = $senders[$senderIndex % $senderCount];
                 $senderIndex++;
 
+                // ── CENTRALIZED GLOBAL RATE LIMITER (Non-Blocking) ──
+                $limitKey = "sender_rate_limit:{$currentSender->id}";
+                $maxPerMinute = $currentSender->emails_per_minute ?: 60;
+                
+                if (!\Illuminate\Support\Facades\RateLimiter::attempt($limitKey, $maxPerMinute, function() {}, 60)) {
+                    // Release remaining emails back to queue and stop this job
+                    $remainingIds = array_slice($this->emailIds, array_search($emailId, $this->emailIds));
+                    if (!empty($remainingIds)) {
+                        self::dispatch($this->campaignId, $remainingIds)
+                            ->delay(now()->addSeconds(10))
+                            ->onQueue($this->queue);
+                    }
+                    return;
+                }
+
                 $messageId = $mailService->send(
                     sender: $currentSender,
                     to: $email->email,

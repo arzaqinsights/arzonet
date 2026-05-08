@@ -51,17 +51,27 @@ class CampaignService
             EmailLog::insert($chunk);
         }
 
-        // Dispatch batch jobs
-        $batchSize = $campaign->batch_size ?: 25;
+        // ── PROVIDER-AWARE DISPATCH ENGINE ──
+        $providerType = $campaign->sender?->type ?? 'ses';
+        $batchSize = match($providerType) {
+            'smtp' => 5,
+            'sendgrid' => 50,
+            'ses' => 200, // Hyperscale support
+            default => 25
+        };
+        
+        $queueName = "bulk-{$providerType}";
         $emailIds = $validEmails->pluck('id')->toArray();
         $chunks = array_chunk($emailIds, $batchSize);
 
         foreach ($chunks as $index => $chunk) {
-            // High-speed dispatch: reduce artificial delays
-            $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
+            // Adaptive delay for SMTP, zero delay for API providers
+            $delay = ($providerType === 'smtp') 
+                ? $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute)
+                : 0;
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
-                ->onQueue('bulk')
+                ->onQueue($queueName)
                 ->delay(now()->addSeconds($delay));
         }
     }
@@ -94,14 +104,23 @@ class CampaignService
             return;
         }
 
-        $batchSize = $campaign->batch_size ?: config('emailplatform.batch_size', 50);
+        $providerType = $campaign->sender?->type ?? 'ses';
+        $batchSize = match($providerType) {
+            'smtp' => 5,
+            'sendgrid' => 50,
+            'ses' => 200,
+            default => 25
+        };
+        $queueName = "bulk-{$providerType}";
         $chunks = array_chunk($pendingLogIds, $batchSize);
 
         foreach ($chunks as $index => $chunk) {
-            $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
+            $delay = ($providerType === 'smtp') 
+                ? $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute)
+                : 0;
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
-                ->onQueue('bulk')
+                ->onQueue($queueName)
                 ->delay(now()->addSeconds($delay));
         }
     }

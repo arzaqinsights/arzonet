@@ -45,9 +45,12 @@ class SenderController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'type' => 'required|in:ses,smtp',
+            'type' => 'required|in:ses,smtp,sendgrid',
             'from_name' => 'required|string|max:255',
             'email' => 'required|email|unique:senders,email',
+            'emails_per_second' => 'required|integer|min:1',
+            'emails_per_minute' => 'required|integer|min:1',
+            'daily_limit' => 'required|integer|min:1',
         ]);
 
         $data = [
@@ -55,30 +58,43 @@ class SenderController extends Controller
             'email' => strtolower($request->email),
             'from_name' => $request->from_name,
             'type' => $request->type,
+            'emails_per_second' => $request->emails_per_second,
+            'emails_per_minute' => $request->emails_per_minute,
+            'daily_limit' => $request->daily_limit,
         ];
 
         if ($request->type === 'ses') {
-            $data['status'] = 'pending';
+            $request->validate([
+                'ses_key' => 'required|string',
+                'ses_secret' => 'required|string',
+                'ses_region' => 'required|string',
+            ]);
+
+            $data = array_merge($data, [
+                'status' => 'pending',
+                'ses_key' => $request->ses_key,
+                'ses_secret' => $request->ses_secret,
+                'ses_region' => $request->ses_region,
+            ]);
             
-            // Check verification status in AWS SES
-            $awsStatus = $this->sesService->checkVerificationStatus($data['email']);
-
-            if ($awsStatus === 'Success') {
-                $data['status'] = 'verified';
-                $data['verified_at'] = now();
-                Sender::create($data);
-                return redirect()->back()->with('success', 'Email is already verified in SES and has been added.');
-            }
-
             $sender = Sender::create($data);
-            $success = $this->sesService->sendVerificationEmail($data['email']);
+            $this->sesService->sendVerificationEmail($data['email']);
+            return redirect()->back()->with('success', 'SES Sender added and verification email sent!');
 
-            if (!$success) {
-                $sender->update(['status' => 'failed']);
-                return redirect()->back()->with('error', 'Failed to send SES verification email.');
-            }
+        } elseif ($request->type === 'sendgrid') {
+            $request->validate([
+                'sendgrid_api_key' => 'required|string',
+            ]);
 
-            return redirect()->back()->with('success', 'SES Verification email sent!');
+            $data = array_merge($data, [
+                'status' => 'verified', // SendGrid is usually pre-verified via API Key
+                'sendgrid_api_key' => $request->sendgrid_api_key,
+                'verified_at' => now(),
+            ]);
+
+            Sender::create($data);
+            return redirect()->back()->with('success', 'SendGrid Sender added successfully!');
+
         } else {
             // SMTP
             $request->validate([
@@ -90,7 +106,7 @@ class SenderController extends Controller
             ]);
 
             $data = array_merge($data, [
-                'status' => 'verified', // SMTP is assumed verified if provided, but we could add a test connection
+                'status' => 'verified',
                 'smtp_host' => $request->smtp_host,
                 'smtp_port' => $request->smtp_port,
                 'smtp_username' => $request->smtp_username,
@@ -136,6 +152,41 @@ class SenderController extends Controller
 
         $sender->delete();
         return redirect()->back()->with('success', 'Sender removed successfully.');
+    }
+
+    public function edit(Sender $sender)
+    {
+        // Check ownership if not admin
+        if (Auth::check() && !Auth::user()->isAdmin() && $sender->user_id !== Auth::id()) {
+            return redirect()->back()->with('error', 'Unauthorized.');
+        }
+
+        return view('senders.edit', compact('sender'));
+    }
+
+    public function update(Request $request, Sender $sender)
+    {
+        // Check ownership if not admin
+        if (Auth::check() && !Auth::user()->isAdmin() && $sender->user_id !== Auth::id()) {
+            return redirect()->back()->with('error', 'Unauthorized.');
+        }
+
+        $request->validate([
+            'from_name' => 'required|string|max:255',
+            'emails_per_second' => 'required|integer|min:1',
+            'emails_per_minute' => 'required|integer|min:1',
+            'daily_limit' => 'required|integer|min:1',
+        ]);
+
+        $data = $request->only([
+            'from_name', 'emails_per_second', 'emails_per_minute', 'daily_limit',
+            'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_encryption',
+            'ses_key', 'ses_secret', 'ses_region', 'sendgrid_api_key'
+        ]);
+
+        $sender->update($data);
+
+        return redirect()->route('admin.senders.index')->with('success', 'Sender updated successfully!');
     }
 
     public function testConnection(Sender $sender)
