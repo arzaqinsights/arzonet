@@ -69,6 +69,8 @@ class CampaignController extends Controller
             ->subscribed()
             ->count();
 
+        $sender = \App\Models\Sender::findOrFail($request->sender_id);
+
         $campaign = Campaign::create([
             'name'              => $request->name,
             'email_list_id'     => $request->email_list_id,
@@ -77,8 +79,8 @@ class CampaignController extends Controller
             'status'            => $request->scheduled_at ? 'scheduled' : 'draft',
             'scheduled_at'      => $request->scheduled_at,
             'total_recipients'  => $eligibleCount,
-            'emails_per_minute' => $request->emails_per_minute ?? config('emailplatform.limits.emails_per_minute'),
-            'batch_size'        => $request->batch_size ?? config('emailplatform.batch_size'),
+            'emails_per_minute' => $sender->emails_per_minute ?? 30,
+            'batch_size'        => $sender->type === 'smtp' ? 25 : 100,
         ]);
 
         return redirect()
