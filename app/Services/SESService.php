@@ -24,6 +24,22 @@ class SESService
         ]);
     }
 
+    public function verifyEmail(string $email)
+    {
+        return $this->client->verifyEmailIdentity([
+            'EmailAddress' => $email,
+        ]);
+    }
+
+    public function getVerificationStatus(string $email)
+    {
+        $response = $this->client->getIdentityVerificationAttributes([
+            'Identities' => [$email],
+        ]);
+
+        return $response['VerificationAttributes'][$email]['VerificationStatus'] ?? 'Pending';
+    }
+
     /**
      * Replaces variable tags in a template with actual data.
      *
