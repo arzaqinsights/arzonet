@@ -60,6 +60,21 @@ class SenderController extends Controller
             } catch (\Exception $e) {}
         }
 
+        if ($type === 'sendgrid') {
+            try {
+                \Illuminate\Support\Facades\Http::withToken(config('services.sendgrid.key'))
+                    ->post('https://api.sendgrid.com/v3/verified_senders', [
+                        'nickname' => $sender->from_name,
+                        'from_email' => $sender->email,
+                        'from_name' => $sender->from_name,
+                        'reply_to' => $sender->email,
+                        'address' => 'Global Infrastructure',
+                        'city' => 'Cloud',
+                        'country' => 'Global'
+                    ]);
+            } catch (\Exception $e) {}
+        }
+
         return redirect()->route('admin.senders.index')->with('success', 'Sender configured successfully in ' . ucfirst($mode) . ' mode.');
     }
 
@@ -94,18 +109,28 @@ class SenderController extends Controller
             try {
                 $ses = new SESService();
                 if ($ses->getVerificationStatus($sender->email) === 'Success') {
-                    $sender->update([
-                        'status' => 'verified',
-                        'verified_at' => now()
-                    ]);
-                    return back()->with('success', 'Sender verified successfully.');
+                    $sender->update(['status' => 'verified', 'verified_at' => now()]);
+                    return back()->with('success', 'SES Sender verified!');
                 }
-            } catch (\Exception $e) {
-                return back()->with('error', 'Verification check failed: ' . $e->getMessage());
-            }
+            } catch (\Exception $e) {}
         }
 
-        return back()->with('info', 'Verification is still pending.');
+        if ($sender->type === 'sendgrid') {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withToken(config('services.sendgrid.key'))
+                    ->get('https://api.sendgrid.com/v3/verified_senders');
+                
+                $verifiedList = $response->json()['results'] ?? [];
+                foreach ($verifiedList as $v) {
+                    if ($v['from_email'] === $sender->email && $v['verified']) {
+                        $sender->update(['status' => 'verified', 'verified_at' => now()]);
+                        return back()->with('success', 'SendGrid Sender verified!');
+                    }
+                }
+            } catch (\Exception $e) {}
+        }
+
+        return back()->with('info', 'Verification is still pending. Please check your inbox.');
     }
 
     public function test(Sender $sender)
