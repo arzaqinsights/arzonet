@@ -188,6 +188,18 @@ class CampaignController extends Controller
             'complaints'    => $campaign->logs()->where('status', 'complaint')->count(),
         ];
 
+        // Provider-wise breakdown
+        $providerStats = $campaign->logs()
+            ->join('senders', 'email_logs.sender_id', '=', 'senders.id')
+            ->select('senders.type as provider', 'senders.email as sender_email')
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(case when email_logs.status = "sent" or email_logs.status = "delivered" then 1 end) as sent')
+            ->selectRaw('count(case when email_logs.status = "bounced" or email_logs.status = "failed" then 1 end) as failed')
+            ->selectRaw('sum(open_count) as total_opens')
+            ->selectRaw('sum(click_count) as total_clicks')
+            ->groupBy('senders.type', 'senders.email')
+            ->get();
+
         // Top clicked links
         $topLinks = $campaign->activities()
             ->where('type', 'clicked')
@@ -200,7 +212,7 @@ class CampaignController extends Controller
 
         $logs = $campaign->logs()->with('email')->latest()->paginate(50);
 
-        return view('campaigns.report', compact('campaign', 'stats', 'logs', 'topLinks'));
+        return view('campaigns.report', compact('campaign', 'stats', 'logs', 'topLinks', 'providerStats'));
     }
 
     public function preview(Request $request, PersonalizationService $personalizer)
@@ -246,10 +258,39 @@ class CampaignController extends Controller
             ->with('success', 'Campaign deleted successfully.');
     }
 
+    public function edit(Campaign $campaign)
+    {
+        // Only allow editing if not completed or currently sending
+        if (in_array($campaign->status, ['completed', 'sending'])) {
+            return redirect()->route('admin.campaigns.index')->with('error', 'Active or completed campaigns cannot be edited. Try duplicating instead.');
+        }
+
+        $emailLists = EmailList::where('status', 'completed')->get();
+        $templates = Template::all();
+        $senders = Sender::all();
+
+        return view('campaigns.edit', compact('campaign', 'emailLists', 'templates', 'senders'));
+    }
+
+    public function update(Request $request, Campaign $campaign)
+    {
+        $request->validate([
+            'name'              => 'required|string|max:255',
+            'email_list_id'     => 'required|exists:email_lists,id',
+            'template_id'       => 'required|exists:templates,id',
+            'sender_id'         => 'required|exists:senders,id',
+            'emails_per_minute' => 'nullable|integer|min:1',
+        ]);
+
+        $campaign->update($request->all());
+
+        return redirect()->route('admin.campaigns.show', $campaign)->with('success', 'Campaign updated successfully.');
+    }
+
     public function clone(Campaign $campaign)
     {
         $newCampaign = $campaign->replicate();
-        $newCampaign->name = $campaign->name . ' (Clone)';
+        $newCampaign->name = $campaign->name . ' (Copy)';
         $newCampaign->status = 'draft';
         $newCampaign->sent_count = 0;
         $newCampaign->failed_count = 0;
@@ -257,7 +298,7 @@ class CampaignController extends Controller
         $newCampaign->completed_at = null;
         $newCampaign->save();
 
-        return redirect()->route('admin.campaigns.show', $newCampaign)->with('success', 'Campaign cloned successfully.');
+        return redirect()->route('admin.campaigns.edit', $newCampaign)->with('success', 'Campaign duplicated! You can now adjust and launch it.');
     }
 
     public function sendTest(Request $request, Campaign $campaign, CampaignService $campaignService)

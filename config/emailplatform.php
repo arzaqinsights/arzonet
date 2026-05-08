@@ -1,62 +1,32 @@
 <?php
 
 return [
+    /*
+    |--------------------------------------------------------------------------
+    | Default Bulk Email Provider
+    |--------------------------------------------------------------------------
+    | Options: 'ses', 'sendgrid'
+    | This decides which infrastructure to use when a user selects 'Bulk Mode'.
+    */
+    'bulk_provider' => env('DEFAULT_BULK_PROVIDER', 'ses'),
 
     /*
     |--------------------------------------------------------------------------
-    | SES Configuration (Structure Only - Not Integrated Yet)
+    | Default Throughput Profiles
     |--------------------------------------------------------------------------
     */
-    'ses' => [
-        'access_key' => env('SES_ACCESS_KEY', ''),
-        'secret_key' => env('SES_SECRET_KEY', ''),
-        'region'     => env('SES_REGION', 'us-east-1'),
-        'from_email' => env('SES_FROM_EMAIL', 'hello@example.com'),
+    'profiles' => [
+        'bulk' => [
+            'emails_per_second' => 50,
+            'emails_per_minute' => 3000,
+            'daily_limit' => 500000,
+        ],
+        'normal' => [
+            'emails_per_second' => 1,
+            'emails_per_minute' => 30,
+            'daily_limit' => 500,
+        ]
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Sending Limits
-    |--------------------------------------------------------------------------
-    */
-    'limits' => [
-        'emails_per_minute' => (int) env('EMAILS_PER_MINUTE', 60),
-        'daily'             => (int) env('DAILY_EMAIL_LIMIT', 10000),
-        'weekly'            => (int) env('WEEKLY_EMAIL_LIMIT', 50000),
-        'monthly'           => (int) env('MONTHLY_EMAIL_LIMIT', 200000),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Batch Processing
-    |--------------------------------------------------------------------------
-    */
-    'batch_size' => (int) env('BATCH_SIZE', 50),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cost Estimation (SES Pricing)
-    |--------------------------------------------------------------------------
-    */
-    'cost_per_email' => (float) env('SES_COST_PER_EMAIL', 0.0001),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Upload Settings
-    |--------------------------------------------------------------------------
-    */
-    'upload' => [
-        'max_file_size' => 10240, // KB (10MB)
-        'allowed_types' => ['csv', 'xlsx'],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Personalization Defaults
-    |--------------------------------------------------------------------------
-    */
-    'defaults' => [
-        'name' => 'User',
-    ],
-
+    'cost_per_email' => 0.0001,
 ];

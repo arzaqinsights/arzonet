@@ -1,280 +1,264 @@
 @extends('layouts.app')
-@section('title', $campaign->name)
-@section('heading', 'Campaign Report')
-
-@section('header-actions')
-    <div class="flex items-center gap-2">
-        <a href="{{ route('admin.campaigns.index') }}" class="btn btn-ghost btn-xs font-bold uppercase tracking-widest text-surface-400 hover:text-surface-600">
-            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            Back
-        </a>
-        <div class="h-4 w-px bg-surface-200 mx-1"></div>
-        <a href="{{ route('admin.campaigns.report', $campaign) }}" class="btn btn-primary btn-xs font-black uppercase tracking-widest px-4 py-2">
-            Analytics
-        </a>
-    </div>
-@endsection
+@section('title', 'Campaign Intelligence')
+@section('heading', $campaign->name)
 
 @section('content')
-<div class="max-w-6xl mx-auto space-y-6 animate-slide-up"
-     x-data="campaignDashboard()"
-     x-init="@if(in_array($campaign->status, ['sending'])) pollStatus() @endif">
-
-    {{-- ── Compact Mission Header ── --}}
-    <div class="glass-card p-6 border-surface-200 shadow-sm">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div class="flex items-center gap-4">
-                @php
-                    $color = match($campaign->status) {
-                        'draft' => 'surface',
-                        'scheduled' => 'indigo',
-                        'sending' => 'amber',
-                        'paused' => 'amber',
-                        'completed' => 'emerald',
-                        'cancelled' => 'red',
-                        default => 'surface',
-                    };
-                @endphp
-                <div class="w-12 h-12 rounded-xl bg-{{ $color }}-50 flex items-center justify-center text-{{ $color }}-600 flex-shrink-0">
-                    @if($campaign->status === 'sending')
-                        <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                    @elseif($campaign->status === 'completed')
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    @else
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    @endif
-                </div>
-                <div class="min-w-0">
-                    <div class="flex items-center gap-2 mb-0.5">
-                        <h2 class="text-xl font-black text-surface-900 truncate">{{ $campaign->name }}</h2>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-{{ $color }}-100 text-{{ $color }}-700">
-                            {{ $campaign->status }}
-                        </span>
-                    </div>
-                    <p class="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">
-                        {{ $campaign->emailList->name }} • {{ $campaign->template->name }}
-                    </p>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                {{-- Clone Button --}}
-                <form action="{{ route('admin.campaigns.clone', $campaign) }}" method="POST" onsubmit="return confirm('Clone this campaign?')">
-                    @csrf
-                    <button class="btn btn-ghost btn-sm text-surface-600 font-bold uppercase text-[10px] tracking-widest border border-surface-200">
-                        Clone
-                    </button>
-                </form>
-
-                {{-- Test Email Button --}}
-                <button @click="showTestModal = true" class="btn btn-ghost btn-sm text-indigo-600 font-bold uppercase text-[10px] tracking-widest border border-indigo-100 bg-indigo-50/30">
-                    Test Send
-                </button>
-
-                <div class="h-6 w-px bg-surface-100 mx-1"></div>
-
-                @if(in_array($campaign->status, ['draft', 'scheduled']))
-                    <form action="{{ route('admin.campaigns.send', $campaign) }}" method="POST">
-                        @csrf
-                        <button class="btn btn-success btn-sm px-6 font-black uppercase text-[10px] tracking-widest">Launch</button>
-                    </form>
-                @endif
-                @if($campaign->status === 'sending')
-                    <form action="{{ route('admin.campaigns.pause', $campaign) }}" method="POST">
-                        @csrf
-                        <button class="btn btn-warning btn-sm px-6 font-black uppercase text-[10px] tracking-widest">Pause</button>
-                    </form>
-                @endif
-                @if($campaign->status === 'paused')
-                    <form action="{{ route('admin.campaigns.resume', $campaign) }}" method="POST">
-                        @csrf
-                        <button class="btn btn-success btn-sm px-6 font-black uppercase text-[10px] tracking-widest">Resume</button>
-                    </form>
-                @endif
-                @if(in_array($campaign->status, ['sending', 'paused', 'scheduled']))
-                    <form action="{{ route('admin.campaigns.cancel', $campaign) }}" method="POST">
-                        @csrf
-                        <button class="btn btn-ghost btn-sm text-red-600 font-bold uppercase text-[10px] tracking-widest">Abort</button>
-                    </form>
-                @endif
-                
-                @if($stats['failed'] > 0)
-                    <form action="{{ route('admin.campaigns.retry-failed', $campaign) }}" method="POST">
-                        @csrf
-                        <button class="btn btn-warning btn-sm px-6 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-amber-100">
-                            Retry Failures
-                        </button>
-                    </form>
-                @endif
-            </div>
-        </div>
-
-        <div class="mt-6 pt-6 border-t border-surface-50">
-            <div class="flex justify-between items-center mb-1.5">
-                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Delivery Progress</span>
-                <span class="text-xs font-black text-primary-600" x-text="progress + '%'">{{ $stats['progress'] }}%</span>
-            </div>
-            <div class="h-2 w-full bg-surface-100 rounded-full overflow-hidden">
-                <div class="h-full bg-primary-600 transition-all duration-1000 ease-out" :style="'width:' + progress + '%'" style="width: {{ $stats['progress'] }}%"></div>
-            </div>
-            <p class="text-[9px] text-surface-400 font-bold mt-2 uppercase tracking-tight">
-                <span x-text="sent.toLocaleString()">{{ number_format($stats['sent']) }}</span> of <span x-text="total.toLocaleString()">{{ number_format($stats['total']) }}</span> contacts reached
-            </p>
-        </div>
-    </div>
-
-    {{-- ── High-Density Stats Row ── --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-white border border-surface-100 p-4 rounded-xl shadow-sm">
-            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Total</p>
-            <p class="text-xl font-black text-surface-900" x-text="total.toLocaleString()">{{ number_format($stats['total']) }}</p>
-        </div>
-        <div class="bg-white border border-emerald-100 p-4 rounded-xl shadow-sm border-b-2 border-b-emerald-500">
-            <p class="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Sent</p>
-            <p class="text-xl font-black text-surface-900" x-text="sent.toLocaleString()">{{ number_format($stats['sent']) }}</p>
-        </div>
-        <div class="bg-white border border-red-100 p-4 rounded-xl shadow-sm border-b-2 border-b-red-500">
-            <p class="text-[9px] font-black text-red-600 uppercase tracking-widest mb-1">Failed</p>
-            <p class="text-xl font-black text-surface-900" x-text="failed.toLocaleString()">{{ number_format($stats['failed']) }}</p>
-        </div>
-        <div class="bg-white border border-amber-100 p-4 rounded-xl shadow-sm border-b-2 border-b-amber-500">
-            <p class="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">Queue</p>
-            <p class="text-xl font-black text-surface-900" x-text="pending.toLocaleString()">{{ number_format($stats['pending']) }}</p>
-        </div>
-    </div>
-
-    {{-- Live Telemetry Row --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" x-show="status === 'sending'">
-        <div class="bg-indigo-600 p-4 rounded-xl shadow-lg shadow-indigo-100">
-            <p class="text-[9px] font-black text-indigo-100 uppercase tracking-widest mb-1">Sending Speed</p>
-            <div class="flex items-baseline gap-1">
-                <p class="text-xl font-black text-white" x-text="speed">0</p>
-                <p class="text-[10px] font-bold text-indigo-200">emails/sec</p>
-            </div>
-        </div>
-        <div class="bg-surface-900 p-4 rounded-xl shadow-lg shadow-surface-200">
-            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Time Remaining</p>
-            <p class="text-xl font-black text-white" x-text="eta || 'Calculating...'">Calculating...</p>
-        </div>
-    </div>
-
-    {{-- ── Compact Activity Log ── --}}
-    <div class="glass-card overflow-hidden border-surface-200">
-        <div class="px-6 py-4 bg-surface-50/50 border-b border-surface-100 flex items-center justify-between">
-            <h3 class="text-[10px] font-black text-surface-900 uppercase tracking-widest">Real-time Activity Feed</h3>
-            <div class="flex items-center gap-1.5 text-[8px] font-black uppercase text-emerald-600 tracking-widest">
-                <span class="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                Streaming
-            </div>
+<div class="space-y-8 animate-slide-up" x-data="{ tab: 'analytics' }">
+    
+    {{-- Header Actions --}}
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            @php
+                $statusCls = match($campaign->status) {
+                    'completed' => 'bg-green-100 text-green-700 border-green-200',
+                    'sending' => 'bg-primary-100 text-primary-700 border-primary-200 animate-pulse',
+                    'paused' => 'bg-amber-100 text-amber-700 border-amber-200',
+                    default => 'bg-surface-100 text-surface-600 border-surface-200',
+                };
+            @endphp
+            <span class="px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border {{ $statusCls }}">
+                {{ $campaign->status }}
+            </span>
+            <span class="text-xs font-medium text-surface-400">Created {{ $campaign->created_at->format('M d, Y') }}</span>
         </div>
         
-        <div class="overflow-x-auto">
-            @if($recentLogs->count())
+        <div class="flex items-center gap-2">
+            @if($campaign->status === 'draft')
+                <form action="{{ route('admin.campaigns.send', $campaign) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-primary rounded-md px-8">Launch Mission</button>
+                </form>
+            @elseif($campaign->status === 'sending')
+                <form action="{{ route('admin.campaigns.pause', $campaign) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-warning rounded-md">Pause</button>
+                </form>
+            @elseif($campaign->status === 'paused')
+                <form action="{{ route('admin.campaigns.resume', $campaign) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-success rounded-md">Resume</button>
+                </form>
+            @endif
+
+            <div class="h-8 w-px bg-surface-200 mx-2"></div>
+
+            <form action="{{ route('admin.campaigns.clone', $campaign) }}" method="POST">
+                @csrf
+                <button type="submit" class="btn border-surface-200 hover:bg-surface-50 text-surface-700 rounded-md">Duplicate</button>
+            </form>
+        </div>
+    </div>
+
+    {{-- Main Analytics Grid --}}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="glass-card p-6 rounded-md border-b-4 border-primary-500">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Delivery Rate</span>
+                <span class="text-xs font-bold text-primary-600">{{ $campaign->progress() }}%</span>
+            </div>
+            <h3 class="text-3xl font-black text-surface-900">{{ number_format($campaign->sent_count) }}</h3>
+            <p class="text-[10px] text-surface-400 mt-1 uppercase font-bold">Of {{ number_format($campaign->total_recipients) }} Target</p>
+        </div>
+
+        <div class="glass-card p-6 rounded-md border-b-4 border-indigo-500">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Open Rate</span>
+                <span class="text-xs font-bold text-indigo-600">{{ $stats['unique_opens'] ?? 0 }} Unique</span>
+            </div>
+            <h3 class="text-3xl font-black text-surface-900">{{ $campaign->open_rate }}%</h3>
+            <p class="text-[10px] text-surface-400 mt-1 uppercase font-bold">{{ number_format($stats['opens'] ?? 0) }} Total Opens</p>
+        </div>
+
+        <div class="glass-card p-6 rounded-md border-b-4 border-emerald-500">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Click Rate</span>
+                <span class="text-xs font-bold text-emerald-600">{{ $stats['unique_clicks'] ?? 0 }} Unique</span>
+            </div>
+            <h3 class="text-3xl font-black text-surface-900">{{ $campaign->click_rate }}%</h3>
+            <p class="text-[10px] text-surface-400 mt-1 uppercase font-bold">{{ number_format($stats['clicks'] ?? 0) }} Total Clicks</p>
+        </div>
+
+        <div class="glass-card p-6 rounded-md border-b-4 border-rose-500">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Bounce/Failed</span>
+                <span class="text-xs font-bold text-rose-600">{{ number_format($campaign->failed_count) }} Total</span>
+            </div>
+            <h3 class="text-3xl font-black text-surface-900">{{ $campaign->total_recipients > 0 ? round(($campaign->failed_count / $campaign->total_recipients) * 100, 1) : 0 }}%</h3>
+            <p class="text-[10px] text-surface-400 mt-1 uppercase font-bold">Reputation Risk: Low</p>
+        </div>
+    </div>
+
+    {{-- Content Tabs --}}
+    <div class="space-y-6">
+        <div class="flex items-center gap-1 p-1 bg-surface-100 rounded-md w-fit">
+            <button @click="tab = 'analytics'" :class="tab === 'analytics' ? 'bg-white text-primary-600 shadow-sm' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Engagement Stats</button>
+            <button @click="tab = 'logs'" :class="tab === 'logs' ? 'bg-white text-primary-600 shadow-sm' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Real-time Logs</button>
+            <button @click="tab = 'settings'" :class="tab === 'settings' ? 'bg-white text-primary-600 shadow-sm' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Configuration</button>
+        </div>
+
+        {{-- Analytics Tab --}}
+        <div x-show="tab === 'analytics'" class="grid grid-cols-1 md:grid-cols-3 gap-8" x-transition>
+            <div class="md:col-span-2 space-y-8">
+                {{-- Link Performance --}}
+                <div class="glass-card rounded-md">
+                    <div class="p-6 border-b border-surface-100">
+                        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Link Performance</h4>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        @forelse($topLinks ?? [] as $link)
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-xs font-bold">
+                                <span class="text-surface-600 truncate max-w-md">{{ $link->url }}</span>
+                                <span class="text-primary-600">{{ $link->count }} clicks</span>
+                            </div>
+                            <div class="w-full h-2 bg-surface-50 rounded-md overflow-hidden border border-surface-100">
+                                <div class="h-full bg-primary-500" style="width: {{ ($link->count / max(1, $stats['clicks'] ?? 1)) * 100 }}%"></div>
+                            </div>
+                        </div>
+                        @empty
+                        <p class="text-sm text-surface-400 text-center py-12 italic">No link engagement tracked yet.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Activity Feed --}}
+                <div class="glass-card rounded-md">
+                    <div class="p-6 border-b border-surface-100">
+                        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Recent Activity</h4>
+                    </div>
+                    <div class="p-0">
+                        @foreach($campaign->activities()->with('email')->latest()->take(10)->get() as $activity)
+                        <div class="p-4 border-b border-surface-50 last:border-0 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div @class([
+                                    'w-8 h-8 rounded-md flex items-center justify-center text-xs',
+                                    'bg-indigo-50 text-indigo-600' => $activity->type === 'opened',
+                                    'bg-emerald-50 text-emerald-600' => $activity->type === 'clicked',
+                                ])>
+                                    @if($activity->type === 'opened')
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    @else
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    @endif
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-surface-900">{{ $activity->email->email ?? 'Unknown' }}</p>
+                                    <p class="text-[10px] text-surface-400 mt-0.5">{{ $activity->created_at->diffForHumans() }} from {{ $activity->ip_address ?? 'Global' }}</p>
+                                </div>
+                            </div>
+                            @if($activity->type === 'clicked')
+                            <span class="text-[9px] font-black px-2 py-0.5 bg-surface-50 text-surface-400 rounded-md border border-surface-100">CLICKED LINK</span>
+                            @endif
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            {{-- Sidebar Stats --}}
+            <div class="space-y-6">
+                <div class="glass-card p-6 rounded-md">
+                    <h4 class="text-[10px] font-black text-surface-900 uppercase tracking-widest mb-6">Device Profile</h4>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-surface-500 font-bold">Desktop</span>
+                            <span class="text-surface-900 font-black">-- %</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-surface-500 font-bold">Mobile</span>
+                            <span class="text-surface-900 font-black">-- %</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-md">
+                    <h4 class="text-[10px] font-black text-surface-900 uppercase tracking-widest mb-6">Infrastructure</h4>
+                    <div class="space-y-3">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase">Sender Identity</span>
+                            <span class="text-xs font-black text-surface-900">{{ $campaign->sender->email }}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase">Protocol</span>
+                            <span class="text-xs font-black text-primary-600 uppercase">{{ $campaign->sender->type }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Logs Tab --}}
+        <div x-show="tab === 'logs'" class="glass-card rounded-md overflow-hidden" x-transition>
             <table class="data-table">
                 <thead>
-                    <tr class="bg-surface-50/50">
-                        <th class="!pl-6 !py-2 text-[9px] font-black uppercase tracking-widest text-surface-400">Recipient</th>
-                        <th class="!py-2 text-[9px] font-black uppercase tracking-widest text-surface-400 text-center">Status</th>
-                        <th class="!py-2 text-[9px] font-black uppercase tracking-widest text-surface-400">Activity Detail</th>
-                        <th class="!py-2 text-[9px] font-black uppercase tracking-widest text-surface-400 text-right !pr-6">Time</th>
+                    <tr>
+                        <th class="!pl-6">Recipient</th>
+                        <th>Status</th>
+                        <th>Message ID</th>
+                        <th class="text-right !pr-6">Sent At</th>
                     </tr>
                 </thead>
-                <tbody class="text-[11px]">
+                <tbody>
                     @foreach($recentLogs as $log)
-                    <tr class="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
-                        <td class="!pl-6 !py-3 font-bold text-surface-900">{{ $log->email_address }}</td>
-                        <td class="text-center">
-                            @php $logCls = match($log->status) { 'sent' => 'text-emerald-600', 'failed' => 'text-red-600', default => 'text-surface-400' }; @endphp
-                            <span class="font-black uppercase tracking-tighter {{ $logCls }}">{{ $log->status }}</span>
+                    <tr>
+                        <td class="!pl-6">
+                            <span class="font-bold text-surface-900">{{ $log->email_address }}</span>
                         </td>
-                        <td class="text-surface-500 max-w-xs md:max-w-md">
-                            <div class="truncate" title="{{ $log->error_message }}">
-                                {{ $log->error_message ?? 'Delivery Successful' }}
-                            </div>
+                        <td>
+                            <span @class([
+                                'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border',
+                                'bg-green-50 text-green-700 border-green-100' => $log->status === 'sent',
+                                'bg-amber-50 text-amber-700 border-amber-100' => $log->status === 'pending',
+                                'bg-red-50 text-red-700 border-red-100' => in_array($log->status, ['failed', 'bounced', 'complaint']),
+                            ])>
+                                {{ $log->status }}
+                            </span>
                         </td>
-                        <td class="text-right !pr-6 text-surface-400 font-bold">{{ $log->sent_at?->diffForHumans() ?? 'Queue' }}</td>
+                        <td class="font-mono text-[10px] text-surface-400">{{ $log->message_id ?? 'N/A' }}</td>
+                        <td class="text-right !pr-6 text-surface-500 font-medium text-xs">
+                            {{ $log->sent_at ? $log->sent_at->format('H:i:s') : '—' }}
+                        </td>
                     </tr>
                     @endforeach
                 </tbody>
             </table>
-            @else
-            <div class="p-12 text-center text-surface-400">
-                <p class="text-xs font-bold uppercase tracking-widest">Awaiting deployment...</p>
-            </div>
-            @endif
         </div>
-    </div>
-</div>
 
-{{-- ── Test Email Modal ── --}}
-<div x-show="showTestModal" 
-     class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/40 backdrop-blur-sm"
-     x-cloak
-     x-transition:enter="transition ease-out duration-300"
-     x-transition:enter-start="opacity-0"
-     x-transition:enter-end="opacity-100"
-     x-transition:leave="transition ease-in duration-200"
-     x-transition:leave-start="opacity-100"
-     x-transition:leave-end="opacity-0">
-    
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up" @click.away="showTestModal = false">
-        <div class="p-6 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
-            <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest">Send Test Email</h3>
-            <button @click="showTestModal = false" class="text-surface-400 hover:text-surface-600">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <form action="{{ route('admin.campaigns.send-test', $campaign) }}" method="POST" class="p-6">
-            @csrf
-            <p class="text-xs text-surface-500 font-medium mb-4">Send a preview of this campaign to verify the design and personalization.</p>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-1.5">Recipient Address</label>
-                    <input type="email" name="email" required placeholder="e.g. you@company.com" 
-                           class="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm font-bold focus:bg-white focus:border-indigo-500 outline-none transition-all">
+        {{-- Configuration Tab --}}
+        <div x-show="tab === 'settings'" class="glass-card rounded-md p-8" x-transition>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div class="space-y-6">
+                    <h5 class="text-sm font-black text-surface-900 uppercase tracking-widest border-b border-surface-100 pb-2">Campaign Settings</h5>
+                    <div class="space-y-4">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase">Subject Line</span>
+                            <span class="text-sm font-medium text-surface-900">{{ $campaign->subject }}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase">Batch Size</span>
+                            <span class="text-sm font-medium text-surface-900">{{ $campaign->batch_size }} emails per job</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase">Target Velocity</span>
+                            <span class="text-sm font-medium text-surface-900">{{ $campaign->emails_per_minute }} emails / min</span>
+                        </div>
+                    </div>
                 </div>
-                <button type="submit" class="w-full btn btn-primary py-3 font-black uppercase tracking-widest text-xs">
-                    Dispatch Test
-                </button>
+                <div class="space-y-6">
+                    <h5 class="text-sm font-black text-surface-900 uppercase tracking-widest border-b border-surface-100 pb-2">Audience Profile</h5>
+                    <div class="space-y-4">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase">Email List</span>
+                            <span class="text-sm font-medium text-surface-900">{{ $campaign->emailList->name }}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase">Total Candidates</span>
+                            <span class="text-sm font-medium text-surface-900">{{ number_format($campaign->total_recipients) }}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </form>
+        </div>
     </div>
 </div>
-
-<script>
-function campaignDashboard() {
-    return {
-        total: {{ $stats['total'] }},
-        sent: {{ $stats['sent'] }},
-        failed: {{ $stats['failed'] }},
-        pending: {{ $stats['pending'] }},
-        progress: {{ $stats['progress'] }},
-        speed: {{ $campaign->currentSpeed() }},
-        eta: '{{ $campaign->estimatedCompletion() }}',
-        status: '{{ $campaign->status }}',
-        showTestModal: false,
-
-        pollStatus() {
-            setInterval(() => {
-                fetch('{{ route("admin.campaigns.status", $campaign) }}')
-                    .then(r => r.json())
-                    .then(data => {
-                        this.sent = data.sent_count;
-                        this.failed = data.failed_count;
-                        this.total = data.total;
-                        this.progress = data.progress;
-                        this.speed = data.speed;
-                        this.eta = data.eta;
-                        this.status = data.status;
-                        this.pending = data.total - data.sent_count - data.failed_count;
-
-                        if (data.status === 'completed' || data.status === 'cancelled') {
-                            location.reload();
-                        }
-                    });
-            }, 3000);
-        }
-    };
-}
-</script>
 @endsection

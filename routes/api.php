@@ -15,5 +15,6 @@ use App\Http\Controllers\SnsController;
 */
 
 Route::post('/sns/webhook', [SnsController::class, 'handle']);
+Route::post('/sendgrid/webhook', [\App\Http\Controllers\SendGridWebhookController::class, 'handle']);
 Route::get('/email-statuses', [SnsController::class, 'index']);
 

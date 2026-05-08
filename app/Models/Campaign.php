@@ -89,6 +89,16 @@ class Campaign extends Model
         return round(($reached / $this->total_recipients) * 100, 1);
     }
 
+    public function getOpenRateAttribute(): float
+    {
+        return $this->openRate();
+    }
+
+    public function getClickRateAttribute(): float
+    {
+        return $this->clickRate();
+    }
+
     public function openRate(): float
     {
         if ($this->sent_count === 0) return 0;

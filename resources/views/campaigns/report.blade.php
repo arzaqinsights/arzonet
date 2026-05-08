@@ -1,128 +1,158 @@
 @extends('layouts.app')
-@section('title', 'Campaign Report: ' . $campaign->name)
-@section('heading', 'Campaign Intelligence Report')
-
-@section('header-actions')
-    <div class="flex items-center gap-3">
-        <a href="{{ route('admin.campaigns.show', $campaign) }}" class="btn btn-ghost btn-sm">Back to Campaign</a>
-        <button onclick="window.print()" class="btn btn-primary btn-sm">Download PDF</button>
-    </div>
-@endsection
+@section('title', 'Advanced Campaign Report')
+@section('heading', 'Performance Intelligence')
 
 @section('content')
 <div class="space-y-8 animate-slide-up">
-    {{-- ── Campaign Summary ── --}}
-    <div class="glass-card p-8">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-                <h2 class="text-3xl font-black text-surface-900 mb-1">{{ $campaign->name }}</h2>
-                <p class="text-surface-500 font-medium">Sent on {{ $campaign->completed_at ? $campaign->completed_at->format('M d, Y \a\t h:i A') : 'Ongoing' }}</p>
-            </div>
-            <div class="flex gap-4">
-                <div class="text-center px-6 border-r border-surface-100">
-                    <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Open Rate</p>
-                    <p class="text-2xl font-black text-emerald-600">{{ $stats['sent'] > 0 ? round(($stats['unique_opens'] / $stats['sent']) * 100, 1) : 0 }}%</p>
-                </div>
-                <div class="text-center px-6">
-                    <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Click Rate</p>
-                    <p class="text-2xl font-black text-indigo-600">{{ $stats['sent'] > 0 ? round(($stats['unique_clicks'] / $stats['sent']) * 100, 1) : 0 }}%</p>
-                </div>
-            </div>
+    
+    {{-- Main Stats Dashboard --}}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="glass-card p-6 rounded-md border-b-4 border-primary-500">
+            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Total Reach</span>
+            <h3 class="text-3xl font-black text-surface-900">{{ number_format($stats['total']) }}</h3>
+            <p class="text-[10px] text-surface-400 mt-1 font-bold uppercase">Targeted Audience</p>
+        </div>
+        <div class="glass-card p-6 rounded-md border-b-4 border-indigo-500">
+            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Engagement (Opens)</span>
+            <h3 class="text-3xl font-black text-surface-900">{{ number_format($stats['unique_opens']) }}</h3>
+            <p class="text-[10px] text-indigo-500 mt-1 font-bold uppercase">{{ round(($stats['unique_opens'] / max(1, $stats['sent'])) * 100, 1) }}% Open Rate</p>
+        </div>
+        <div class="glass-card p-6 rounded-md border-b-4 border-emerald-500">
+            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Click-Through</span>
+            <h3 class="text-3xl font-black text-surface-900">{{ number_format($stats['unique_clicks']) }}</h3>
+            <p class="text-[10px] text-emerald-500 mt-1 font-bold uppercase">{{ round(($stats['unique_clicks'] / max(1, $stats['sent'])) * 100, 1) }}% CTR</p>
+        </div>
+        <div class="glass-card p-6 rounded-md border-b-4 border-rose-500">
+            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Reputation Health</span>
+            <h3 class="text-3xl font-black text-rose-600">{{ $stats['bounces'] + $stats['complaints'] }}</h3>
+            <p class="text-[10px] text-rose-400 mt-1 font-bold uppercase">Bounces & Complaints</p>
         </div>
     </div>
 
-    {{-- ── Funnel Stats ── --}}
-    <div class="grid grid-cols-2 lg:grid-cols-6 gap-6">
-        <div class="stat-card">
-            <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Total Sent</p>
-            <p class="text-2xl font-black text-surface-900 mt-1">{{ number_format($stats['sent']) }}</p>
+    {{-- Infrastructure Performance --}}
+    <div class="glass-card rounded-md overflow-hidden">
+        <div class="p-6 bg-surface-50 border-b border-surface-100 flex items-center justify-between">
+            <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Provider Infrastructure Performance</h4>
+            <span class="text-[10px] font-bold text-surface-400">Comparing {{ $providerStats->count() }} Routing Nodes</span>
         </div>
-        <div class="stat-card">
-            <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Total Opens</p>
-            <p class="text-2xl font-black text-emerald-600 mt-1">{{ number_format($stats['opens']) }}</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Total Clicks</p>
-            <p class="text-2xl font-black text-indigo-600 mt-1">{{ number_format($stats['clicks']) }}</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[10px] font-black text-red-500 uppercase tracking-widest">Bounces</p>
-            <p class="text-2xl font-black text-red-600 mt-1">{{ number_format($stats['bounces']) }}</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[10px] font-black text-orange-500 uppercase tracking-widest">Complaints</p>
-            <p class="text-2xl font-black text-orange-600 mt-1">{{ number_format($stats['complaints']) }}</p>
-        </div>
-        <div class="stat-card border-l-4 border-red-500 bg-red-50/20">
-            <p class="text-[10px] font-black text-red-700 uppercase tracking-widest">Unsubscribes</p>
-            <p class="text-2xl font-black text-red-700 mt-1">{{ number_format($stats['unsubscribes']) }}</p>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th class="!pl-8">Provider Identity</th>
+                        <th class="text-center">Total Sent</th>
+                        <th class="text-center">Success Rate</th>
+                        <th class="text-center">Engagement</th>
+                        <th class="text-right !pr-8">Performance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($providerStats as $ps)
+                    <tr class="hover:bg-surface-50/50 transition-colors">
+                        <td class="!pl-8 !py-6">
+                            <div class="flex items-center gap-3">
+                                <div @class([
+                                    'w-10 h-10 rounded-md flex items-center justify-center text-[10px] font-black uppercase',
+                                    'bg-indigo-50 text-indigo-600' => $ps->provider === 'ses',
+                                    'bg-emerald-50 text-emerald-600' => $ps->provider === 'sendgrid',
+                                    'bg-surface-100 text-surface-600' => $ps->provider === 'smtp',
+                                ])>
+                                    {{ $ps->provider }}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-black text-surface-900">{{ $ps->sender_email }}</p>
+                                    <p class="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">{{ $ps->provider }} GATEWAY</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <p class="text-sm font-black text-surface-900">{{ number_format($ps->total) }}</p>
+                        </td>
+                        <td class="text-center">
+                            @php $rate = $ps->total > 0 ? round(($ps->sent / $ps->total) * 100, 1) : 0; @endphp
+                            <div class="flex flex-col items-center gap-1">
+                                <span class="text-xs font-black {{ $rate > 90 ? 'text-emerald-600' : 'text-amber-600' }}">{{ $rate }}%</span>
+                                <div class="w-16 h-1 bg-surface-100 rounded-md overflow-hidden">
+                                    <div class="h-full {{ $rate > 90 ? 'bg-emerald-500' : 'bg-amber-500' }}" style="width: {{ $rate }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-bold text-surface-600 uppercase">{{ number_format($ps->total_opens) }} Opens</span>
+                                <span class="text-[10px] font-bold text-surface-400 uppercase">{{ number_format($ps->total_clicks) }} Clicks</span>
+                            </div>
+                        </td>
+                        <td class="text-right !pr-8">
+                            @if($rate > 95)
+                                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded-md border border-emerald-100 uppercase tracking-widest">Optimal</span>
+                            @else
+                                <span class="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-md border border-amber-100 uppercase tracking-widest">Monitoring</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {{-- Link Tracking --}}
-        <div class="lg:col-span-1 glass-card p-8">
-            <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest mb-6">Top Clicked Links</h3>
-            <div class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {{-- Link Intelligence --}}
+        <div class="glass-card rounded-md overflow-hidden">
+            <div class="p-6 border-b border-surface-100">
+                <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Link Engagement Intelligence</h4>
+            </div>
+            <div class="p-6 space-y-6">
                 @forelse($topLinks as $link)
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-surface-600 truncate max-w-[200px]" title="{{ $link->url }}">{{ $link->url }}</span>
-                        <span class="text-xs font-black text-indigo-600">{{ $link->count }} clicks</span>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs font-bold">
+                        <span class="text-surface-600 truncate max-w-[250px]">{{ $link->url }}</span>
+                        <span class="text-primary-600">{{ $link->count }} clicks</span>
                     </div>
-                    <div class="h-1.5 w-full bg-surface-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-indigo-500" style="width: {{ ($link->count / max($stats['clicks'], 1)) * 100 }}%"></div>
+                    <div class="w-full h-2 bg-surface-50 rounded-md overflow-hidden border border-surface-100">
+                        <div class="h-full bg-primary-500" style="width: {{ ($link->count / max(1, $stats['clicks'])) * 100 }}%"></div>
                     </div>
                 </div>
                 @empty
-                <div class="text-center py-10 opacity-50 italic text-sm">No link activity recorded.</div>
+                <p class="text-sm text-surface-400 text-center py-12 italic">No link tracking data available.</p>
                 @endforelse
             </div>
         </div>
 
-        {{-- Activity Logs --}}
-        <div class="lg:col-span-2 glass-card overflow-hidden">
-            <div class="p-6 border-b border-surface-100 bg-surface-50/50 flex items-center justify-between">
-                <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest">Detailed Logs</h3>
+        {{-- Log Registry --}}
+        <div class="glass-card rounded-md overflow-hidden flex flex-col">
+            <div class="p-6 border-b border-surface-100 flex items-center justify-between">
+                <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Detailed Event Registry</h4>
+                <div class="flex gap-2">
+                    <span class="w-2 h-2 rounded-md bg-emerald-500" title="Sent"></span>
+                    <span class="w-2 h-2 rounded-md bg-rose-500" title="Bounced"></span>
+                </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="data-table">
+                <table class="data-table !text-[11px]">
                     <thead>
                         <tr>
-                            <th>Recipient</th>
+                            <th class="!pl-6">Recipient</th>
                             <th>Status</th>
-                            <th>Opens</th>
-                            <th>Clicks</th>
-                            <th>Timestamp</th>
+                            <th class="text-right !pr-6">Timestamp</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($logs as $log)
-                        <tr class="group hover:bg-surface-50/50 transition-colors">
+                        <tr>
+                            <td class="!pl-6 font-bold text-surface-900">{{ $log->email->email ?? 'Unknown' }}</td>
                             <td>
-                                <div class="font-bold text-surface-900">{{ $log->email->name ?? '—' }}</div>
-                                <div class="text-xs text-surface-400">{{ $log->email_address }}</div>
+                                @php $lcls = match($log->status) { 'sent' => 'text-emerald-600', 'bounced' => 'text-rose-600', 'failed' => 'text-rose-600', default => 'text-surface-400' }; @endphp
+                                <span class="font-black uppercase tracking-widest {{ $lcls }}">{{ $log->status }}</span>
                             </td>
-                            <td>
-                                <span class="badge {{ $log->status === 'sent' ? 'badge-success' : 'badge-danger' }}">
-                                    {{ ucfirst($log->status) }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="text-xs font-black text-emerald-600">{{ $campaign->activities()->where('email_id', $log->email_id)->where('type', 'opened')->count() }}</span>
-                            </td>
-                            <td>
-                                <span class="text-xs font-black text-indigo-600">{{ $campaign->activities()->where('email_id', $log->email_id)->where('type', 'clicked')->count() }}</span>
-                            </td>
-                            <td class="text-xs text-surface-400 font-medium">
-                                {{ $log->sent_at ? $log->sent_at->diffForHumans() : '—' }}
-                            </td>
+                            <td class="text-right !pr-6 text-surface-400">{{ $log->created_at->format('H:i:s') }}</td>
                         </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <div class="p-6 border-t border-surface-100 bg-surface-50/30">
+            <div class="p-4 border-t border-surface-100 bg-surface-50/50">
                 {{ $logs->links() }}
             </div>
         </div>

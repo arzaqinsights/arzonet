@@ -12,24 +12,16 @@ class SESService
 {
     protected ?SesClient $client;
 
-    public function __construct(?array $config = null)
+    public function __construct()
     {
-        $key = $config['key'] ?? (config('services.ses.key') ?: env('SES_ACCESS_KEY'));
-        $secret = $config['secret'] ?? (config('services.ses.secret') ?: env('SES_SECRET_KEY'));
-        $region = $config['region'] ?? (config('services.ses.region') ?: env('SES_REGION', 'us-east-1'));
-
-        if ($key && $secret) {
-            $this->client = new SesClient([
-                'version' => 'latest',
-                'region'  => $region,
-                'credentials' => [
-                    'key'    => $key,
-                    'secret' => $secret,
-                ],
-            ]);
-        } else {
-            $this->client = null;
-        }
+        $this->client = new SesClient([
+            'version' => 'latest',
+            'region'  => config('services.ses.region', 'us-east-1'),
+            'credentials' => [
+                'key'    => config('services.ses.key'),
+                'secret' => config('services.ses.secret'),
+            ],
+        ]);
     }
 
     /**

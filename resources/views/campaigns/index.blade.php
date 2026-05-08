@@ -1,128 +1,161 @@
 @extends('layouts.app')
-@section('title', 'Campaigns')
-@section('heading', 'Campaigns')
-
-@section('header-actions')
-    <a href="{{ route('admin.campaigns.create') }}" class="btn btn-primary shadow-xl shadow-primary-200">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        New Campaign
-    </a>
-@endsection
+@section('title', 'Campaign Management')
+@section('heading', 'All Campaigns')
 
 @section('content')
 <div class="space-y-8 animate-slide-up">
-    {{-- ── Campaign Global Intelligence ── --}}
+    
+    {{-- Summary Stats --}}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="glass-card p-6 bg-gradient-to-br from-white to-surface-50 border-surface-200">
-            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Total Sent</p>
-            <h2 class="text-3xl font-black text-surface-900">{{ number_format($campaigns->sum('sent_count')) }}</h2>
-            <div class="w-full h-1 bg-primary-100 rounded-full mt-4"></div>
+        <div class="glass-card p-6 rounded-md border-l-4 border-primary-500">
+            <p class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Total Managed</p>
+            <h3 class="text-2xl font-black text-surface-900 mt-2">{{ $campaigns->total() }}</h3>
         </div>
-        <div class="glass-card p-6 bg-gradient-to-br from-white to-surface-50 border-surface-200">
-            <p class="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Success Rate</p>
-            @php 
-                $total = $campaigns->sum('sent_count') + $campaigns->sum('failed_count');
-                $rate = $total > 0 ? round(($campaigns->sum('sent_count') / $total) * 100) : 100;
-            @endphp
-            <h2 class="text-3xl font-black text-emerald-600">{{ $rate }}%</h2>
-            <div class="w-full h-1 bg-emerald-100 rounded-full mt-4"></div>
+        <div class="glass-card p-6 rounded-md border-l-4 border-green-500">
+            <p class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Global Reach</p>
+            <h3 class="text-2xl font-black text-surface-900 mt-2">{{ number_format($campaigns->sum('total_recipients')) }}</h3>
         </div>
-        <div class="glass-card p-6 bg-gradient-to-br from-white to-surface-50 border-surface-200">
-            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Active</p>
-            <h2 class="text-3xl font-black text-primary-600">{{ $campaigns->where('status', 'sending')->count() }}</h2>
-            <p class="text-[10px] text-surface-400 font-bold mt-2 uppercase">Running Now</p>
+        <div class="glass-card p-6 rounded-md border-l-4 border-amber-500">
+            <p class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Delivered</p>
+            <h3 class="text-2xl font-black text-surface-900 mt-2">{{ number_format($campaigns->sum('sent_count')) }}</h3>
         </div>
-        <div class="glass-card p-6 bg-gradient-to-br from-white to-surface-50 border-surface-200">
-            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Total Reach</p>
-            <h2 class="text-3xl font-black text-surface-900">{{ number_format($campaigns->sum('total_recipients')) }}</h2>
-            <p class="text-[10px] text-surface-400 font-bold mt-2 uppercase">Target Audience</p>
+        <div class="glass-card p-6 rounded-md border-l-4 border-indigo-500">
+            <p class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Avg. Open Rate</p>
+            <h3 class="text-2xl font-black text-surface-900 mt-2">-- %</h3>
         </div>
     </div>
 
-    {{-- ── Campaign Registry ── --}}
-    @if($campaigns->count())
-    <div class="glass-card overflow-hidden border-surface-200 shadow-xl">
-        <div class="p-6 bg-surface-50 border-b border-surface-100 flex items-center justify-between">
-            <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest">Campaign Registry</h3>
-            <span class="text-[10px] font-bold text-surface-400">{{ $campaigns->total() }} Total Managed</span>
+    {{-- Campaign List --}}
+    <div class="glass-card overflow-hidden rounded-md">
+        <div class="p-6 bg-surface-50/50 border-b border-surface-100 flex justify-between items-center">
+            <h4 class="text-surface-900 font-extrabold text-xs uppercase tracking-[0.2em]">Marketing Pipeline</h4>
+            <a href="{{ route('admin.campaigns.create') }}" class="btn btn-primary btn-sm rounded-md px-6">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                New Campaign
+            </a>
         </div>
-        <div class="overflow-x-auto">
-            <table class="data-table">
-                <thead>
-                    <tr class="bg-surface-50/50">
-                        <th class="!pl-8 text-[10px] font-black uppercase tracking-widest text-surface-400">Campaign Identity</th>
-                        <th class="text-[10px] font-black uppercase tracking-widest text-surface-400">Target List</th>
-                        <th class="text-[10px] font-black uppercase tracking-widest text-surface-400 text-center">Status</th>
-                        <th class="text-[10px] font-black uppercase tracking-widest text-surface-400">Progress</th>
-                        <th class="text-[10px] font-black uppercase tracking-widest text-surface-400 text-right !pr-8">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="text-xs">
-                    @foreach($campaigns as $campaign)
-                    <tr class="group border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
-                        <td class="!pl-8 !py-5">
-                            <a href="{{ route('admin.campaigns.show', $campaign) }}" class="text-sm font-black text-surface-900 hover:text-primary-600 block mb-0.5">{{ $campaign->name }}</a>
-                            <p class="text-[9px] font-bold text-surface-400 uppercase tracking-tighter">{{ $campaign->created_at->diffForHumans() }}</p>
-                        </td>
-                        <td>
-                            <div class="flex items-center gap-2">
-                                <div class="w-6 h-6 rounded bg-primary-50 flex items-center justify-center text-primary-600 text-[8px] font-black">
-                                    {{ substr($campaign->emailList->name ?? 'L', 0, 1) }}
-                                </div>
-                                <span class="font-bold text-surface-700">{{ $campaign->emailList->name ?? '—' }}</span>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="w-1/3">Campaign & Identity</th>
+                    <th>Engagement</th>
+                    <th>Pipeline Status</th>
+                    <th class="text-right">Manage</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($campaigns as $campaign)
+                <tr class="group">
+                    <td>
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-md bg-surface-100 flex flex-col items-center justify-center text-surface-500 border border-surface-200">
+                                <span class="text-[9px] font-black uppercase tracking-tighter">{{ $campaign->created_at->format('M') }}</span>
+                                <span class="text-lg font-black leading-none">{{ $campaign->created_at->format('d') }}</span>
                             </div>
-                        </td>
-                        <td class="text-center">
-                            @php $cls = match($campaign->status) { 'completed' => 'bg-emerald-100 text-emerald-700', 'sending' => 'bg-amber-100 text-amber-700', 'scheduled' => 'bg-indigo-100 text-indigo-700', 'cancelled' => 'bg-red-100 text-red-700', default => 'bg-surface-100 text-surface-600' }; @endphp
-                            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest {{ $cls }}">
-                                @if($campaign->status === 'sending')
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
-                                @endif
-                                {{ $campaign->status }}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="flex flex-col gap-1.5 min-w-[120px]">
-                                <div class="flex justify-between items-end">
-                                    <span class="text-[9px] font-black text-surface-400 uppercase">{{ number_format($campaign->sent_count) }} / {{ number_format($campaign->total_recipients) }}</span>
-                                    <span class="text-[10px] font-black text-primary-600">{{ $campaign->progress() }}%</span>
-                                </div>
-                                <div class="h-1.5 w-full bg-surface-100 rounded-full overflow-hidden">
-                                    <div class="h-full bg-primary-500 rounded-full" style="width: {{ $campaign->progress() }}%"></div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="text-right !pr-8">
-                            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href="{{ route('admin.campaigns.show', $campaign) }}" class="p-2 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="View Report">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            <div>
+                                <a href="{{ route('admin.campaigns.show', $campaign) }}" class="font-bold text-surface-900 hover:text-primary-600 transition-colors leading-tight block">
+                                    {{ $campaign->name }}
                                 </a>
-                                <form action="{{ route('admin.campaigns.destroy', $campaign) }}" method="POST" onsubmit="return confirm('Permanently delete this campaign?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="p-2 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete Campaign">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                    </button>
-                                </form>
+                                <div class="flex items-center gap-2 mt-1.5">
+                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-surface-100 text-surface-600 border border-surface-200 uppercase">
+                                        {{ $campaign->emailList->name ?? 'Audience' }}
+                                    </span>
+                                    <span class="text-[10px] font-medium text-surface-400">
+                                        {{ number_format($campaign->total_recipients) }} recipients
+                                    </span>
+                                </div>
                             </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        <div class="p-6 bg-surface-50/50 border-t border-surface-100">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-tighter">
+                                <span class="text-surface-400">Engagement Rate</span>
+                                <span class="text-primary-600">{{ $campaign->open_rate }}%</span>
+                            </div>
+                            <div class="w-24 h-1.5 bg-surface-100 rounded-md overflow-hidden">
+                                <div class="h-full bg-primary-500" style="width: {{ $campaign->open_rate }}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                @php
+                                    $statusCls = match($campaign->status) {
+                                        'completed' => 'bg-green-100 text-green-700 border-green-200',
+                                        'sending' => 'bg-primary-100 text-primary-700 border-primary-200 animate-pulse',
+                                        'paused' => 'bg-amber-100 text-amber-700 border-amber-200',
+                                        'cancelled' => 'bg-red-100 text-red-700 border-red-200',
+                                        default => 'bg-surface-100 text-surface-600 border-surface-200',
+                                    };
+                                @endphp
+                                <span class="text-[9px] font-black px-2 py-0.5 rounded-md border uppercase tracking-widest {{ $statusCls }}">
+                                    {{ $campaign->status }}
+                                </span>
+                            </div>
+                            <div class="w-full h-1.5 bg-surface-100 rounded-md overflow-hidden">
+                                <div class="h-full bg-surface-400 transition-all duration-500" style="width: {{ $campaign->progress() }}%"></div>
+                            </div>
+                            <p class="text-[10px] font-medium text-surface-400">
+                                {{ number_format($campaign->sent_count) }} / {{ number_format($campaign->total_recipients) }} sent
+                            </p>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                            {{-- Clone --}}
+                            <form action="{{ route('admin.campaigns.clone', $campaign) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="p-2 text-surface-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" title="Duplicate Campaign">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+                                </button>
+                            </form>
+
+                            {{-- Edit --}}
+                            @if(!in_array($campaign->status, ['completed', 'sending']))
+                            <a href="{{ route('admin.campaigns.edit', $campaign) }}" class="p-2 text-surface-500 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors" title="Edit Campaign">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </a>
+                            @endif
+
+                            {{-- Report/Show --}}
+                            <a href="{{ route('admin.campaigns.show', $campaign) }}" class="p-2 text-surface-500 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors" title="Analytics & Logs">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            </a>
+
+                            {{-- Delete --}}
+                            <form action="{{ route('admin.campaigns.destroy', $campaign) }}" method="POST" onsubmit="return confirm('Archive this campaign?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="p-2 text-surface-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Archive">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="4" class="text-center py-32">
+                        <div class="max-w-xs mx-auto">
+                            <div class="w-20 h-20 bg-surface-50 rounded-md flex items-center justify-center mx-auto mb-6 text-surface-200 border border-dashed border-surface-200">
+                                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+                            </div>
+                            <h5 class="text-surface-900 font-bold text-lg leading-tight">No Marketing Missions Found</h5>
+                            <p class="text-sm text-surface-500 mt-2">Start your first high-performance campaign to grow your business.</p>
+                            <a href="{{ route('admin.campaigns.create') }}" class="btn btn-primary mt-8 rounded-md px-10">Launch First Mission</a>
+                        </div>
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+        @if($campaigns->hasPages())
+        <div class="px-8 py-6 border-t border-surface-100 bg-surface-50/30">
             {{ $campaigns->links() }}
         </div>
+        @endif
     </div>
-    @else
-    <div class="glass-card p-24 text-center">
-        <div class="w-24 h-24 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-8 text-primary-200">
-            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-        </div>
-        <h3 class="text-3xl font-black text-surface-900 mb-3">Launch Your First Mission</h3>
-        <p class="text-surface-500 mb-10 max-w-md mx-auto text-lg leading-relaxed">No campaigns found. Start your first high-performance marketing mission today.</p>
-        <a href="{{ route('admin.campaigns.create') }}" class="btn btn-primary px-12 py-4 shadow-xl shadow-primary-200">Create New Campaign</a>
-    </div>
-    @endif
 </div>
 @endsection

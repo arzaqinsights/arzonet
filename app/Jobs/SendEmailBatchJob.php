@@ -107,6 +107,18 @@ class SendEmailBatchJob implements ShouldQueue
                 ];
 
                 $html = $mailService->replaceVariables($template->html_content, $recipientData);
+                // ── PRE-FLIGHT DOMAIN VALIDATION (SMTP Safety) ──
+                $domain = substr(strrchr($email->email, "@"), 1);
+                if (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
+                    $log->update([
+                        'status' => 'failed',
+                        'error_message' => "Invalid Domain: {$domain} (DNS check failed)",
+                        'sent_at' => now()
+                    ]);
+                    $campaign->increment('failed_count');
+                    continue;
+                }
+
                 $subject = $mailService->replaceVariables($template->subject, $recipientData, false);
                 $trackedHtml = $analyticsTracker->injectTracking($html, $log);
 
