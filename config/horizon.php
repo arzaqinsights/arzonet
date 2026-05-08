@@ -218,18 +218,47 @@ return [
         ],
 
         'local' => [
+
             'supervisor-1' => [
+                'connection' => 'redis',
+                'queue' => ['high', 'default'],
+                'balance' => 'auto',
                 'maxProcesses' => 3,
+                'memory' => 128,
+                'tries' => 3,
+                'timeout' => 60,
             ],
+
             'supervisor-ses' => [
+                'connection' => 'redis',
+                'queue' => ['bulk-ses'],
+                'balance' => false,
                 'maxProcesses' => 5,
+                'memory' => 256,
+                'tries' => 1,
+                'timeout' => 900,
             ],
+
             'supervisor-sendgrid' => [
+                'connection' => 'redis',
+                'queue' => ['bulk-sendgrid'],
+                'balance' => false,
                 'maxProcesses' => 2,
+                'memory' => 256,
+                'tries' => 1,
+                'timeout' => 900,
             ],
+
             'supervisor-smtp' => [
+                'connection' => 'redis',
+                'queue' => ['bulk-smtp'],
+                'balance' => false,
                 'maxProcesses' => 1,
+                'memory' => 256,
+                'tries' => 1,
+                'timeout' => 900,
             ],
+
         ],
     ],
 ];
