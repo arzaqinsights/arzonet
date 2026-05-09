@@ -47,7 +47,7 @@
                             <i class="fa-solid fa-star"></i>
                             <i class="fa-solid fa-star-half"></i>
                         </div>
-                        <div class="text-gray-600 text-sm">43k+ happy users</div>
+                        <div class="text-gray-600 text-sm">3k+ happy users</div>
                     </div>
 
                 </div>
@@ -58,11 +58,11 @@
                         <div class="text-gray-600 text-sm">Server Uptime</div>
                     </div>
                     <div class="flex flex-col items-center md:items-start">
-                        <div class="text-4xl font-black text-black mb-2">43K+</div>
+                        <div class="text-4xl font-black text-black mb-2">3K+</div>
                         <div class="text-gray-600 text-sm">Active Users</div>
                     </div>
                     <div class="flex flex-col items-center md:items-start">
-                        <div class="text-4xl font-black text-black mb-2">5.7M+</div>
+                        <div class="text-4xl font-black text-black mb-2">10k+</div>
                         <div class="text-gray-600 text-sm">Email/Month</div>
                     </div>
                     <div class="flex flex-col items-center md:items-start">
@@ -89,7 +89,7 @@
                             class="w-10 h-10 rounded-full border-2 border-brand">
                     </div>
                     <div class="mt-4">
-                        <h3 class="text-3xl md:text-5xl font-black mb-2 font-['Outfit']">87.4M+</h3>
+                        <h3 class="text-3xl md:text-5xl font-black mb-2 font-['Outfit']">10k+</h3>
                         <p class="text-xs md:text-sm text-white/90 leading-relaxed font-medium">Emails Delivered <br>
                             Successfully</p>
                     </div>
