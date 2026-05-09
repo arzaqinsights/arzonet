@@ -188,16 +188,21 @@ class EmailValidationService
                 $entry['validation_reason'][] = 'Suspicious local part pattern';
             }
 
-            // E. DNS Check (Mark as Risky, not Invalid, to allow import)
+            // E. DNS Check (Mark as Invalid if domain is non-existent to prevent 100% bounce)
             if (!$skipDns && !isset($trustedDomains[$domain])) {
                 $isDomainValid = Cache::remember("dns_mx_{$domain}", 86400, function() use ($domain) {
+                    // Domain MUST have either an MX record or at least an A record to be deliverable
                     return @checkdnsrr($domain, "MX") || @checkdnsrr($domain, "A");
                 });
 
                 if (!$isDomainValid) {
-                    $entry['email_status'] = 'risky';
+                    $entry['status'] = 'invalid';
+                    $entry['email_status'] = 'invalid';
                     $entry['email_score'] = 1;
-                    $entry['validation_reason'][] = 'No MX/A records found (possible invalid domain)';
+                    $entry['validation_reason'][] = 'Invalid domain: No MX/A records found (will bounce 100%)';
+                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
+                    $invalid[] = $entry;
+                    continue;
                 }
             }
 

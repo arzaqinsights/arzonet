@@ -156,11 +156,11 @@
                         <select x-model="filter" @change="fetchEmails()" class="bg-transparent border-none text-[10px] font-black text-surface-700 focus:ring-0 focus:outline-none cursor-pointer p-0">
                             <option value="all">All Records</option>
                             <option value="valid">Clean / Valid</option>
-                            <option value="risky">Risky Contacts</option>
+                            <!-- <option value="risky">Risky Contacts</option> -->
                             <option value="suspicious">Suspicious</option>
                             <option value="role_based">Role-Based</option>
                             <option value="disposable">Disposable</option>
-                            <option value="invalid">Format Errors</option>
+                            <option value="invalid">Invalid/Broken</option>
                             <!-- <option value="duplicate">Duplicates</option> -->
                         </select>
                     </div>
@@ -569,7 +569,7 @@
                                                             <div class="w-5 h-5 rounded-full bg-red-50 flex items-center justify-center">
                                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                                             </div>
-                                                            <span>{{ number_format($log->details['invalid']) }} syntax errors</span>
+                                                            <span>{{ number_format($log->details['invalid']) }} invalid/syntax errors</span>
                                                         </div>
                                                     @endif
 
