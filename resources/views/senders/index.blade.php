@@ -37,11 +37,13 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="space-y-2">
                         <label class="text-xs font-black text-surface-400 uppercase tracking-widest">Sender Display Name</label>
-                        <input type="text" name="from_name" class="form-input rounded-md !bg-surface-50 border-surface-200 py-3" placeholder="e.g. Arzonet Support" required>
+                        <input type="text" name="from_name" value="{{ old('from_name') }}" class="form-input rounded-md !bg-surface-50 @error('from_name') border-rose-500 @else border-surface-200 @enderror py-3" placeholder="e.g. Arzonet Support" required>
+                        @error('from_name') <p class="text-[10px] font-bold text-rose-500 uppercase tracking-tight">{{ $message }}</p> @enderror
                     </div>
                     <div class="space-y-2">
                         <label class="text-xs font-black text-surface-400 uppercase tracking-widest">Authorized Email Address</label>
-                        <input type="email" name="email" class="form-input rounded-md !bg-surface-50 border-surface-200 py-3" placeholder="e.g. hello@arzonet.com" required>
+                        <input type="email" name="email" value="{{ old('email') }}" class="form-input rounded-md !bg-surface-50 @error('email') border-rose-500 @else border-surface-200 @enderror py-3" placeholder="e.g. hello@arzonet.com" required>
+                        @error('email') <p class="text-[10px] font-bold text-rose-500 uppercase tracking-tight">{{ $message }}</p> @enderror
                     </div>
                 </div>
 

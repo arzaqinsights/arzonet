@@ -22,53 +22,80 @@ class SenderController extends Controller
 
     public function store(Request $request)
     {
+        $mode = $request->input('mode', 'bulk');
+
         $request->validate([
             'from_name' => 'required|string|max:255',
             'email' => [
                 'required',
                 'email',
                 'unique:senders,email',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($mode) {
                     $domain = strtolower(substr(strrchr($value, "@"), 1));
                     $publicProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'];
-                    if (in_array($domain, $publicProviders)) {
-                        $fail('Public email providers (like Gmail/Yahoo) are not allowed for bulk sending. Please use your verified business domain.');
+                    
+                    if ($mode === 'bulk' && in_array($domain, $publicProviders)) {
+                        $fail('Public email providers are not allowed for Bulk Mode. Please use your verified business domain.');
                     }
                 }
             ],
+            // SMTP Fields if normal mode
+            'smtp_host' => $mode === 'normal' ? 'required' : 'nullable',
+            'smtp_port' => $mode === 'normal' ? 'required' : 'nullable',
+            'smtp_username' => $mode === 'normal' ? 'required' : 'nullable',
+            'smtp_password' => $mode === 'normal' ? 'required' : 'nullable',
         ]);
 
         $email = strtolower($request->email);
         $domainName = substr(strrchr($email, "@"), 1);
 
-        // Check if domain is verified for this user
-        $verifiedDomain = \App\Models\VerifiedDomain::where('user_id', Auth::id())
-            ->where('domain', $domainName)
-            ->where('status', 'verified')
-            ->first();
+        if ($mode === 'bulk') {
+            // Strict Domain Verification for Bulk
+            $verifiedDomain = \App\Models\VerifiedDomain::where('user_id', Auth::id())
+                ->where('domain', $domainName)
+                ->where('status', 'verified')
+                ->first();
 
-        if (!$verifiedDomain) {
-            return back()->with('error', "The domain '{$domainName}' is not verified. Please add and verify this domain first.")->withInput();
+            if (!$verifiedDomain) {
+                return back()->withErrors(['email' => "The domain '{$domainName}' is not verified in your account. Please add and verify it in the Domains section first."])->withInput();
+            }
+
+            $profile = config("emailplatform.profiles.bulk");
+            $type = config('emailplatform.bulk_provider');
+
+            $sender = Sender::create([
+                'user_id' => Auth::id(),
+                'verified_domain_id' => $verifiedDomain->id,
+                'from_name' => $request->from_name,
+                'email' => $email,
+                'type' => $type,
+                'is_authenticated' => true,
+                'emails_per_second' => $profile['emails_per_second'],
+                'emails_per_minute' => $profile['emails_per_minute'],
+                'daily_limit' => $profile['daily_limit'],
+                'status' => 'verified',
+                'verified_at' => now(),
+            ]);
+
+            return redirect()->route('admin.senders.index')->with('success', "Bulk Sender '{$email}' added via verified domain.");
+        } else {
+            // Normal SMTP Mode
+            $sender = Sender::create([
+                'user_id' => Auth::id(),
+                'from_name' => $request->from_name,
+                'email' => $email,
+                'type' => 'smtp',
+                'smtp_host' => $request->smtp_host,
+                'smtp_port' => $request->smtp_port,
+                'smtp_username' => $request->smtp_username,
+                'smtp_password' => $request->smtp_password,
+                'smtp_encryption' => $request->smtp_encryption ?? 'tls',
+                'status' => 'verified', // SMTP is assumed verified by credentials
+                'verified_at' => now(),
+            ]);
+
+            return redirect()->route('admin.senders.index')->with('success', "SMTP Sender '{$email}' added successfully.");
         }
-
-        $profile = config("emailplatform.profiles.bulk");
-        $type = config('emailplatform.bulk_provider');
-
-        $sender = Sender::create([
-            'user_id' => Auth::id(),
-            'verified_domain_id' => $verifiedDomain->id,
-            'from_name' => $request->from_name,
-            'email' => $email,
-            'type' => $type,
-            'is_authenticated' => true,
-            'emails_per_second' => $profile['emails_per_second'],
-            'emails_per_minute' => $profile['emails_per_minute'],
-            'daily_limit' => $profile['daily_limit'],
-            'status' => 'verified',
-            'verified_at' => now(),
-        ]);
-
-        return redirect()->route('admin.senders.index')->with('success', "Sender '{$email}' added and automatically verified via domain authentication!");
     }
 
     public function edit(Sender $sender)

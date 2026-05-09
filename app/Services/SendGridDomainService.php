@@ -53,6 +53,25 @@ class SendGridDomainService
     }
 
     /**
+     * Search for an existing domain authentication on SendGrid.
+     */
+    public function findExistingDomain(string $domain)
+    {
+        $response = Http::withToken($this->apiKey)
+            ->get("{$this->baseUrl}/whitelabel/domains");
+
+        if ($response->successful()) {
+            foreach ($response->json() as $d) {
+                if (strtolower($d['domain']) === strtolower($domain)) {
+                    return $d;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Get details of a specific domain authentication.
      */
     public function getDomainDetails(int $domainId)

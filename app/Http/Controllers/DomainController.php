@@ -44,6 +44,23 @@ class DomainController extends Controller
         ]);
 
         try {
+            // 1. Check if domain already exists on SendGrid and is verified
+            $existing = $this->domainService->findExistingDomain($request->domain);
+            
+            if ($existing && $existing['valid']) {
+                $domain = VerifiedDomain::create([
+                    'user_id' => Auth::id(),
+                    'domain' => $request->domain,
+                    'sendgrid_domain_id' => $existing['id'],
+                    'dns_records' => $existing['dns'] ?? [],
+                    'status' => 'verified',
+                    'verified_at' => now(),
+                ]);
+
+                return redirect()->route('admin.domains.index')->with('success', "Domain '{$request->domain}' was already verified on SendGrid. Automatically added to your account!");
+            }
+
+            // 2. If not found or not valid, initiate new authentication
             $response = $this->domainService->authenticateDomain($request->domain);
 
             $domain = VerifiedDomain::create([
