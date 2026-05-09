@@ -472,6 +472,27 @@ class EmailListController extends Controller
                 $details['duplicate'] = (int) $latestLog->session_duplicate_count;
                 
                 $data['import_details'] = $details;
+
+                // Safety: If progress is 100%, persist completion to DB to avoid refresh loops
+                if ($data['import_progress'] >= 100 && $emailList->status === 'processing') {
+                    $emailList->update(['status' => 'completed']);
+                    $emailList->recalculateStats();
+                    $data['status'] = 'completed';
+
+                    // Also finalize the log if it was left hanging
+                    if ($latestLog && ($latestLog->details['status'] ?? '') === 'started') {
+                        $latestLog->update([
+                            'details' => array_merge($latestLog->details, [
+                                'status' => 'completed',
+                                'finished_at' => now()->toDateTimeString(),
+                                'processed' => $details['processed'],
+                                'valid' => $details['valid'],
+                                'invalid' => $details['invalid'],
+                                'duplicate' => $details['duplicate'],
+                            ])
+                        ]);
+                    }
+                }
             }
         }
 

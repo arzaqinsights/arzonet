@@ -102,20 +102,26 @@ class ProcessEmailListJob implements ShouldQueue
         
         $batch = Bus::batch($jobs)
             ->name("Import List: {$emailList->name}")
-            ->then(function (Batch $batch) use ($emailListId, $logId) {
+            ->finally(function (Batch $batch) use ($emailListId, $logId) {
                 $list = EmailList::find($emailListId);
                 if ($list && $list->status !== 'failed') {
-                    $list->recalculateStats();
+                    // Force completion status first to unlock UI
                     $list->update(['status' => 'completed']);
+                    $list->recalculateStats();
                     
                     if ($logId) {
                         $log = \App\Models\ActivityLog::find($logId);
                         if ($log) {
                             // Read the atomic session counters accumulated by chunks
                             $log->refresh();
-                            $sValid     = (int) $log->session_valid_count;
-                            $sInvalid   = (int) $log->session_invalid_count;
-                            $sDuplicate = (int) $log->session_duplicate_count;
+                            $sValid       = (int) $log->session_valid_count;
+                            $sInvalid     = (int) $log->session_invalid_count;
+                            $sDuplicate   = (int) $log->session_duplicate_count;
+                            $sRisky       = (int) $log->session_risky_count;
+                            $sRole        = (int) $log->session_role_based_count;
+                            $sDisposable  = (int) $log->session_disposable_count;
+                            $sCatchAll    = (int) $log->session_catch_all_count;
+                            $sTypo        = (int) $log->session_typo_count;
 
                             $log->update([
                                 'details' => array_merge($log->details ?? [], [
@@ -124,19 +130,26 @@ class ProcessEmailListJob implements ShouldQueue
                                     'valid'       => $sValid,
                                     'duplicate'   => $sDuplicate,
                                     'invalid'     => $sInvalid,
+                                    'risky'       => $sRisky,
+                                    'role_based'  => $sRole,
+                                    'disposable'  => $sDisposable,
+                                    'catch_all'   => $sCatchAll,
+                                    'typo'        => $sTypo,
                                     'finished_at' => now()->toDateTimeString(),
                                 ]),
                                 // Reset counters after finalizing
                                 'session_valid_count'     => 0,
                                 'session_invalid_count'   => 0,
                                 'session_duplicate_count' => 0,
+                                'session_risky_count'      => 0,
+                                'session_role_based_count' => 0,
+                                'session_disposable_count' => 0,
+                                'session_catch_all_count'  => 0,
+                                'session_typo_count'       => 0,
                             ]);
                         }
                     }
                 }
-            })
-            ->catch(function (Batch $batch, \Throwable $e) use ($emailListId) {
-                EmailList::find($emailListId)?->update(['status' => 'failed']);
             })
             ->dispatch();
 

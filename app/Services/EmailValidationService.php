@@ -62,11 +62,12 @@ class EmailValidationService
         ]);
 
         foreach ($emailData as $entry) {
-            $rawEmail = trim($entry['email'] ?? '');
+            $rawEmail = preg_replace('/[\x00-\x1F\x7F\xA0\x{FEFF}\x{200B}-\x{200D}]/u', '', $entry['email'] ?? '');
+            $rawEmail = trim($rawEmail);
             if (empty($rawEmail)) continue;
 
             $email = $this->normalizeEmail($rawEmail);
-            $entry['email'] = $rawEmail; // Keep original for storage, but use normalized for checks
+            $entry['email'] = $rawEmail;
             
             // ── Health Tracking Initialization ──
             $entry['email_status'] = 'valid';
@@ -84,7 +85,7 @@ class EmailValidationService
                 $entry['status'] = 'invalid';
                 $entry['email_status'] = 'invalid';
                 $entry['email_score'] = 1;
-                $entry['validation_reason'][] = 'Invalid email format';
+                $entry['validation_reason'][] = 'Invalid syntax / hidden characters';
                 $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                 $invalid[] = $entry;
                 continue;
@@ -101,7 +102,19 @@ class EmailValidationService
                 continue;
             }
 
-            // 3. Duplicate check (Already in THIS list)
+            // 3. Domain validation
+            $parts = explode('@', $email);
+            if (count($parts) !== 2) {
+                $entry['status'] = 'invalid';
+                $entry['email_status'] = 'invalid';
+                $entry['validation_reason'][] = 'Incomplete email structure';
+                $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
+                $invalid[] = $entry;
+                continue;
+            }
+            $domain = $parts[1];
+
+            // 4. Duplicate check (Already in THIS list)
             if (isset($existingRecords[$email])) {
                 $record = $existingRecords[$email];
                 if ($record->status === 'permanent_delete') {
@@ -130,7 +143,7 @@ class EmailValidationService
                 continue;
             }
 
-            // 4. Local Duplicate check
+            // 5. Local Duplicate check
             if (isset($seen[$email])) {
                 $entry['status'] = 'duplicate';
                 $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
@@ -140,18 +153,17 @@ class EmailValidationService
             $seen[$email] = true;
 
             // ── Advanced Validations ──
-            $domain = substr(strrchr($email, "@"), 1);
 
             // A. Disposable detection
             if (in_array($domain, $this->disposableDomains)) {
                 $entry['is_disposable'] = true;
                 $entry['email_status'] = 'disposable';
-                $entry['email_score'] -= 3;
+                $entry['email_score'] = 2;
                 $entry['validation_reason'][] = 'Disposable email provider';
             }
 
             // B. Role-based detection
-            $localPart = explode('@', $email)[0];
+            $localPart = $parts[0];
             if (in_array($localPart, $this->rolePrefixes)) {
                 $entry['is_role_based'] = true;
                 $entry['email_status'] = 'role_based';
@@ -176,20 +188,16 @@ class EmailValidationService
                 $entry['validation_reason'][] = 'Suspicious local part pattern';
             }
 
-            // E. DNS Check
+            // E. DNS Check (Mark as Risky, not Invalid, to allow import)
             if (!$skipDns && !isset($trustedDomains[$domain])) {
                 $isDomainValid = Cache::remember("dns_mx_{$domain}", 86400, function() use ($domain) {
-                    return @checkdnsrr($domain, "MX");
+                    return @checkdnsrr($domain, "MX") || @checkdnsrr($domain, "A");
                 });
 
                 if (!$isDomainValid) {
-                    $entry['status'] = 'invalid';
-                    $entry['email_status'] = 'invalid';
+                    $entry['email_status'] = 'risky';
                     $entry['email_score'] = 1;
-                    $entry['validation_reason'][] = 'No MX record found';
-                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
-                    $invalid[] = $entry;
-                    continue;
+                    $entry['validation_reason'][] = 'No MX/A records found (possible invalid domain)';
                 }
             }
 

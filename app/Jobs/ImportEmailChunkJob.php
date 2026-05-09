@@ -91,6 +91,14 @@ class ImportEmailChunkJob implements ShouldQueue
             $countInvalid   = count($results['invalid']);
             $countDuplicate = count($results['duplicate']);
 
+            // Detailed Health Metrics for Log
+            $healthData = collect(array_merge($results['valid'], $results['to_restore'], $results['to_valid']));
+            $countRisky      = $healthData->where('email_status', 'risky')->count();
+            $countRole       = $healthData->where('is_role_based', true)->count();
+            $countDisposable = $healthData->where('is_disposable', true)->count();
+            $countCatchAll   = $healthData->where('is_catch_all', true)->count();
+            $countTypo       = $healthData->where('has_typo', true)->count();
+
             if ($this->activityLogId) {
                 DB::table('activity_logs')
                     ->where('id', $this->activityLogId)
@@ -98,6 +106,11 @@ class ImportEmailChunkJob implements ShouldQueue
                         'session_valid_count'     => DB::raw("session_valid_count + $countValid"),
                         'session_invalid_count'   => DB::raw("session_invalid_count + $countInvalid"),
                         'session_duplicate_count' => DB::raw("session_duplicate_count + $countDuplicate"),
+                        'session_risky_count'      => DB::raw("session_risky_count + $countRisky"),
+                        'session_role_based_count' => DB::raw("session_role_based_count + $countRole"),
+                        'session_disposable_count' => DB::raw("session_disposable_count + $countDisposable"),
+                        'session_catch_all_count'  => DB::raw("session_catch_all_count + $countCatchAll"),
+                        'session_typo_count'       => DB::raw("session_typo_count + $countTypo"),
                     ]);
             }
 
