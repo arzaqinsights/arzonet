@@ -74,6 +74,8 @@ class ImportEmailChunkJob implements ShouldQueue
                         'last_validation_at'  => $entry['last_validation_at'] ?? now(),
                         'is_role_based'       => $entry['is_role_based'] ?? false,
                         'is_disposable'       => $entry['is_disposable'] ?? false,
+                        'is_catch_all'        => $entry['is_catch_all'] ?? false,
+                        'has_typo'            => $entry['has_typo'] ?? false,
                         'validation_reason'   => $entry['validation_reason'] ?? null,
                     ]);
             }
@@ -139,6 +141,8 @@ class ImportEmailChunkJob implements ShouldQueue
             'last_validation_at'  => $entry['last_validation_at'] ?? now(),
             'is_role_based'       => $entry['is_role_based'] ?? false,
             'is_disposable'       => $entry['is_disposable'] ?? false,
+            'is_catch_all'        => $entry['is_catch_all'] ?? false,
+            'has_typo'            => $entry['has_typo'] ?? false,
             'validation_reason'   => $entry['validation_reason'] ?? null,
         ];
     }

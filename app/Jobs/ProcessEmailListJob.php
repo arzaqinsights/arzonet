@@ -53,20 +53,15 @@ class ProcessEmailListJob implements ShouldQueue
             $jobs = [];
             $chunkSize = 50; 
             $currentChunk = [];
-            $processedCount = 0;
+            $totalInFile = 0;
 
             foreach ($parser->streamStoredFile($emailList->file_path, $mapping) as $row) {
                 $currentChunk[] = $row;
-                $processedCount++;
+                $totalInFile++;
 
                 if (count($currentChunk) >= $chunkSize) {
                     $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
                     $currentChunk = [];
-
-                    if (count($jobs) >= 50) {
-                        $this->dispatchBatch($jobs, $emailList);
-                        $jobs = [];
-                    }
                 }
             }
 
@@ -74,18 +69,20 @@ class ProcessEmailListJob implements ShouldQueue
                 $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
             }
 
-            if (!empty($jobs)) {
-                $this->dispatchBatch($jobs, $emailList);
-            }
-
             // Update total rows in log if we have it
             if ($this->activityLogId) {
                 $log = \App\Models\ActivityLog::find($this->activityLogId);
                 if ($log) {
                     $log->update([
-                        'details' => array_merge($log->details, ['total_in_file' => $processedCount])
+                        'details' => array_merge($log->details ?? [], ['total_in_file' => $totalInFile])
                     ]);
                 }
+            }
+
+            if (!empty($jobs)) {
+                $this->dispatchBatch($jobs, $emailList);
+            } else {
+                $emailList->update(['status' => 'completed']);
             }
 
         } catch (\Exception $e) {

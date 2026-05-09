@@ -85,6 +85,7 @@ class EmailValidationService
                 $entry['email_status'] = 'invalid';
                 $entry['email_score'] = 1;
                 $entry['validation_reason'][] = 'Invalid email format';
+                $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                 $invalid[] = $entry;
                 continue;
             }
@@ -95,6 +96,7 @@ class EmailValidationService
                 $entry['email_status'] = 'blocked';
                 $entry['email_score'] = 1;
                 $entry['validation_reason'][] = 'Blacklisted email';
+                $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                 $invalid[] = $entry;
                 continue;
             }
@@ -107,16 +109,19 @@ class EmailValidationService
                     $entry['email_status'] = 'blocked';
                     $entry['email_score'] = 1;
                     $entry['validation_reason'][] = 'Permanently deleted from this list';
+                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                     $invalid[] = $entry;
                     continue;
                 }
                 if ($record->is_archived) {
                     $entry['status'] = 'to_restore';
+                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                     $toRestore[] = $entry;
                     continue;
                 }
                 if ($record->status === 'duplicate') {
                     $entry['status'] = 'to_valid';
+                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                     $toValid[] = $entry;
                     continue;
                 }
@@ -128,6 +133,7 @@ class EmailValidationService
             // 4. Local Duplicate check
             if (isset($seen[$email])) {
                 $entry['status'] = 'duplicate';
+                $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                 $duplicates[] = $entry;
                 continue;
             }
@@ -181,6 +187,7 @@ class EmailValidationService
                     $entry['email_status'] = 'invalid';
                     $entry['email_score'] = 1;
                     $entry['validation_reason'][] = 'No MX record found';
+                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                     $invalid[] = $entry;
                     continue;
                 }
@@ -192,7 +199,7 @@ class EmailValidationService
             elseif ($entry['email_score'] <= 3) $entry['email_risk_level'] = 'medium';
             
             $entry['status'] = 'valid';
-            $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
+            $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
             $valid[] = $entry;
         }
 

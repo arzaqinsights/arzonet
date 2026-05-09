@@ -458,12 +458,20 @@ class EmailListController extends Controller
         ];
 
         // Check for active batch progress
-        $latestLog = $emailList->activityLogs()->where('type', 'import')->where('details->status', 'started')->first();
+        $latestLog = $emailList->activityLogs()->where('type', 'import')->where('details->status', 'started')->latest()->first();
         if ($latestLog && $latestLog->batch_id) {
             $batch = Bus::findBatch($latestLog->batch_id);
             if ($batch) {
                 $data['import_progress'] = $batch->progress();
-                $data['import_details'] = $latestLog->details;
+                
+                // Merge real-time atomic session counters into the details for the UI
+                $details = $latestLog->details ?? [];
+                $details['processed'] = (int) $latestLog->session_valid_count + (int) $latestLog->session_invalid_count + (int) $latestLog->session_duplicate_count;
+                $details['valid']     = (int) $latestLog->session_valid_count;
+                $details['invalid']   = (int) $latestLog->session_invalid_count;
+                $details['duplicate'] = (int) $latestLog->session_duplicate_count;
+                
+                $data['import_details'] = $details;
             }
         }
 
