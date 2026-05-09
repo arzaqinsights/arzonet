@@ -32,13 +32,17 @@ class CampaignService
             
             // Exclude unhealthy emails
             if (isset($config['exclude_unhealthy']) && $config['exclude_unhealthy']) {
-                $query->whereNotIn('email_status', ['hard_bounce', 'complaint', 'invalid', 'blocked']);
+                $query->where(function($q) {
+                    $q->whereNotIn('email_status', ['hard_bounce', 'complaint', 'invalid', 'blocked'])
+                      ->orWhereNull('email_status');
+                });
                 $query->where('email_score', '>', 1);
             }
 
             // Optional health filters
             if (isset($config['exclude_risky']) && $config['exclude_risky']) {
-                $query->where('email_status', '!=', 'risky');
+                $query->where('email_status', '!=', 'risky')
+                      ->orWhereNull('email_status');
                 $query->where('email_score', '>', 2);
             }
             if (isset($config['exclude_disposable']) && $config['exclude_disposable']) {
