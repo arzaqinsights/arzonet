@@ -131,6 +131,44 @@
                                                 </optgroup>
                                             </select>
                                         </div>
+
+                                        {{-- Health Filters --}}
+                                        <div class="pt-6 border-t border-color space-y-4" x-transition>
+                                            <div class="flex items-center justify-between">
+                                                <label class="text-xs font-black text-gray-400 uppercase tracking-widest">Health & Hygiene</label>
+                                                <div class="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-sm text-[8px] font-black uppercase tracking-widest border border-emerald-100">Deliverability Protection</div>
+                                            </div>
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <label class="flex items-center gap-3 p-3 border border-color rounded cursor-pointer hover:bg-gray-50 transition-all group" :class="exclude_unhealthy ? 'bg-gray-50 border-gray-900 ring-1 ring-gray-900' : ''">
+                                                    <input type="checkbox" x-model="exclude_unhealthy" @change="save()" class="w-5 h-5 rounded-sm border-gray-200 text-gray-900 focus:ring-0">
+                                                    <div>
+                                                        <div class="text-xs font-black text-gray-900 uppercase tracking-tight">Auto-Exclude Unhealthy</div>
+                                                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Skips bounces & complaints</div>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-center gap-3 p-3 border border-color rounded cursor-pointer hover:bg-gray-50 transition-all group" :class="exclude_risky ? 'bg-gray-50 border-gray-900 ring-1 ring-gray-900' : ''">
+                                                    <input type="checkbox" x-model="exclude_risky" @change="save()" class="w-5 h-5 rounded-sm border-gray-200 text-gray-900 focus:ring-0">
+                                                    <div>
+                                                        <div class="text-xs font-black text-gray-900 uppercase tracking-tight">Exclude Risky Contacts</div>
+                                                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Skips low-score emails</div>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-center gap-3 p-3 border border-color rounded cursor-pointer hover:bg-gray-50 transition-all group" :class="exclude_disposable ? 'bg-gray-50 border-gray-900 ring-1 ring-gray-900' : ''">
+                                                    <input type="checkbox" x-model="exclude_disposable" @change="save()" class="w-5 h-5 rounded-sm border-gray-200 text-gray-900 focus:ring-0">
+                                                    <div>
+                                                        <div class="text-xs font-black text-gray-900 uppercase tracking-tight">Block Disposable</div>
+                                                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Skips temporary addresses</div>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-center gap-3 p-3 border border-color rounded cursor-pointer hover:bg-gray-50 transition-all group" :class="exclude_role_based ? 'bg-gray-50 border-gray-900 ring-1 ring-gray-900' : ''">
+                                                    <input type="checkbox" x-model="exclude_role_based" @change="save()" class="w-5 h-5 rounded-sm border-gray-200 text-gray-900 focus:ring-0">
+                                                    <div>
+                                                        <div class="text-xs font-black text-gray-900 uppercase tracking-tight">No Role-Based</div>
+                                                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Skips admin@, info@, etc</div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="pt-4">
@@ -320,6 +358,10 @@ function mailchimpWizard() {
         // Advanced Audience State
         audience_type: @json($campaign->audience_config['type'] ?? 'all'),
         audience_tag: @json($campaign->audience_config['tag'] ?? ''),
+        exclude_unhealthy: @json($campaign->audience_config['exclude_unhealthy'] ?? true),
+        exclude_risky: @json($campaign->audience_config['exclude_risky'] ?? false),
+        exclude_disposable: @json($campaign->audience_config['exclude_disposable'] ?? false),
+        exclude_role_based: @json($campaign->audience_config['exclude_role_based'] ?? false),
         
         personalizedSubject: '',
         sampleContact: null,
@@ -367,7 +409,11 @@ function mailchimpWizard() {
                 ...this.campaign,
                 audience_config: {
                     type: this.audience_type,
-                    tag: this.audience_tag
+                    tag: this.audience_tag,
+                    exclude_unhealthy: this.exclude_unhealthy,
+                    exclude_risky: this.exclude_risky,
+                    exclude_disposable: this.exclude_disposable,
+                    exclude_role_based: this.exclude_role_based
                 }
             };
 

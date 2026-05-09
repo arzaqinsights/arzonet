@@ -26,9 +26,29 @@ class CampaignService
             ->subscribed()
             ->whereNotIn('email', $allExclusions);
 
-        // Apply Advanced Audience Config (Segments/Tags)
+        // Apply Advanced Audience Config (Segments/Tags/Health)
         if ($campaign->audience_config) {
             $config = $campaign->audience_config;
+            
+            // Exclude unhealthy emails
+            if (isset($config['exclude_unhealthy']) && $config['exclude_unhealthy']) {
+                $query->whereNotIn('email_status', ['hard_bounce', 'complaint', 'invalid', 'blocked']);
+                $query->where('email_score', '>', 1);
+            }
+
+            // Optional health filters
+            if (isset($config['exclude_risky']) && $config['exclude_risky']) {
+                $query->where('email_status', '!=', 'risky');
+                $query->where('email_score', '>', 2);
+            }
+            if (isset($config['exclude_disposable']) && $config['exclude_disposable']) {
+                $query->where('is_disposable', false);
+            }
+            if (isset($config['exclude_role_based']) && $config['exclude_role_based']) {
+                $query->where('is_role_based', false);
+            }
+
+            // Segments and Tags
             if (isset($config['type']) && $config['type'] === 'segment' && !empty($config['tag'])) {
                 [$type, $value] = explode(':', $config['tag'], 2);
                 if ($type === 'tag') {
@@ -51,6 +71,7 @@ class CampaignService
 
         // Create pending log entries with tracking tokens
         $logEntries = $validEmails->map(fn(Email $email) => [
+            'user_id'        => $campaign->user_id,
             'campaign_id'    => $campaign->id,
             'email_id'       => $email->id,
             'email_address'  => $email->email,
@@ -179,6 +200,7 @@ class CampaignService
             'bounced'    => $campaign->logs()->where('status', 'bounced')->count(),
             'opened'     => $campaign->logs()->where('open_count', '>', 0)->count(),
             'clicked'    => $campaign->logs()->where('click_count', '>', 0)->count(),
+            'unsubscribed' => $campaign->unsubscribes()->count(),
             'success_rate' => $campaign->successRate(),
             'progress'     => $campaign->progress(),
         ];

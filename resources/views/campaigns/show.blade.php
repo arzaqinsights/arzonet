@@ -1,6 +1,29 @@
 @extends('layouts.app')
 @section('title', 'Campaign Intelligence')
-@section('heading', $campaign->name)
+@section('heading')
+    <div class="flex items-center gap-3 group relative" x-data="{ editingName: false, newName: '{{ $campaign->name }}', saving: false }">
+        <template x-if="!editingName">
+            <div class="flex items-center gap-3">
+                <span class="cursor-pointer">{{ $campaign->name }}</span>
+                <button @click="editingName = true; $nextTick(() => $refs.nameInput.focus())" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-surface-100 rounded-sm">
+                    <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+            </div>
+        </template>
+        <template x-if="editingName">
+            <div class="flex items-center gap-2">
+                <input type="text" x-model="newName" x-ref="nameInput" @keydown.enter="saveName()" @keydown.escape="editingName = false" :disabled="saving" class="bg-white border border-surface-200 rounded-sm px-2 py-1 text-lg font-black uppercase outline-none focus:border-primary-500 min-w-[300px]">
+                <button @click="saveName()" class="p-1 hover:bg-emerald-50 text-emerald-600 rounded-sm" :disabled="saving">
+                    <svg x-show="!saving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <svg x-show="saving" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+                <button @click="editingName = false" class="p-1 hover:bg-rose-50 text-rose-600 rounded-sm" :disabled="saving">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </template>
+    </div>
+@endsection
 
 @section('content')
 <div class="space-y-8 animate-slide-up" x-data="{ tab: 'analytics' }">
@@ -50,7 +73,7 @@
     </div>
 
     {{-- Main Stats Dashboard (TOP) --}}
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4" id="stats-grid">
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-4" id="stats-grid">
         <div class="glass-card p-5 rounded-md border-b-4 border-primary-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivery</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($campaign->sent_count) }}</h3>
@@ -76,9 +99,15 @@
         </div>
 
         <div class="glass-card p-5 rounded-md border-b-4 border-amber-500">
+            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2" title="Unsubscribed">Unsubs.</span>
+            <h3 class="text-2xl font-black text-surface-900" id="stat-unsubscribe-count">{{ number_format($stats['unsubscribed'] ?? 0) }}</h3>
+            <p class="text-[10px] text-amber-600 mt-1 font-bold">Opt-outs</p>
+        </div>
+
+        <div class="glass-card p-5 rounded-md border-b-4 border-surface-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Failed</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-failed-count">{{ number_format($campaign->failed_count) }}</h3>
-            <p class="text-[10px] text-amber-600 mt-1 font-bold">Dispatch Errors</p>
+            <p class="text-[10px] text-surface-600 mt-1 font-bold">Errors</p>
         </div>
     </div>
 
@@ -113,10 +142,10 @@
 
     {{-- Content Tabs --}}
     <div class="space-y-6">
-        <div class="flex items-center gap-1 p-1 bg-surface-100 rounded-md w-fit">
-            <button @click="tab = 'analytics'" :class="tab === 'analytics' ? 'bg-white text-primary-600 shadow-sm' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Engagement Stats</button>
-            <button @click="tab = 'logs'" :class="tab === 'logs' ? 'bg-white text-primary-600 shadow-sm' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Real-time Logs</button>
-            <button @click="tab = 'settings'" :class="tab === 'settings' ? 'bg-white text-primary-600 shadow-sm' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Configuration</button>
+        <div class="flex items-center gap-1 p-1 bg-surface-100 rounded-md shadow-inner border w-fit">
+            <button @click="tab = 'analytics'" :class="tab === 'analytics' ? 'bg-surface-800 text-white' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Engagement Stats</button>
+            <button @click="tab = 'logs'" :class="tab === 'logs' ? 'bg-surface-800 text-white' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Real-time Logs</button>
+            <!-- <button @click="tab = 'settings'" :class="tab === 'settings' ? 'bg-white text-primary-600 shadow-sm' : 'text-surface-500'" class="px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all">Configuration</button> -->
         </div>
 
         {{-- Analytics Tab --}}
@@ -221,8 +250,8 @@
                         <th class="text-right !pr-6">Sent At</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @foreach($recentLogs as $log)
+                <tbody id="logs-body">
+                    @forelse($recentLogs as $log)
                     <tr>
                         <td class="!pl-6">
                             <span class="font-bold text-surface-900">{{ $log->email_address }}</span>
@@ -242,7 +271,11 @@
                             {{ $log->sent_at ? $log->sent_at->format('H:i:s') : '—' }}
                         </td>
                     </tr>
-                    @endforeach
+                    @empty
+                    <tr>
+                        <td colspan="4" class="text-center py-12 text-surface-400 italic">No logs found.</td>
+                    </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
@@ -297,6 +330,7 @@
             // 1. Update Global Stats Grid
             document.getElementById('stat-sent-count').innerText = data.sent_count.toLocaleString();
             document.getElementById('stat-bounce-count').innerText = data.bounce_count.toLocaleString();
+            document.getElementById('stat-unsubscribe-count').innerText = data.unsubscribe_count.toLocaleString();
             document.getElementById('stat-failed-count').innerText = data.failed_count.toLocaleString();
             
             // 2. Update Progress Engine (if visible)
@@ -319,6 +353,29 @@
             document.getElementById('bar-bounce').style.width = ((data.bounce_count / total) * 100) + '%';
             document.getElementById('bar-failed').style.width = ((data.failed_count / total) * 100) + '%';
             
+            // 4. Update Logs Table (if any recent logs provided)
+            if (data.recent_logs && data.recent_logs.length > 0) {
+                const tbody = document.getElementById('logs-body');
+                tbody.innerHTML = '';
+                data.recent_logs.forEach(log => {
+                    const row = `<tr>
+                        <td class="!pl-6"><span class="font-bold text-surface-900">${log.email_address}</span></td>
+                        <td>
+                            <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                                log.status === 'sent' ? 'bg-green-50 text-green-700 border-green-100' :
+                                log.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                'bg-red-50 text-red-700 border-red-100'
+                            }">
+                                ${log.status}
+                            </span>
+                        </td>
+                        <td class="font-mono text-[10px] text-surface-400">${log.message_id || 'N/A'}</td>
+                        <td class="text-right !pr-6 text-surface-500 font-medium text-xs">${log.sent_at}</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            }
+
             // If completed, reload to show final view
             if (data.status === 'completed') {
                 window.location.reload();
@@ -326,5 +383,31 @@
         });
     }, 5000);
     @endif
+
+    function saveName() {
+        const alpine = document.querySelector('[x-data]').__x.$data;
+        if (alpine.newName.trim() === '') return;
+        
+        alpine.saving = true;
+        fetch('{{ route("admin.campaigns.update", $campaign) }}', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name: alpine.newName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alpine.editingName = false;
+                window.location.reload(); // Refresh to update title etc
+            }
+        })
+        .finally(() => {
+            alpine.saving = false;
+        });
+    }
 </script>
 @endpush

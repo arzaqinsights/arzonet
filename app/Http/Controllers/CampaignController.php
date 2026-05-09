@@ -149,7 +149,7 @@ class CampaignController extends Controller
 
         $campaignService->dispatch($campaign);
 
-        return back()->with('success', 'Campaign is now sending!');
+        return redirect()->route('admin.campaigns.show', $campaign)->with('success', 'Campaign is now sending! Mission launched.');
     }
 
     public function pause(Campaign $campaign, CampaignService $campaignService)
@@ -266,6 +266,8 @@ class CampaignController extends Controller
         ]);
     }
 
+
+
     public function checkStatus(Campaign $campaign)
     {
         return response()->json([
@@ -273,10 +275,19 @@ class CampaignController extends Controller
             'sent_count'   => $campaign->sent_count,
             'failed_count' => $campaign->failed_count,
             'bounce_count' => $campaign->bounce_count,
+            'unsubscribe_count' => $campaign->unsubscribes()->count(),
             'total'        => $campaign->total_recipients,
             'progress'     => $campaign->progress(),
             'speed'        => $campaign->currentSpeed(),
             'eta'          => $campaign->estimatedCompletion(),
+            'recent_logs'  => $campaign->logs()->latest()->take(10)->get()->map(function($log) {
+                return [
+                    'email_address' => $log->email_address,
+                    'status' => $log->status,
+                    'message_id' => $log->message_id,
+                    'sent_at' => $log->sent_at ? $log->sent_at->format('H:i:s') : '—',
+                ];
+            }),
         ]);
     }
 
@@ -325,15 +336,28 @@ class CampaignController extends Controller
 
     public function update(Request $request, Campaign $campaign)
     {
-        $request->validate([
-            'name'              => 'required|string|max:255',
-            'email_list_id'     => 'required|exists:email_lists,id',
-            'template_id'       => 'required|exists:templates,id',
-            'sender_id'         => 'required|exists:senders,id',
-            'emails_per_minute' => 'nullable|integer|min:1',
-        ]);
+        // For partial updates (like renaming via AJAX)
+        if ($request->has('name') && count($request->all()) <= 2) { // name + maybe _token/method
+            $request->validate(['name' => 'required|string|max:255']);
+            $campaign->update(['name' => $request->name]);
+        } else {
+            // Full update from wizard/edit page
+            $request->validate([
+                'name'              => 'required|string|max:255',
+                'email_list_id'     => 'required|exists:email_lists,id',
+                'template_id'       => 'required|exists:templates,id',
+                'sender_id'         => 'required|exists:senders,id',
+                'emails_per_minute' => 'nullable|integer|min:1',
+            ]);
+            $campaign->update($request->all());
+        }
 
-        $campaign->update($request->all());
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'name' => $campaign->name
+            ]);
+        }
 
         return redirect()->route('admin.campaigns.show', $campaign)->with('success', 'Campaign updated successfully.');
     }

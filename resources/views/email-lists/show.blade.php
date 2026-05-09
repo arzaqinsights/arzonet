@@ -156,7 +156,11 @@
                         <select x-model="filter" @change="fetchEmails()" class="bg-transparent border-none text-[10px] font-black text-surface-700 focus:ring-0 focus:outline-none cursor-pointer p-0">
                             <option value="all">All Records</option>
                             <option value="valid">Clean / Valid</option>
-                            <option value="invalid">Invalid / Broken</option>
+                            <option value="risky">Risky Contacts</option>
+                            <option value="suspicious">Suspicious</option>
+                            <option value="role_based">Role-Based</option>
+                            <option value="disposable">Disposable</option>
+                            <option value="invalid">Format Errors</option>
                             <!-- <option value="duplicate">Duplicates</option> -->
                         </select>
                     </div>
@@ -186,7 +190,10 @@
                             <option value="all">All Subscription</option>
                             <option value="subscribed">Subscribed</option>
                             <option value="unsubscribed">Unsubscribed</option>
-                            <option value="bounced">Bounced</option>
+                            <option value="bounced">Bounced (Any)</option>
+                            <option value="hard_bounce">Hard Bounces</option>
+                            <option value="soft_bounce">Soft Bounces</option>
+                            <option value="complaint">Spam Complaints</option>
                         </select>
                     </div>
 
@@ -237,8 +244,8 @@
 
             {{-- Metrics Summary --}}
             <div class="px-1 py-1">
-                <div x-show="archived === 'no'">
-                    <p class="text-xl font-bold text-surface-500 tracking-tight flex items-center flex-wrap gap-x-2">
+                <div x-show="archived === 'no'" class="flex items-center gap-2">
+                    <p class="text-xl font-bold text-surface-500 tracking-tight flex items-center gap-x-2">
                         {{-- Primary Number based on Health Filter --}}
                         <span>
                             <template x-if="filter === 'all'">
@@ -249,19 +256,75 @@
                             </template>
                             <template x-if="filter === 'valid'">
                                 <span>
-                                    <span class="text-brand font-black" x-text="stats.global_valid.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">contacts.</span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-emerald-500 font-black" x-text="stats.global_valid.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">clean contacts.</span>
                                 </span>
                             </template>
-                            <template x-if="filter === 'duplicate'">
+                            <template x-if="filter === 'risky'">
                                 <span>
-                                    <span class="text-brand font-black" x-text="stats.global_duplicate.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">duplicate contacts.</span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-amber-500 font-black" x-text="stats.risky.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">risky contacts.</span>
                                 </span>
                             </template>
+                            <template x-if="filter === 'role_based'">
+                                <span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-blue-500 font-black" x-text="stats.role_based.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">role-based emails.</span>
+                                </span>
+                            </template>
+                            <template x-if="filter === 'disposable'">
+                                <span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-indigo-500 font-black" x-text="stats.disposable.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">temporary emails.</span>
+                                </span>
+                            </template>
+                            <template x-if="filter === 'suspicious'">
+                                <span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-indigo-500 font-black" x-text="stats.suspicious.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">suspicious emails.</span>
+                                </span>
+                            </template>
+                            <template x-if="subscription === 'hard_bounce'">
+                                <span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-red-500 font-black" x-text="stats.hard_bounce.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">hard bounce emails.</span>
+                                </span>
+                            </template>
+                            <template x-if="subscription === 'soft_bounce'">
+                                <span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-amber-500 font-black" x-text="stats.soft_bounce.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">soft bounce emails.</span>
+                                </span>
+                            </template>
+                            <template x-if="subscription === 'complaint'">
+                                <span>
+                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">total contacts.</span>
+                                    <span class="text-surface-900 font-black" x-text="stats.complaints.toLocaleString()"></span> 
+                                    <span class="text-surface-600 font-medium">spam complaints.</span>
+                                </span>
+                            </template>
+
+
                             <template x-if="filter === 'invalid'">
                                 <div class="flex items-center gap-4">
                                     <span>
+                                        <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
+                                        <span class="text-surface-600 font-medium">total contacts.</span>
                                         <span class="text-red-500 font-black" x-text="stats.global_invalid.toLocaleString()"></span> 
                                         <span class="text-surface-600 font-medium">invalid contacts.</span>
                                     </span>
@@ -276,51 +339,45 @@
                             </template>
                         </span>
 
-                        {{-- Segment Count --}}
-                        <template x-if="segment !== 'all'">
-                            <span>
-                                <span class="text-brand font-black" x-text="stats.global_segment.toLocaleString()"></span>
-                                <span class="text-surface-600 font-medium" x-text="`${segment} contacts.`"></span>
-                            </span>
-                        </template>
-
-                        {{-- Tag Count --}}
-                        <template x-if="tag !== 'all'">
-                            <span>
-                                <span class="text-brand font-black" x-text="stats.global_tag.toLocaleString()"></span>
-                                <span class="text-surface-600 font-medium" x-text="`${tag} contacts.`"></span>
-                            </span>
-                        </template>
-
-                        {{-- Source Count --}}
-                        <template x-if="source !== 'all'">
-                            <span>
-                                <span class="text-brand font-black" x-text="stats.global_source.toLocaleString()"></span>
-                                <span class="text-surface-600 font-medium" x-text="`${source} contacts.`"></span>
-                            </span>
-                        </template>
-
-                        {{-- Secondary Subscription Counts --}}
-                        <template x-if="subscription === 'subscribed' || subscription === 'all'">
-                            <span>
-                                <span class="text-brand font-black" x-text="stats.subscribed.toLocaleString()"></span>
-                                <span class="text-surface-600 font-medium">subscribers.</span>
-                            </span>
-                        </template>
-
-                        <template x-if="subscription === 'unsubscribed'">
-                            <span>
-                                <span class="text-red-400 font-black" x-text="stats.unsubscribed.toLocaleString()"></span>
-                                <span class="text-surface-600 font-medium">unsubscribed.</span>
-                            </span>
-                        </template>
-
-                        <template x-if="subscription === 'bounced'">
-                            <span>
-                                <span class="text-amber-600 font-black" x-text="stats.bounced.toLocaleString()"></span>
-                                <span class="text-surface-600 font-medium">bounced.</span>
-                            </span>
-                        </template>
+                        {{-- Secondary Metrics (Always visible if applicable) --}}
+                        <div class="flex items-center gap-4 text-xl">
+                            <template x-if="stats.subscribed > 0">
+                                <span>
+                                    <span class="text-emerald-500 font-black" x-text="stats.subscribed.toLocaleString()"></span>
+                                    <span class="text-surface-600 font-medium">Subscribers</span>
+                                </span>
+                            </template>
+                            <template x-if="stats.unsubscribed > 0">
+                                <span>
+                                    <span class="text-gray-500 font-black" x-text="stats.unsubscribed.toLocaleString()"></span>
+                                    <span class="text-surface-600 font-medium">Unsubscribed</span>
+                                </span>
+                            </template>
+                            <template x-if="stats.bounced > 0">
+                                <span>
+                                    <span class="text-amber-500 font-black" x-text="stats.bounced.toLocaleString()"></span>
+                                    <span class="text-surface-600 font-medium">Bounce (Any)</span>
+                                </span>
+                            </template>
+                            <template x-if="stats.hard_bounce > 0">
+                                <span>
+                                    <span class="text-red-500 font-black" x-text="stats.hard_bounce.toLocaleString()"></span>
+                                    <span class="text-surface-600 font-medium">Hard Bounce</span>
+                                </span>
+                            </template>
+                            <template x-if="stats.soft_bounce > 0">
+                                <span>
+                                    <span class="text-amber-500 font-black" x-text="stats.soft_bounce.toLocaleString()"></span>
+                                    <span class="text-surface-600 font-medium">Soft Bounce</span>
+                                </span>
+                            </template>
+                            <template x-if="stats.complaints > 0">
+                                <span>
+                                    <span class="text-surface-900 font-black" x-text="stats.complaints.toLocaleString()"></span>
+                                    <span class="text-surface-600 font-medium">Spam Complaints</span>
+                                </span>
+                            </template>
+                        </div>
                     </p>
                 </div>
                 <div x-show="archived === 'yes'" x-cloak>
@@ -727,6 +784,13 @@
                 global_valid: {{ $stats['valid'] }}, 
                 global_invalid: {{ $stats['invalid'] }}, 
                 global_duplicate: {{ $stats['duplicate'] }}, 
+                risky: {{ $stats['risky'] ?? 0 }},
+                disposable: {{ $stats['disposable'] ?? 0 }},
+                role_based: {{ $stats['role_based'] ?? 0 }},
+                suspicious: {{ $stats['suspicious'] ?? 0 }},
+                hard_bounce: {{ $stats['hard_bounce'] ?? 0 }},
+                soft_bounce: {{ $stats['soft_bounce'] ?? 0 }},
+                complaints: {{ $stats['complaints'] ?? 0 }},
                 global_segment: 0,
                 global_tag: 0,
                 global_source: 0,
@@ -735,8 +799,8 @@
                 invalid: {{ $stats['invalid'] }}, 
                 duplicate: {{ $stats['duplicate'] }}, 
                 subscribed: {{ $stats['subscribed'] }}, 
-                unsubscribed: 0,
-                bounced: 0,
+                unsubscribed: {{ $stats['unsubscribed'] ?? 0 }},
+                bounced: {{ $stats['bounced'] ?? 0 }},
                 archived: {{ $stats['archived'] ?? 0 }}, 
                 status: '{{ $emailList->status }}' 
             },
@@ -873,6 +937,15 @@
                         invalid: data.invalid_count, 
                         duplicate: data.duplicate_count, 
                         subscribed: data.subscribed_count || 0,
+                        unsubscribed: data.unsubscribed_count || 0,
+                        bounced: data.bounced_count || 0,
+                        hard_bounce: data.hard_bounce_count || 0,
+                        soft_bounce: data.soft_bounce_count || 0,
+                        complaints: data.complaint_count || 0,
+                        risky: data.risky_count || 0,
+                        disposable: data.disposable_count || 0,
+                        role_based: data.role_based_count || 0,
+                        suspicious: data.suspicious_count || 0,
                         archived: data.archived_count || 0,
                         import_progress: data.import_progress,
                         import_details: data.import_details
@@ -886,9 +959,24 @@
                         const oldStatus = this.stats.status;
                         this.stats.status = data.status;
                         this.stats.full_total = data.total_records;
+                        this.stats.total = data.total_records;
                         this.stats.global_valid = data.valid_count;
+                        this.stats.valid = data.valid_count;
                         this.stats.global_invalid = data.invalid_count;
+                        this.stats.invalid = data.invalid_count;
                         this.stats.global_duplicate = data.duplicate_count;
+                        this.stats.duplicate = data.duplicate_count;
+                        this.stats.subscribed = data.subscribed_count;
+                        this.stats.unsubscribed = data.unsubscribed_count;
+                        this.stats.bounced = data.bounced_count;
+                        this.stats.hard_bounce = data.hard_bounce_count;
+                        this.stats.soft_bounce = data.soft_bounce_count;
+                        this.stats.complaints = data.complaint_count;
+                        this.stats.risky = data.risky_count;
+                        this.stats.disposable = data.disposable_count;
+                        this.stats.role_based = data.role_based_count;
+                        this.stats.suspicious = data.suspicious_count;
+                        this.stats.archived = data.archived_count;
                         this.stats.import_progress = data.import_progress;
                         this.stats.import_details = data.import_details;
 

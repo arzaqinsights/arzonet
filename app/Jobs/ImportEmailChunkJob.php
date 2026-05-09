@@ -61,11 +61,20 @@ class ImportEmailChunkJob implements ShouldQueue
                 Email::where('email_list_id', $this->emailListId)
                     ->where('email', $entry['email'])
                     ->update([
+                        'user_id'             => $emailList->user_id, // Fix: Ensure user_id is set
                         'is_archived'         => false,
                         'archived_at'         => null,
                         'name'                => DB::raw("COALESCE(NULLIF(name,''), " . DB::getPdo()->quote($entry['name'] ?? '') . ")"),
                         'status'              => 'valid',
                         'subscription_status' => 'subscribed',
+                        // New health columns
+                        'email_status'        => $entry['email_status'] ?? 'valid',
+                        'email_score'         => $entry['email_score'] ?? 5,
+                        'email_risk_level'    => $entry['email_risk_level'] ?? 'low',
+                        'last_validation_at'  => $entry['last_validation_at'] ?? now(),
+                        'is_role_based'       => $entry['is_role_based'] ?? false,
+                        'is_disposable'       => $entry['is_disposable'] ?? false,
+                        'validation_reason'   => $entry['validation_reason'] ?? null,
                     ]);
             }
 
@@ -110,6 +119,7 @@ class ImportEmailChunkJob implements ShouldQueue
     protected function formatEntry($emailList, $entry, $status): array
     {
         return [
+            'user_id'             => $emailList->user_id,
             'email_list_id'       => $emailList->id,
             'activity_log_id'     => $this->activityLogId, // Only new inserts get this link
             'email'               => $entry['email'],
@@ -122,6 +132,14 @@ class ImportEmailChunkJob implements ShouldQueue
             'meta'                => isset($entry['meta']) ? json_encode($entry['meta']) : null,
             'created_at'          => now(),
             'updated_at'          => now(),
+            // New health columns
+            'email_status'        => $entry['email_status'] ?? 'valid',
+            'email_score'         => $entry['email_score'] ?? 5,
+            'email_risk_level'    => $entry['email_risk_level'] ?? 'low',
+            'last_validation_at'  => $entry['last_validation_at'] ?? now(),
+            'is_role_based'       => $entry['is_role_based'] ?? false,
+            'is_disposable'       => $entry['is_disposable'] ?? false,
+            'validation_reason'   => $entry['validation_reason'] ?? null,
         ];
     }
 }

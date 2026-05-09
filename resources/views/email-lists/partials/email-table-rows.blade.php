@@ -107,16 +107,38 @@
     {{-- Health/Status Column --}}
     <td class="px-8 py-4 whitespace-nowrap text-center">
         @php
-            $status = match($email->status) {
-                'valid' => ['label' => 'Clean', 'cls' => 'bg-emerald-50 text-emerald-600 border-emerald-100'],
-                'invalid' => ['label' => 'Broken', 'cls' => 'bg-red-50 text-red-600 border-red-100'],
-                'duplicate' => ['label' => 'Cloned', 'cls' => 'bg-amber-50 text-amber-600 border-amber-100'],
-                'permanent_delete' => ['label' => 'Banned', 'cls' => 'bg-surface-900 text-white border-transparent'],
+            $status = match($email->email_status ?? $email->status) {
+                'clean', 'valid' => ['label' => 'Clean', 'cls' => 'bg-emerald-50 text-emerald-600 border-emerald-100'],
+                'risky', 'suspicious' => ['label' => 'Risky', 'cls' => 'bg-amber-50 text-amber-600 border-amber-100'],
+                'role_based' => ['label' => 'Role', 'cls' => 'bg-blue-50 text-blue-600 border-blue-100'],
+                'disposable' => ['label' => 'Temp', 'cls' => 'bg-indigo-50 text-indigo-600 border-indigo-100'],
+                'invalid', 'hard_bounce' => ['label' => 'Dead', 'cls' => 'bg-red-50 text-red-600 border-red-100'],
+                'complaint' => ['label' => 'Spam', 'cls' => 'bg-black text-white border-transparent'],
+                'blocked' => ['label' => 'Banned', 'cls' => 'bg-surface-900 text-white border-transparent'],
                 default => ['label' => 'Unknown', 'cls' => 'bg-surface-100 text-surface-600 border-surface-200'],
             };
+            
+            $score = $email->email_score ?? 3;
+            $scoreColor = match(true) {
+                $score >= 4 => 'text-emerald-500',
+                $score == 3 => 'text-amber-500',
+                default => 'text-red-500',
+            };
         @endphp
-        <div class="inline-flex items-center px-2 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border {{ $status['cls'] }}">
-            {{ $status['label'] }}
+        <div class="flex flex-col items-center gap-1">
+            <div class="inline-flex items-center px-2 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border {{ $status['cls'] }}">
+                {{ $status['label'] }}
+            </div>
+            <div class="flex items-center gap-0.5 mt-0.5">
+                @for($i=1; $i<=5; $i++)
+                    <div class="w-1.75 h-1.75 rounded-full {{ $i <= $score ? str_replace('text', 'bg', $scoreColor) : 'bg-gray-200' }}"></div>
+                @endfor
+            </div>
+            @if($email->validation_reason)
+                <div class="text-[7px] text-gray-400 font-bold max-w-[80px] truncate" title="{{ $email->validation_reason }}">
+                    {{ $email->validation_reason }}
+                </div>
+            @endif
         </div>
     </td>
 
@@ -144,7 +166,7 @@
     <td class="px-8 py-4 text-right">
         <div class="flex justify-end gap-1">
             <template x-if="!editing">
-                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="flex gap-1">
                     <button @click="editing = true" class="p-2 text-surface-400 hover:text-brand hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                     </button>

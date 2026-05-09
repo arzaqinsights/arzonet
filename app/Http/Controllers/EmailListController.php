@@ -203,7 +203,17 @@ class EmailListController extends Controller
             'invalid' => $emailList->invalid_count,
             'duplicate' => $emailList->duplicate_count,
             'subscribed' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'subscribed')->count(),
+            'unsubscribed' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'unsubscribed')->count(),
+            'bounced' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'bounced')->count(),
+            'complaints' => $emailList->emails()->where('is_archived', false)->where('email_status', 'complaint')->count(),
             'archived' => $emailList->emails()->where('is_archived', true)->count(),
+            // Health specific
+            'risky' => $emailList->emails()->where('is_archived', false)->where('email_status', 'risky')->count(),
+            'disposable' => $emailList->emails()->where('is_archived', false)->where('is_disposable', true)->count(),
+            'role_based' => $emailList->emails()->where('is_archived', false)->where('is_role_based', true)->count(),
+            'suspicious' => $emailList->emails()->where('is_archived', false)->where('email_status', 'suspicious')->count(),
+            'hard_bounce' => $emailList->emails()->where('is_archived', false)->where('email_status', 'hard_bounce')->count(),
+            'soft_bounce' => $emailList->emails()->where('is_archived', false)->where('email_status', 'soft_bounce')->count(),
         ];
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
@@ -220,14 +230,24 @@ class EmailListController extends Controller
     {
         $query = $emailList->emails()->orderBy('created_at', 'desc');
 
-        // Status filter (valid/invalid/duplicate)
+        // Health filter
         if ($request->status && $request->status !== 'all') {
-            $query->where('status', $request->status);
+            if (in_array($request->status, ['risky', 'role_based', 'disposable', 'suspicious'])) {
+                if ($request->status === 'role_based') $query->where('is_role_based', true);
+                elseif ($request->status === 'disposable') $query->where('is_disposable', true);
+                else $query->where('email_status', $request->status);
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         // Subscription status filter
         if ($request->subscription && $request->subscription !== 'all') {
-            $query->where('subscription_status', $request->subscription);
+            if (in_array($request->subscription, ['hard_bounce', 'soft_bounce', 'complaint'])) {
+                $query->where('email_status', $request->subscription);
+            } else {
+                $query->where('subscription_status', $request->subscription);
+            }
         }
 
         // Archive filter
@@ -424,7 +444,16 @@ class EmailListController extends Controller
             'valid_count' => $emailList->valid_count,
             'invalid_count' => $emailList->invalid_count,
             'duplicate_count' => $emailList->duplicate_count,
-            'subscribed_count' => $emailList->emails()->where('is_archived', false)->where('status', 'valid')->where('subscription_status', 'subscribed')->count(),
+            'subscribed_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'subscribed')->count(),
+            'unsubscribed_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'unsubscribed')->count(),
+            'bounced_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'bounced')->count(),
+            'hard_bounce_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'hard_bounce')->count(),
+            'soft_bounce_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'soft_bounce')->count(),
+            'complaint_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'complaint')->count(),
+            'risky_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'risky')->count(),
+            'disposable_count' => $emailList->emails()->where('is_archived', false)->where('is_disposable', true)->count(),
+            'role_based_count' => $emailList->emails()->where('is_archived', false)->where('is_role_based', true)->count(),
+            'suspicious_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'suspicious')->count(),
             'archived_count' => $emailList->emails()->where('is_archived', true)->count(),
         ];
 

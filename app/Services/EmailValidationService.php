@@ -5,11 +5,29 @@ namespace App\Services;
 use App\Models\BlacklistedEmail;
 use App\Models\Email;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class EmailValidationService
 {
+    protected $rolePrefixes = [
+        'admin', 'support', 'sales', 'billing', 'info', 'contact', 'hello', 
+        'help', 'enquiry', 'office', 'marketing', 'team', 'jobs', 'careers',
+        'accounting', 'hr', 'webmaster', 'hostmaster', 'postmaster', 'no-reply', 'noreply'
+    ];
+
+    protected $suspiciousTlds = [
+        '.xyz', '.click', '.top', '.gq', '.ml', '.ga', '.cf', '.tk', '.men', '.icu', '.bid', '.win', '.date', '.loan', '.stream'
+    ];
+
+    protected $disposableDomains = [
+        'mailinator.com', 'guerrillamail.com', 'tempmail.com', '10minutemail.com', 'throwawaymail.com', 
+        'getnada.com', 'mail.tm', 'mail.gw', 'sharklasers.com', 'guerrillamail.biz', 'guerrillamail.de', 
+        'guerrillamail.net', 'guerrillamail.org', 'guerrillamailblock.com', 'pokemail.net', 'spam4.me', 
+        'grr.la', 'guerrillamail.com', 'dispostable.com', 'yopmail.com', 'maildrop.cc'
+    ];
+
     /**
-     * Validate a batch of email data and categorize them.
+     * Validate a batch of email data and categorize them with health metrics.
      */
     public function validateBatch(array $emailData, ?int $currentListId = null, bool $skipDns = false): array
     {
@@ -17,64 +35,66 @@ class EmailValidationService
         $invalid = [];
         $duplicates = [];
         $toRestore = [];
-        $toValid = []; // Records currently 'duplicate' that should be promoted to 'valid'
+        $toValid = [];
         $seen = [];
         
-        // ── Step 1: Prepare Cross-Batch Lookups ──
-        
-        // Blacklist lookup
         $blacklisted = array_flip($this->getBlacklistedEmails());
-
-        // List-specific DB lookup (STRICTLY scoped to this list only)
-        $batchEmails = collect($emailData)->pluck('email')->map(fn($e) => strtolower(trim($e)))->filter()->toArray();
+        
+        $batchEmails = collect($emailData)->pluck('email')
+            ->map(fn($e) => $this->normalizeEmail($e))
+            ->filter()
+            ->toArray();
         
         if (!$currentListId) {
-            // If no list ID, we can't check duplicates safely. 
-            // In the context of this app, imports MUST be scoped.
             $existingRecords = collect();
         } else {
             $existingRecords = Email::where('email_list_id', $currentListId)
                 ->whereIn('email', $batchEmails)
                 ->get(['email', 'status', 'is_archived'])
-                ->keyBy(fn($item) => strtolower($item->email));
+                ->keyBy(fn($item) => $this->normalizeEmail($item->email));
         }
 
-        // Massively Expanded Trusted domains to skip DNS check (The "Fast-Lane" list)
         $trustedDomains = array_flip([
-            // Global Majors
             'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'live.com', 'msn.com', 
             'me.com', 'mac.com', 'ymail.com', 'rocketmail.com', 'googlemail.com', 'protonmail.com', 'proton.me', 
             'zoho.com', 'zoho.in', 'mail.com', 'hushmail.com', 'tutanota.com', 'fastmail.com', 'yandex.com', 'mail.ru',
-            
-            // Indian Majors & Government
-            'rediffmail.com', 'indiatimes.com', 'sify.com', 'bsnl.in', 'vsnl.com', 'mtnl.net.in', 'nic.in', 'gov.in',
-            'reliance.com', 'tcs.com', 'infosys.com', 'wipro.com', 'airtelmail.in', 'jio.com',
-            
-            // Regional Variations
-            'gmail.co.in', 'yahoo.co.in', 'outlook.in', 'hotmail.co.in', 'live.in', 'yahoo.com.in',
-            'hotmail.co.uk', 'yahoo.co.uk', 'btinternet.com', 'virginmedia.com', 'blueyonder.co.uk', 'ntlworld.com',
-            'talktalk.net', 'orange.fr', 'wanadoo.fr', 'free.fr', 'laposte.net', 'sfr.fr', 'neuf.fr', 'aliceadsl.fr',
-            'gmx.de', 'web.de', 't-online.de', 'freenet.de', 'arcor.de', 'gmx.net', 'libero.it', 'virgilio.it', 
-            'uol.com.br', 'bol.com.br', 'terra.com.br', 'ig.com.br', 'globo.com'
+            'rediffmail.com', 'indiatimes.com', 'sify.com', 'bsnl.in', 'vsnl.com', 'mtnl.net.in', 'nic.in', 'gov.in'
         ]);
 
         foreach ($emailData as $entry) {
-            $email = strtolower(trim($entry['email'] ?? ''));
+            $rawEmail = trim($entry['email'] ?? '');
+            if (empty($rawEmail)) continue;
 
-            if (empty($email)) continue;
+            $email = $this->normalizeEmail($rawEmail);
+            $entry['email'] = $rawEmail; // Keep original for storage, but use normalized for checks
+            
+            // ── Health Tracking Initialization ──
+            $entry['email_status'] = 'valid';
+            $entry['email_score'] = 5;
+            $entry['email_risk_level'] = 'low';
+            $entry['validation_reason'] = [];
+            $entry['is_role_based'] = false;
+            $entry['is_disposable'] = false;
+            $entry['is_catch_all'] = false;
+            $entry['has_typo'] = false;
+            $entry['last_validation_at'] = now();
 
-            // 1. Basic format check (Fastest)
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $entry['reason'] = 'Invalid email format';
+            // 1. Basic format check
+            if (!filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
                 $entry['status'] = 'invalid';
+                $entry['email_status'] = 'invalid';
+                $entry['email_score'] = 1;
+                $entry['validation_reason'][] = 'Invalid email format';
                 $invalid[] = $entry;
                 continue;
             }
 
             // 2. Blacklist check
             if (isset($blacklisted[$email])) {
-                $entry['reason'] = 'Blacklisted email';
                 $entry['status'] = 'invalid';
+                $entry['email_status'] = 'blocked';
+                $entry['email_score'] = 1;
+                $entry['validation_reason'][] = 'Blacklisted email';
                 $invalid[] = $entry;
                 continue;
             }
@@ -82,62 +102,97 @@ class EmailValidationService
             // 3. Duplicate check (Already in THIS list)
             if (isset($existingRecords[$email])) {
                 $record = $existingRecords[$email];
-                
-                // If permanently deleted from THIS list, mark as banned
                 if ($record->status === 'permanent_delete') {
-                    $entry['reason'] = 'Banishment active (Permanently deleted from this list)';
                     $entry['status'] = 'invalid';
+                    $entry['email_status'] = 'blocked';
+                    $entry['email_score'] = 1;
+                    $entry['validation_reason'][] = 'Permanently deleted from this list';
                     $invalid[] = $entry;
                     continue;
                 }
-
-                // If archived, mark for restoration/update (Top Priority)
                 if ($record->is_archived) {
                     $entry['status'] = 'to_restore';
                     $toRestore[] = $entry;
                     continue;
                 }
-
-                // If existing record is 'duplicate', mark for promotion to 'valid'
                 if ($record->status === 'duplicate') {
                     $entry['status'] = 'to_valid';
                     $toValid[] = $entry;
                     continue;
                 }
-
-                $entry['reason'] = 'Email already exists and is active/valid in this list';
                 $entry['status'] = 'duplicate';
                 $duplicates[] = $entry;
                 continue;
             }
 
-            // 4. Local Duplicate check (Within this batch/list)
+            // 4. Local Duplicate check
             if (isset($seen[$email])) {
-                $entry['reason'] = 'Duplicate in list';
                 $entry['status'] = 'duplicate';
                 $duplicates[] = $entry;
                 continue;
             }
+            $seen[$email] = true;
 
-            // 5. DNS Check (Optional & Cached)
+            // ── Advanced Validations ──
             $domain = substr(strrchr($email, "@"), 1);
-            
+
+            // A. Disposable detection
+            if (in_array($domain, $this->disposableDomains)) {
+                $entry['is_disposable'] = true;
+                $entry['email_status'] = 'disposable';
+                $entry['email_score'] -= 3;
+                $entry['validation_reason'][] = 'Disposable email provider';
+            }
+
+            // B. Role-based detection
+            $localPart = explode('@', $email)[0];
+            if (in_array($localPart, $this->rolePrefixes)) {
+                $entry['is_role_based'] = true;
+                $entry['email_status'] = 'role_based';
+                $entry['email_score'] -= 2;
+                $entry['validation_reason'][] = 'Role-based email address';
+            }
+
+            // C. Suspicious TLD detection
+            foreach ($this->suspiciousTlds as $tld) {
+                if (Str::endsWith($domain, $tld)) {
+                    $entry['email_status'] = 'risky';
+                    $entry['email_score'] -= 1;
+                    $entry['validation_reason'][] = "Suspicious TLD ($tld)";
+                    break;
+                }
+            }
+
+            // D. Randomness/Entropy detection
+            if ($this->isSuspiciousPattern($localPart)) {
+                $entry['email_status'] = 'suspicious';
+                $entry['email_score'] -= 2;
+                $entry['validation_reason'][] = 'Suspicious local part pattern';
+            }
+
+            // E. DNS Check
             if (!$skipDns && !isset($trustedDomains[$domain])) {
                 $isDomainValid = Cache::remember("dns_mx_{$domain}", 86400, function() use ($domain) {
                     return @checkdnsrr($domain, "MX");
                 });
 
                 if (!$isDomainValid) {
-                    $entry['reason'] = 'No MX record found';
                     $entry['status'] = 'invalid';
+                    $entry['email_status'] = 'invalid';
+                    $entry['email_score'] = 1;
+                    $entry['validation_reason'][] = 'No MX record found';
                     $invalid[] = $entry;
                     continue;
                 }
             }
 
-            $seen[$email] = true;
+            // Final Score Clamp
+            $entry['email_score'] = max(1, min(5, $entry['email_score']));
+            if ($entry['email_score'] <= 2) $entry['email_risk_level'] = 'high';
+            elseif ($entry['email_score'] <= 3) $entry['email_risk_level'] = 'medium';
+            
             $entry['status'] = 'valid';
-            $entry['reason'] = null;
+            $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
             $valid[] = $entry;
         }
 
@@ -150,11 +205,48 @@ class EmailValidationService
         ];
     }
 
-    /**
-     * Get all blacklisted emails as a flat array.
-     */
+    public function normalizeEmail(string $email): string
+    {
+        $email = strtolower(trim($email));
+        if (!str_contains($email, '@')) return $email;
+
+        [$local, $domain] = explode('@', $email);
+        
+        // Gmail Dot and Plus normalization
+        if (in_array($domain, ['gmail.com', 'googlemail.com'])) {
+            $local = str_replace('.', '', $local);
+            $local = explode('+', $local)[0];
+            return $local . '@' . $domain;
+        }
+
+        // Plus normalization for other providers (Outlook, iCloud, etc)
+        if (in_array($domain, ['outlook.com', 'hotmail.com', 'icloud.com'])) {
+            $local = explode('+', $local)[0];
+            return $local . '@' . $domain;
+        }
+
+        return $email;
+    }
+
+    protected function isSuspiciousPattern(string $local): bool
+    {
+        // 1. Excessive numbers (more than 5 digits in a row)
+        if (preg_match('/[0-9]{6,}/', $local)) return true;
+
+        // 2. Repeated characters (more than 4 times)
+        if (preg_match('/(.)\1{4,}/', $local)) return true;
+
+        // 3. Random string heuristic (no vowels and long)
+        if (strlen($local) > 8 && !preg_match('/[aeiouy]/i', $local)) return true;
+
+        // 4. Consecutive random consonants
+        if (preg_match('/[^aeiouy]{6,}/i', $local)) return true;
+
+        return false;
+    }
+
     protected function getBlacklistedEmails(): array
     {
-        return BlacklistedEmail::pluck('email')->map(fn($e) => strtolower($e))->toArray();
+        return BlacklistedEmail::pluck('email')->map(fn($e) => $this->normalizeEmail($e))->toArray();
     }
 }

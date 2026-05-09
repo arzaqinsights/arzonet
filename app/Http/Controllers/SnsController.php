@@ -87,11 +87,24 @@ class SnsController extends Controller
             }
 
             // 2. Update local Email records
-            Email::where('email', $email)->update([
+            $updateData = [
                 'status' => 'invalid',
-                'subscription_status' => 'bounced',
-                'reason' => $reason
-            ]);
+                'subscription_status' => ($bounceType === 'Permanent') ? 'bounced' : 'soft_bounce',
+                'reason' => $reason,
+                // New health columns
+                'email_status' => ($bounceType === 'Permanent') ? 'hard_bounce' : 'soft_bounce',
+                'last_bounce_type' => strtolower($bounceType),
+                'last_campaign_status' => 'bounced',
+            ];
+
+            if ($bounceType === 'Permanent') {
+                $updateData['email_score'] = 1;
+                $updateData['bounce_count'] = DB::raw('bounce_count + 1');
+            } else {
+                $updateData['email_score'] = DB::raw('GREATEST(1, email_score - 1)');
+            }
+
+            Email::where('email', $email)->update($updateData);
 
             // 3. Update EmailLog (Analytics)
             if ($sesMessageId) {
@@ -134,7 +147,12 @@ class SnsController extends Controller
                 'status' => 'invalid',
                 'subscription_status' => 'unsubscribed',
                 'unsubscribed_at' => now(),
-                'reason' => 'SES Complaint'
+                'reason' => 'SES Complaint',
+                // New health columns
+                'email_status' => 'complaint',
+                'email_score' => 1,
+                'complaint_count' => DB::raw('complaint_count + 1'),
+                'last_campaign_status' => 'complaint',
             ]);
 
             // 3. Update EmailLog (Analytics)
@@ -165,6 +183,14 @@ class SnsController extends Controller
                     'status' => 'delivered',
                     'delivered_at' => $deliveryTime
                 ]);
+                
+                // Update health metrics
+                Email::where('id', $log->email_id)->update([
+                    'email_status' => 'clean',
+                    'email_score' => DB::raw('LEAST(5, email_score + 1)'),
+                    'last_campaign_status' => 'delivered',
+                ]);
+
                 \App\Jobs\ProcessTrackingEventJob::dispatch($log->id, 'delivery', []);
             }
         }
