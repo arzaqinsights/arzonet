@@ -11,17 +11,18 @@ class PersonalizationService
     {
         $defaults = config('emailplatform.defaults', []);
 
-        // Build variables map
-        $variables = [
-            'full_name'  => $recipientData['name'] ?? $defaults['name'] ?? 'Recipient',
-            'name'       => $recipientData['name'] ?? $defaults['name'] ?? 'Recipient',
-            'email'      => $recipientData['email'] ?? '',
-        ];
+        // Build variables map with all available data
+        $variables = array_merge($defaults, $recipientData);
+        
+        // Ensure standard aliases
+        $variables['name'] = $recipientData['name'] ?? $recipientData['full_name'] ?? $variables['name'] ?? 'Recipient';
+        $variables['full_name'] = $variables['name'];
+        $variables['email'] = $recipientData['email'] ?? $variables['email'] ?? '';
 
-        // Process Meta / Custom Fields
+        // Flatten meta data if present
         if (!empty($recipientData['meta']) && is_array($recipientData['meta'])) {
             foreach ($recipientData['meta'] as $key => $value) {
-                $variables[$key] = $value ?? '';
+                if (is_scalar($value)) $variables[$key] = $value;
             }
         }
 
@@ -37,18 +38,20 @@ class PersonalizationService
             $variables['unsubscribe_url'] = $recipientData['unsubscribe_url'];
         }
 
-        // Replace all variables
+        // Replace all variables using Regex for spacing flexibility
         $result = $content;
         foreach ($variables as $key => $value) {
-            $placeholder = '{{ ' . $key . ' }}';
-            $placeholderNoSpace = '{{' . $key . '}}';
-            
+            // Only replace if the value is a string or number (scalar)
+            if (!is_scalar($value) && !is_null($value)) continue;
+
             $val = $value ?? '';
             if ($escapeHtml && is_string($val)) {
                 $val = htmlspecialchars($val, ENT_QUOTES, 'UTF-8');
             }
             
-            $result = str_ireplace([$placeholder, $placeholderNoSpace], $val, $result);
+            // Matches {{key}}, {{ key }}, {{  key  }} etc. (case-insensitive)
+            $pattern = '/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/i';
+            $result = preg_replace($pattern, $val, $result);
         }
 
         // Fallback for old style @{{name}} if any

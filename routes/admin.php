@@ -10,6 +10,7 @@ use App\Http\Controllers\BlacklistController;
 use App\Http\Controllers\SenderController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DomainController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +67,8 @@ Route::name('admin.')->group(function () {
     Route::prefix('campaigns')->name('campaigns.')->group(function () {
         Route::get('/', [CampaignController::class, 'index'])->name('index');
         Route::get('/create', [CampaignController::class, 'create'])->name('create');
+        Route::get('/{campaign}/wizard', [CampaignController::class, 'wizard'])->name('wizard');
+        Route::post('/{campaign}/save-step', [CampaignController::class, 'saveStep'])->name('save-step');
         Route::post('/', [CampaignController::class, 'store'])->name('store');
         Route::get('/{campaign}', [CampaignController::class, 'show'])->name('show');
         Route::post('/{campaign}/send', [CampaignController::class, 'send'])->name('send');
@@ -101,6 +104,15 @@ Route::name('admin.')->group(function () {
         Route::post('/', [BlacklistController::class, 'store'])->name('store');
         Route::post('/bulk', [BlacklistController::class, 'bulkStore'])->name('bulk-store');
         Route::delete('/{blacklistedEmail}', [BlacklistController::class, 'destroy'])->name('destroy');
+    });
+
+    // Domains
+    Route::prefix('domains')->name('domains.')->group(function () {
+        Route::get('/', [DomainController::class, 'index'])->name('index');
+        Route::post('/', [DomainController::class, 'store'])->name('store');
+        Route::get('/{domain}', [DomainController::class, 'show'])->name('show');
+        Route::post('/{domain}/verify', [DomainController::class, 'verify'])->name('verify');
+        Route::delete('/{domain}', [DomainController::class, 'destroy'])->name('destroy');
     });
 
     // Settings

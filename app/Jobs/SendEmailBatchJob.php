@@ -43,6 +43,8 @@ class SendEmailBatchJob implements ShouldQueue
 
     public function handle(MailService $mailService, UsageTrackingService $usageTracker, TrackingService $analyticsTracker, \App\Services\QuotaManager $quotaManager): void
     {
+        \Log::info("Job Started: CampaignID={$this->campaignId}, Emails=" . count($this->emailIds));
+
         $campaign = Campaign::with(['template', 'sender'])->find($this->campaignId);
 
         if (!$campaign || in_array($campaign->status, ['paused', 'cancelled', 'completed'])) {
@@ -100,13 +102,21 @@ class SendEmailBatchJob implements ShouldQueue
             }
 
             try {
-                $recipientData = [
-                    'name'  => $email->name,
-                    'email' => $email->email,
-                    'meta'  => $email->meta ?? [],
-                ];
+                $recipientData = $email->toArray();
+                
+                // Priority: Model Name > full_name > first_name > Fallback
+                $recipientData['name'] = $email->name 
+                                        ?? $recipientData['full_name'] 
+                                        ?? $recipientData['first_name'] 
+                                        ?? 'Contact';
+
+                \Log::info("Final Personalization Data for {$email->email}: Name=" . $recipientData['name']);
 
                 $html = $mailService->replaceVariables($template->html_content, $recipientData);
+                
+                if ($senderIndex === 0) {
+                    \Log::info("Sample Processed HTML Snippet: " . substr($html, 0, 200));
+                }
                 // ── PRE-FLIGHT DOMAIN VALIDATION (SMTP Safety) ──
                 $domain = substr(strrchr($email->email, "@"), 1);
                 if (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
@@ -191,12 +201,11 @@ class SendEmailBatchJob implements ShouldQueue
 
             if ($results['sent_count'] > 0) {
                 $campaign->increment('sent_count', $results['sent_count']);
-                $usageTracker->incrementSent($results['sent_count']);
+                $usageTracker->incrementSent($results['sent_count'], $campaign->user_id);
             }
-
             if ($results['failed_count'] > 0) {
                 $campaign->increment('failed_count', $results['failed_count']);
-                $usageTracker->incrementFailed($results['failed_count']);
+                $usageTracker->incrementFailed($results['failed_count'], $campaign->user_id);
             }
         });
 
@@ -211,10 +220,14 @@ class SendEmailBatchJob implements ShouldQueue
 
     protected function trackSendingSpeed(Campaign $campaign)
     {
-        $key = "campaign_{$campaign->id}_speed";
-        Redis::lpush($key, microtime(true));
-        Redis::ltrim($key, 0, 19); 
-        Redis::expire($key, 60);
+        try {
+            $key = "campaign_{$campaign->id}_speed";
+            Redis::lpush($key, microtime(true));
+            Redis::ltrim($key, 0, 19); 
+            Redis::expire($key, 60);
+        } catch (\Exception $e) {
+            // Redis not available, ignore speed tracking
+        }
     }
 
     protected function checkCompletion(Campaign $campaign)

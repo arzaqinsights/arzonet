@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Sender extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\BelongsToUser;
 
     protected $fillable = [
         'user_id',
@@ -29,7 +29,14 @@ class Sender extends Model
         'ses_region',
         'sendgrid_api_key',
         'verified_at',
+        'verified_domain_id',
+        'is_authenticated',
     ];
+
+    public function domain()
+    {
+        return $this->belongsTo(VerifiedDomain::class, 'verified_domain_id');
+    }
 
     protected $casts = [
         'verified_at' => 'datetime',

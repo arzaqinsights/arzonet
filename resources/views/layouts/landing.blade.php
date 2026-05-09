@@ -30,9 +30,15 @@
                 <a href="{{ route('home') }}#pricing" class="hover:text-gray-900 transition-colors">Pricing</a>
                 <a href="{{ route('home') }}#faq" class="hover:text-gray-900 transition-colors">FAQ</a>
                 <div class="flex gap-4">
-                    <a href="{{ route('login') }}"
-                    class="text-base text-white rounded-sm font-semibold bg-surface-800 px-6 py-3 transition-all">Sign In</a>
-                <a href="{{ route('register') }}" class="text-base text-white rounded-sm font-semibold bg-brand px-6 py-3 transition-all">Get Started</a>
+                    @auth
+                        <a href="{{ route('admin.dashboard') }}"
+                           class="text-base text-white rounded-sm font-semibold bg-brand px-6 py-3 transition-all shadow-lg shadow-brand/20">Go to Dashboard</a>
+                    @else
+                        <a href="{{ route('login') }}"
+                           class="text-base text-white rounded-sm font-semibold bg-surface-800 px-6 py-3 transition-all hover:bg-black">Sign In</a>
+                        <a href="{{ route('register') }}"
+                           class="text-base text-white rounded-sm font-semibold bg-brand px-6 py-3 transition-all shadow-lg shadow-brand/20 hover:scale-105">Get Started</a>
+                    @endauth
                 </div>
             </div>
             <button class="md:hidden">

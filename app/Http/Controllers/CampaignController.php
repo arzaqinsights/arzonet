@@ -31,62 +31,79 @@ class CampaignController extends Controller
 
     public function create()
     {
+        // Create an initial draft to track progress
+        $campaign = Campaign::create([
+            'name' => 'Untitled Campaign ' . now()->format('Y-m-d H:i'),
+            'status' => 'draft',
+        ]);
+
+        return redirect()->route('admin.campaigns.wizard', $campaign);
+    }
+
+    public function wizard(Campaign $campaign)
+    {
+        if ($campaign->status !== 'draft') {
+            return redirect()->route('admin.campaigns.show', $campaign);
+        }
+
         $emailLists = EmailList::where('status', 'completed')
-            ->where('valid_count', '>', 0)
-            ->withCount(['emails as active_count' => function ($query) {
+            ->withCount(['emails as emails_count' => function ($query) {
                 $query->valid()->subscribed();
             }])
             ->get();
+        
+        // Fetch all unique tags from the emails table
+        $allTags = \DB::table('emails')
+            ->whereNotNull('tags')
+            ->distinct()
+            ->pluck('tags')
+            ->flatMap(fn($t) => is_string($t) ? json_decode($t, true) : $t)
+            ->unique()
+            ->filter()
+            ->values();
+
+        // Fetch unique segments
+        $allSegments = \DB::table('emails')
+            ->whereNotNull('segment_name')
+            ->distinct()
+            ->pluck('segment_name')
+            ->filter()
+            ->values();
 
         $templates = Template::all();
-        
-        $sendersQuery = Sender::query();
-        if (auth()->check() && !auth()->user()->isAdmin()) {
-            $sendersQuery->where('user_id', auth()->id());
-        }
-        $senders = $sendersQuery->get();
+        $senders = Sender::all();
 
-        return view('campaigns.create', compact('emailLists', 'templates', 'senders'));
+        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments'));
     }
 
-    public function store(Request $request, CostEstimationService $costService)
+    public function saveStep(Request $request, Campaign $campaign)
     {
-        $request->validate([
-            'name'              => 'required|string|max:255',
-            'email_list_id'     => 'required|exists:email_lists,id',
-            'template_id'       => 'required|exists:templates,id',
-            'sender_id'         => 'required|exists:senders,id',
-            'emails_per_minute' => 'nullable|integer|min:1|max:1000',
-            'batch_size'        => 'nullable|integer|min:10|max:500',
-            'scheduled_at'      => 'nullable|date|after:now',
-        ]);
-
-        $emailList = EmailList::findOrFail($request->email_list_id);
+        $data = $request->only(['name', 'subject', 'email_list_id', 'template_id', 'sender_id', 'scheduled_at', 'audience_config']);
         
-        // Calculate eligible recipients (Valid + Subscribed) - Isolated to this list only
-        $eligibleCount = $emailList->emails()
-            ->valid()
-            ->subscribed()
-            ->count();
+        $data = array_filter($data, fn($value) => !is_null($value));
 
-        $sender = \App\Models\Sender::findOrFail($request->sender_id);
+        $campaign->update($data);
 
-        $campaign = Campaign::create([
-            'name'              => $request->name,
-            'subject'           => $request->subject,
-            'email_list_id'     => $request->email_list_id,
-            'template_id'       => $request->template_id,
-            'sender_id'         => $request->sender_id,
-            'status'            => $request->scheduled_at ? 'scheduled' : 'draft',
-            'scheduled_at'      => $request->scheduled_at,
-            'total_recipients'  => $eligibleCount,
-            'emails_per_minute' => $sender->emails_per_minute ?? 30,
-            'batch_size'        => $sender->type === 'smtp' ? 25 : 100,
+        $sampleContact = null;
+        $personalizedSubject = $campaign->subject;
+        
+        if ($campaign->email_list_id) {
+            $list = \App\Models\EmailList::find($campaign->email_list_id);
+            if ($list) {
+                $sampleContact = $list->emails()->valid()->first();
+                if ($sampleContact) {
+                    $personalizer = app(\App\Services\PersonalizationService::class);
+                    $personalizedSubject = $personalizer->preview($campaign->subject, $sampleContact->toArray());
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'campaign' => $campaign,
+            'sample_contact' => $sampleContact,
+            'personalized_subject' => $personalizedSubject
         ]);
-
-        return redirect()
-            ->route('admin.campaigns.show', $campaign)
-            ->with('success', 'Campaign created successfully.');
     }
 
     public function show(Campaign $campaign, CampaignService $campaignService, CostEstimationService $costService)
@@ -252,13 +269,14 @@ class CampaignController extends Controller
     public function checkStatus(Campaign $campaign)
     {
         return response()->json([
-            'status'      => $campaign->status,
-            'sent_count'  => $campaign->sent_count,
-            'failed_count'=> $campaign->failed_count,
-            'total'       => $campaign->total_recipients,
-            'progress'    => $campaign->progress(),
-            'speed'       => $campaign->currentSpeed(),
-            'eta'         => $campaign->estimatedCompletion(),
+            'status'       => $campaign->status,
+            'sent_count'   => $campaign->sent_count,
+            'failed_count' => $campaign->failed_count,
+            'bounce_count' => $campaign->bounce_count,
+            'total'        => $campaign->total_recipients,
+            'progress'     => $campaign->progress(),
+            'speed'        => $campaign->currentSpeed(),
+            'eta'          => $campaign->estimatedCompletion(),
         ]);
     }
 
@@ -277,11 +295,32 @@ class CampaignController extends Controller
             return redirect()->route('admin.campaigns.index')->with('error', 'Active or completed campaigns cannot be edited. Try duplicating instead.');
         }
 
-        $emailLists = EmailList::where('status', 'completed')->get();
+        $emailLists = EmailList::where('status', 'completed')
+            ->withCount(['emails as emails_count' => function ($query) {
+                $query->valid()->subscribed();
+            }])
+            ->get();
+        
+        $allTags = \DB::table('emails')
+            ->whereNotNull('tags')
+            ->distinct()
+            ->pluck('tags')
+            ->flatMap(fn($t) => is_string($t) ? json_decode($t, true) : $t)
+            ->unique()
+            ->filter()
+            ->values();
+
+        $allSegments = \DB::table('emails')
+            ->whereNotNull('segment_name')
+            ->distinct()
+            ->pluck('segment_name')
+            ->filter()
+            ->values();
+
         $templates = Template::all();
         $senders = Sender::all();
 
-        return view('campaigns.edit', compact('campaign', 'emailLists', 'templates', 'senders'));
+        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments'));
     }
 
     public function update(Request $request, Campaign $campaign)

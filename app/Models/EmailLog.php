@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmailLog extends Model
 {
+    use \App\Traits\BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'campaign_id',
         'email_id',
         'email_address',

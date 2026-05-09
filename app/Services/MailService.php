@@ -79,7 +79,11 @@ class MailService
 
     protected function sendViaSendGrid(Sender $sender, string $to, string $subject, string $html, array $headers): ?string
     {
-        $response = \Illuminate\Support\Facades\Http::withToken($sender->sendgrid_api_key)
+        $apiKey = $sender->sendgrid_api_key ?: config('services.sendgrid.key');
+        
+        \Log::info("SendGrid Attempt: Sender={$sender->email}, KeyMask=" . substr($apiKey, 0, 10) . "...");
+
+        $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
             ->post('https://api.sendgrid.com/v3/mail/send', [
                 'personalizations' => [[
                     'to' => [['email' => $to]],

@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Template extends Model
 {
+    use \App\Traits\BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'name',
         'subject',
         'html_content',

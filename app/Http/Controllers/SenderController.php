@@ -24,85 +24,51 @@ class SenderController extends Controller
     {
         $request->validate([
             'from_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:senders,email',
-            'mode' => 'required|in:bulk,normal',
-            // SMTP still needs credentials if normal
-            'smtp_host' => 'required_if:mode,normal',
-            'smtp_port' => 'required_if:mode,normal',
-            'smtp_username' => 'required_if:mode,normal',
-            'smtp_password' => 'required_if:mode,normal',
+            'email' => [
+                'required',
+                'email',
+                'unique:senders,email',
+                function ($attribute, $value, $fail) {
+                    $domain = strtolower(substr(strrchr($value, "@"), 1));
+                    $publicProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'];
+                    if (in_array($domain, $publicProviders)) {
+                        $fail('Public email providers (like Gmail/Yahoo) are not allowed for bulk sending. Please use your verified business domain.');
+                    }
+                }
+            ],
         ]);
 
-        $mode = $request->mode;
-        $profile = config("emailplatform.profiles.{$mode}");
-        $type = $mode === 'bulk' ? config('emailplatform.bulk_provider') : 'smtp';
+        $email = strtolower($request->email);
+        $domainName = substr(strrchr($email, "@"), 1);
+
+        // Check if domain is verified for this user
+        $verifiedDomain = \App\Models\VerifiedDomain::where('user_id', Auth::id())
+            ->where('domain', $domainName)
+            ->where('status', 'verified')
+            ->first();
+
+        if (!$verifiedDomain) {
+            return back()->with('error', "The domain '{$domainName}' is not verified. Please add and verify this domain first.")->withInput();
+        }
+
+        $profile = config("emailplatform.profiles.bulk");
+        $type = config('emailplatform.bulk_provider');
 
         $sender = Sender::create([
             'user_id' => Auth::id(),
+            'verified_domain_id' => $verifiedDomain->id,
             'from_name' => $request->from_name,
-            'email' => $request->email,
+            'email' => $email,
             'type' => $type,
+            'is_authenticated' => true,
             'emails_per_second' => $profile['emails_per_second'],
             'emails_per_minute' => $profile['emails_per_minute'],
             'daily_limit' => $profile['daily_limit'],
-            'smtp_host' => $request->smtp_host,
-            'smtp_port' => $request->smtp_port,
-            'smtp_username' => $request->smtp_username,
-            'smtp_password' => $request->smtp_password,
-            'status' => $mode === 'bulk' ? 'pending' : 'verified',
-            'verified_at' => $mode === 'bulk' ? null : now(),
+            'status' => 'verified',
+            'verified_at' => now(),
         ]);
 
-        if ($type === 'ses') {
-            try {
-                $ses = new SESService();
-                // 1. Check if already verified in AWS account
-                if ($ses->getVerificationStatus($sender->email) === 'Success') {
-                    $sender->update(['status' => 'verified', 'verified_at' => now()]);
-                } else {
-                    // 2. If not, trigger new verification
-                    $ses->verifyEmail($sender->email);
-                }
-            } catch (\Exception $e) {}
-        }
-
-        if ($type === 'sendgrid') {
-            try {
-                $sgKey = config('services.sendgrid.key');
-                // 1. Check if already verified in SendGrid account
-                $response = \Illuminate\Support\Facades\Http::withToken($sgKey)
-                    ->get('https://api.sendgrid.com/v3/verified_senders');
-                
-                if ($response->successful()) {
-                    $results = $response->json()['results'] ?? [];
-                    $targetEmail = strtolower($sender->email);
-                    
-                    foreach ($results as $v) {
-                        if (strtolower($v['from_email']) === $targetEmail && ($v['verified'] ?? false)) {
-                            $sender->update([
-                                'status' => 'verified', 
-                                'verified_at' => now()
-                            ]);
-                            return redirect()->route('admin.senders.index')->with('success', 'Existing SendGrid Sender recognized and active!');
-                        }
-                    }
-                }
-
-                // 2. If not found or not verified, trigger request
-                \Illuminate\Support\Facades\Http::withToken($sgKey)
-                    ->post('https://api.sendgrid.com/v3/verified_senders', [
-                        'nickname' => $sender->from_name,
-                        'from_email' => $sender->email,
-                        'from_name' => $sender->from_name,
-                        'reply_to' => $sender->email,
-                        'address' => 'Global Infrastructure',
-                        'city' => 'Cloud',
-                        'country' => 'Global'
-                    ]);
-            } catch (\Exception $e) {}
-        }
-
-        return redirect()->route('admin.senders.index')->with('success', 'Sender configured successfully in ' . ucfirst($mode) . ' mode.');
+        return redirect()->route('admin.senders.index')->with('success', "Sender '{$email}' added and automatically verified via domain authentication!");
     }
 
     public function edit(Sender $sender)

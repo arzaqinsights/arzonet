@@ -3,7 +3,7 @@
 @section('heading', 'Email Templates')
 
 @section('header-actions')
-    <a href="{{ route('admin.templates.create') }}" class="btn btn-primary">
+    <a href="{{ route('admin.templates.create') }}" class="btn btn-primary rounded-md px-6 shadow-lg shadow-primary-200">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Create Template
     </a>
@@ -14,27 +14,56 @@
     @if($templates->count())
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         @foreach($templates as $template)
-        <div class="glass-card group overflow-hidden border border-surface-200 hover:border-primary-300 hover:shadow-xl hover:shadow-primary-100/50 transition-all duration-300">
-            <div class="h-48 bg-surface-50 flex items-center justify-center border-b border-surface-100 relative group-hover:bg-primary-50/30 transition-colors">
-                <svg class="w-16 h-16 text-surface-200 group-hover:text-primary-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                
-                <div class="absolute inset-0 bg-white/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <a href="{{ route('admin.templates.preview', $template) }}" class="btn btn-primary btn-sm px-4">Preview</a>
-                    <a href="{{ route('admin.templates.edit', $template) }}" class="btn btn-ghost btn-sm bg-white shadow-sm px-4 border border-surface-200">Edit</a>
+        <div class="glass-card group overflow-hidden border border-surface-200 hover:border-primary-400 hover:shadow-2xl transition-all duration-500">
+            {{-- Preview Area --}}
+            <div class="relative h-64 bg-surface-50 border-b border-surface-100 overflow-hidden">
+                {{-- Mac Style Top Bar --}}
+                <div class="absolute top-0 left-0 right-0 h-6 bg-surface-100/80 backdrop-blur-md flex items-center px-3 gap-1.5 z-10 border-b border-surface-200/50">
+                    <div class="w-2 h-2 rounded-full bg-rose-400"></div>
+                    <div class="w-2 h-2 rounded-full bg-amber-400"></div>
+                    <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                    <div class="ml-2 text-[8px] font-black text-surface-400 uppercase tracking-widest truncate max-w-[150px]">{{ $template->name }}</div>
+                </div>
+
+                {{-- Live Iframe Preview (ZOOMED IN) --}}
+                <div class="absolute inset-0 pt-12 scale-[0.5] origin-top-left w-[200%] h-[200%] pointer-events-none select-none opacity-90 group-hover:opacity-100 transition-opacity">
+                    <iframe src="{{ route('admin.templates.preview', $template) }}?raw=1" class="w-full h-full border-none bg-white"></iframe>
+                </div>
+
+                {{-- Hover Overlay --}}
+                <div class="absolute inset-0 bg-primary-900/5 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-4 z-20">
+                    <a href="{{ route('admin.templates.preview', $template) }}" target="_blank" class="bg-white text-surface-900 px-6 py-2 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform">
+                        Fullscreen
+                    </a>
+                    <a href="{{ route('admin.templates.edit', $template) }}" class="bg-brand text-white px-6 py-2 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform shadow-primary-200">
+                        Edit Design
+                    </a>
                 </div>
             </div>
-            <div class="p-6">
-                <h3 class="text-surface-900 font-bold text-lg mb-1">{{ $template->name }}</h3>
-                <p class="text-xs font-bold text-primary-600 uppercase tracking-widest mb-4 truncate">{{ $template->subject }}</p>
-                
-                <div class="flex items-center justify-between pt-4 border-t border-surface-50">
-                    <span class="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">Last Modified: {{ $template->updated_at->format('M d, Y') }}</span>
-                    <form action="{{ route('admin.templates.destroy', $template) }}" method="POST" onsubmit="return confirm('Permanently delete this template?')">
+
+            {{-- Info Area --}}
+            <div class="p-6 relative bg-white">
+                <div class="flex items-start justify-between mb-3">
+                    <div>
+                        <h3 class="text-surface-900 font-black text-base uppercase tracking-tight">{{ $template->name }}</h3>
+                        <p class="text-[10px] font-bold text-primary-500 uppercase tracking-widest mt-1 truncate max-w-[200px]">
+                            {{ $template->subject }}
+                        </p>
+                    </div>
+                    <form action="{{ route('admin.templates.destroy', $template) }}" method="POST" onsubmit="return confirm('Delete this template permanently?')">
                         @csrf @method('DELETE')
-                        <button class="p-2 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <button class="text-surface-300 hover:text-rose-500 transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </form>
+                </div>
+                
+                <div class="flex items-center gap-4 text-[9px] font-black text-surface-400 uppercase tracking-tighter pt-4 border-t border-surface-50">
+                    <span class="flex items-center gap-1.5">
+                        <div class="w-1 h-1 rounded-full bg-emerald-500"></div>
+                        Ready to send
+                    </span>
+                    <span class="ml-auto italic">Updated {{ $template->updated_at->diffForHumans() }}</span>
                 </div>
             </div>
         </div>
@@ -42,13 +71,13 @@
     </div>
     <div class="mt-8">{{ $templates->links() }}</div>
     @else
-    <div class="glass-card p-20 text-center">
-        <div class="w-20 h-20 bg-surface-50 rounded-full flex items-center justify-center mx-auto mb-6 text-surface-300">
-            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"/></svg>
+    <div class="glass-card p-20 text-center flex flex-col items-center">
+        <div class="w-24 h-24 bg-primary-50 rounded-full flex items-center justify-center mb-8 text-primary-300">
+            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"/></svg>
         </div>
-        <h3 class="text-2xl font-bold text-surface-900 mb-2">No templates yet</h3>
-        <p class="text-surface-500 mb-8 max-w-sm mx-auto">Design reusable email templates using our advanced drag-and-drop builder.</p>
-        <a href="{{ route('admin.templates.create') }}" class="btn btn-primary px-8">Build Your First Template</a>
+        <h3 class="text-3xl font-black text-surface-900 uppercase tracking-tight mb-3">No Master Assets Found</h3>
+        <p class="text-surface-500 mb-10 max-w-md mx-auto font-medium">Your creative library is currently empty. Start building high-converting email templates for your next mission.</p>
+        <a href="{{ route('admin.templates.create') }}" class="btn btn-primary px-12 py-4 rounded-md shadow-xl shadow-primary-100">Initialize First Template</a>
     </div>
     @endif
 </div>

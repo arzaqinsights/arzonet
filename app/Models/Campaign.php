@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
 {
+    use \App\Traits\BelongsToUser;
+
     protected $fillable = [
         'name',
         'subject',
@@ -24,6 +26,7 @@ class Campaign extends Model
         'emails_per_minute',
         'batch_size',
         'bounce_count',
+        'audience_config',
     ];
 
     protected function casts(): array
@@ -32,6 +35,7 @@ class Campaign extends Model
             'scheduled_at'  => 'datetime',
             'started_at'    => 'datetime',
             'completed_at'  => 'datetime',
+            'audience_config' => 'array',
         ];
     }
 

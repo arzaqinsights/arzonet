@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Email extends Model
 {
+    use \App\Traits\BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'email_list_id',
         'activity_log_id',
         'email',

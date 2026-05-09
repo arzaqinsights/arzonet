@@ -64,7 +64,23 @@ class TemplateController extends Controller
 
     public function preview(Template $template, PersonalizationService $personalizer)
     {
-        $previewHtml = $personalizer->preview($template->html_content);
+        $previewData = null;
+        if (request()->has('list_id')) {
+            $list = \App\Models\EmailList::find(request('list_id'));
+            if ($list) {
+                $contact = $list->emails()->valid()->first();
+                if ($contact) {
+                    $previewData = $contact->toArray();
+                }
+            }
+        }
+
+        $previewHtml = $personalizer->preview($template->html_content, $previewData);
+        
+        if (request()->has('raw')) {
+            return $previewHtml;
+        }
+
         $senders = Sender::verified()->get();
         return view('templates.preview', compact('template', 'previewHtml', 'senders'));
     }

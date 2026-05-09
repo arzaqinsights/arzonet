@@ -10,10 +10,13 @@ class UsageTrackingService
     /**
      * Increment the sent counter for today.
      */
-    public function incrementSent(int $count = 1): void
+    public function incrementSent(int $count = 1, ?int $userId = null): void
     {
-        $stat = UsageStat::firstOrCreate(
-            ['date' => today()->toDateString()],
+        $userId = $userId ?? \Auth::id();
+        if (!$userId) return;
+
+        $stat = UsageStat::withoutGlobalScopes()->firstOrCreate(
+            ['date' => today()->toDateString(), 'user_id' => $userId],
             ['emails_sent' => 0, 'emails_failed' => 0, 'cost' => 0]
         );
 
@@ -24,10 +27,13 @@ class UsageTrackingService
     /**
      * Increment the failed counter for today.
      */
-    public function incrementFailed(int $count = 1): void
+    public function incrementFailed(int $count = 1, ?int $userId = null): void
     {
-        $stat = UsageStat::firstOrCreate(
-            ['date' => today()->toDateString()],
+        $userId = $userId ?? \Auth::id();
+        if (!$userId) return;
+
+        $stat = UsageStat::withoutGlobalScopes()->firstOrCreate(
+            ['date' => today()->toDateString(), 'user_id' => $userId],
             ['emails_sent' => 0, 'emails_failed' => 0, 'cost' => 0]
         );
 
@@ -83,9 +89,16 @@ class UsageTrackingService
     /**
      * Check if daily limit has been reached.
      */
-    public function isDailyLimitReached(): bool
+    public function isDailyLimitReached(?int $userId = null): bool
     {
-        $dailySent = UsageStat::where('date', today()->toDateString())->value('emails_sent') ?? 0;
+        $userId = $userId ?? \Auth::id();
+        if (!$userId) return false;
+
+        $dailySent = UsageStat::withoutGlobalScopes()
+            ->where('user_id', $userId)
+            ->where('date', today()->toDateString())
+            ->value('emails_sent') ?? 0;
+            
         return $dailySent >= config('emailplatform.limits.daily', 10000);
     }
 

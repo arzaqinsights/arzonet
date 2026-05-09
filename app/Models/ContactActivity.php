@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ContactActivity extends Model
 {
+    use \App\Traits\BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'email_id',
         'campaign_id',
         'type',

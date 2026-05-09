@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmailList extends Model
 {
+    use \App\Traits\BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'name',
         'file_path',
         'original_filename',

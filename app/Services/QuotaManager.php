@@ -15,6 +15,14 @@ class QuotaManager
      */
     public function getQuota(): array
     {
+        if (empty(config('services.ses.key')) || empty(config('services.ses.secret'))) {
+            return [
+                'Max24HourSend' => 200,
+                'MaxSendRate' => 14, // Reasonable default
+                'SentLast24Hours' => 0
+            ];
+        }
+
         return Cache::remember('ses_quota', 300, function () {
             return $this->ses->getSendQuota();
         });
@@ -26,16 +34,21 @@ class QuotaManager
      */
     public function throttle(string $key, float $ratePerSecond)
     {
-        // Redis::throttle requires 'seconds' as interval.
-        // If rate is 14/sec, interval is 1s, limit is 14.
-        return Redis::throttle($key)
-            ->allow($ratePerSecond)
-            ->every(1)
-            ->then(function () {
-                return true;
-            }, function () {
-                return false;
-            });
+        try {
+            // Redis::throttle requires 'seconds' as interval.
+            return Redis::throttle($key)
+                ->allow($ratePerSecond)
+                ->every(1)
+                ->then(function () {
+                    return true;
+                }, function () {
+                    return false;
+                });
+        } catch (\Exception $e) {
+            // Fallback: If Redis fails, just allow and log warning
+            Log::warning("Redis Throttling Failed: " . $e->getMessage());
+            return true;
+        }
     }
 
     /**

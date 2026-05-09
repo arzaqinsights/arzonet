@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class UsageStat extends Model
 {
+    use \App\Traits\BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'date',
         'emails_sent',
         'emails_failed',

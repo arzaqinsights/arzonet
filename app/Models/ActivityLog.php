@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ActivityLog extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\BelongsToUser;
 
     protected $fillable = [
         'email_list_id', 'user_id', 'type', 'details', 'batch_id',

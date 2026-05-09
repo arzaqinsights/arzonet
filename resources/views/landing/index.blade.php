@@ -51,7 +51,7 @@
                 </li>
                 @endforeach
             </ul>
-            <a href="{{ route('admin.dashboard') }}" class="block w-full text-center border-2 border-surface-200 hover:border-black text-black px-6 py-4 rounded-md font-bold transition-colors">Get Started Free</a>
+            <a href="{{ auth()->check() ? route('admin.dashboard') : route('register') }}" class="block w-full text-center border-2 border-surface-200 hover:border-black text-black px-6 py-4 rounded-md font-bold transition-colors">Get Started Free</a>
         </div>
         {{-- Pro --}}
         <div class="border-2 border-brand rounded-md p-8 bg-white relative shadow-xl transform md:-translate-y-4">
@@ -67,7 +67,7 @@
                 </li>
                 @endforeach
             </ul>
-            <a href="{{ route('admin.dashboard') }}" class="block w-full text-center bg-brand hover:bg-[#e05638] text-white px-6 py-4 rounded-md font-bold transition-colors shadow-[0_8px_20px_rgb(255,107,74,0.3)]">Start Pro Trial</a>
+            <a href="{{ auth()->check() ? route('admin.dashboard') : route('register') }}" class="block w-full text-center bg-brand hover:bg-[#e05638] text-white px-6 py-4 rounded-md font-bold transition-colors shadow-[0_8px_20px_rgb(255,107,74,0.3)]">Start Pro Trial</a>
         </div>
         {{-- Enterprise --}}
         <div class="border rounded-md p-8 bg-white">
@@ -126,7 +126,7 @@
         
         <h2 class="relative z-10 text-4xl md:text-5xl uppercase text-white font-bold mb-6">Ready to send at scale?</h2>
         <p class="relative z-10 text-xl text-gray-400 mb-10 font-light max-w-2xl mx-auto">Join thousands of teams sending millions of emails reliably every month with Arzonet's enterprise infrastructure.</p>
-        <a href="{{ route('admin.dashboard') }}" class="relative z-10 inline-flex items-center gap-2 bg-brand hover:bg-[#e05638] text-white px-10 py-5 rounded-md font-bold text-lg transition-all hover:-translate-y-1 shadow-[0_8px_30px_rgb(255,107,74,0.3)]">
+        <a href="{{ auth()->check() ? route('admin.dashboard') : route('register') }}" class="relative z-10 inline-flex items-center gap-2 bg-brand hover:bg-[#e05638] text-white px-10 py-5 rounded-md font-bold text-lg transition-all hover:-translate-y-1 shadow-[0_8px_30px_rgb(255,107,74,0.3)]">
             Start Free — No Card Needed <i class="fa-solid fa-arrow-right"></i>
         </a>
     </div>

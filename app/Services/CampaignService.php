@@ -21,12 +21,26 @@ class CampaignService
         $suppressedEmails = \App\Models\EmailStatus::whereIn('status', ['bounced', 'complaint'])->pluck('email')->toArray();
         $allExclusions = array_merge($unsubscribedEmails, $suppressedEmails);
 
-        $validEmails = $campaign->emailList
-            ->emails()
+        $query = $campaign->emailList->emails()
             ->valid()
-            ->subscribed() // Respect individual subscription status
-            ->whereNotIn('email', $allExclusions)
-            ->get();
+            ->subscribed()
+            ->whereNotIn('email', $allExclusions);
+
+        // Apply Advanced Audience Config (Segments/Tags)
+        if ($campaign->audience_config) {
+            $config = $campaign->audience_config;
+            if (isset($config['type']) && $config['type'] === 'segment' && !empty($config['tag'])) {
+                [$type, $value] = explode(':', $config['tag'], 2);
+                if ($type === 'tag') {
+                    $query->where('tags', 'LIKE', "%\"{$value}\"%")
+                          ->orWhere('tags', 'LIKE', "%{$value}%");
+                } elseif ($type === 'segment') {
+                    $query->where('segment_name', $value);
+                }
+            }
+        }
+
+        $validEmails = $query->get();
 
         // Update total recipients
         $campaign->update([
