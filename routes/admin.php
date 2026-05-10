@@ -119,6 +119,14 @@ Route::name('admin.')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
+    // Billing & Plans
+    Route::prefix('billing')->name('billing.')->group(function () {
+        Route::get('/plans', [\App\Http\Controllers\PlansController::class, 'index'])->name('plans');
+        Route::post('/purchase', [\App\Http\Controllers\PlansController::class, 'purchase'])->name('purchase');
+        Route::get('/invoices', [\App\Http\Controllers\InvoicesController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/{invoice}', [\App\Http\Controllers\InvoicesController::class, 'show'])->name('invoices.show');
+    });
+
     // Users
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
@@ -130,4 +138,16 @@ Route::name('admin.')->group(function () {
     // Media
     Route::post('/media/upload', [MediaController::class, 'upload'])->name('media.upload');
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
+
+    // Profile
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'index'])->name('profile.index');
+    Route::put('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+
+    // Super Admin Routes
+    Route::middleware(['super_admin'])->prefix('super')->name('super.')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\SuperAdminController::class, 'index'])->name('dashboard');
+        Route::get('/users', [\App\Http\Controllers\SuperAdminController::class, 'users'])->name('users');
+        Route::get('/settings', [\App\Http\Controllers\SuperAdminController::class, 'settings'])->name('settings');
+        Route::post('/settings', [\App\Http\Controllers\SuperAdminController::class, 'updateSettings'])->name('settings.update');
+    });
 });

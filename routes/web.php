@@ -25,6 +25,7 @@ Route::get('/unsubscribe/{token}', [TrackingController::class, 'unsubscribe'])->
 
 // SES Webhook (public — no CSRF)
 Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('webhooks.ses');
+Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::class, 'handleCashfree'])->name('webhooks.cashfree');
 
 // Auth Routes
 Route::middleware('guest')->group(function () {

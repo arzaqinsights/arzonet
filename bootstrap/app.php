@@ -30,10 +30,13 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->redirectUsersTo(fn() => route('admin.dashboard'));
+        $middleware->redirectUsersTo(fn() => auth()->user()->isSuperAdmin() ? route('admin.super.dashboard') : route('admin.dashboard'));
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
             'api/sns/*',
+        ]);
+        $middleware->alias([
+            'super_admin' => \App\Http\Middleware\SuperAdminMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

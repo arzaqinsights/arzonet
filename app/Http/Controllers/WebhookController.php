@@ -106,4 +106,44 @@ class WebhookController extends Controller
             );
         }
     }
+
+    public function handleCashfree(Request $request)
+    {
+        $payload = $request->all();
+        Log::info("Cashfree Webhook Received", $payload);
+
+        // In a real app, verify the signature here
+        // For this demo, we check if the payment is SUCCESS
+        $orderId = $payload['data']['order']['order_id'] ?? null;
+        $status = $payload['data']['order']['order_status'] ?? null;
+
+        if ($orderId && $status === 'PAID') {
+            $invoice = \App\Models\Invoice::where('payment_id', $orderId)->first();
+
+            if ($invoice && $invoice->status !== 'paid') {
+                $invoice->update([
+                    'status' => 'paid',
+                    'payment_id' => $payload['data']['payment']['cf_payment_id'] ?? $orderId
+                ]);
+
+                // Update User Subscription
+                $details = $invoice->plan_details;
+                \App\Models\Subscription::updateOrCreate(
+                    ['user_id' => $invoice->user_id],
+                    [
+                        'contacts_limit' => $details['contacts_limit'],
+                        'emails_limit' => $details['emails_limit'],
+                        'plan_name' => 'Custom Power Plan',
+                        'status' => 'active',
+                        'starts_at' => now(),
+                        'ends_at' => now()->addMonth(),
+                    ]
+                );
+
+                Log::info("Plan activated for User: " . $invoice->user_id);
+            }
+        }
+
+        return response()->json(['status' => 'OK']);
+    }
 }

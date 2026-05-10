@@ -116,7 +116,14 @@
                         </div>
 
                         <div class="py-1">
-                            <a href="#"
+                            @if(auth()->user()->isSuperAdmin())
+                            <a href="{{ route('admin.super.dashboard') }}"
+                                class="flex items-center px-4 py-2 text-sm text-brand font-black hover:bg-brand/5 transition-colors border-b border-brand/10">
+                                <i class="fa-solid fa-shield-halved mr-3"></i>
+                                Super Admin Panel
+                            </a>
+                            @endif
+                            <a href="{{ route('admin.profile.index') }}"
                                 class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
                                 <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
@@ -125,7 +132,7 @@
                                 </svg>
                                 My Profile
                             </a>
-                            <a href="#"
+                            <a href="{{ route('admin.billing.plans') }}"
                                 class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
                                 <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
@@ -243,6 +250,24 @@
                                 'active' => 'admin.users.*',
                                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />',
                             ],
+                            [
+                                'title' => 'My Profile',
+                                'route' => 'admin.profile.index',
+                                'active' => 'admin.profile.*',
+                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />',
+                            ],
+                            [
+                                'title' => 'Billing & Plan',
+                                'route' => 'admin.billing.plans',
+                                'active' => 'admin.billing.plans',
+                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />',
+                            ],
+                            [
+                                'title' => 'Billing History',
+                                'route' => 'admin.billing.invoices.index',
+                                'active' => 'admin.billing.invoices.*',
+                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />',
+                            ],
                         ],
                     ];
                 @endphp
@@ -270,7 +295,7 @@
                     <div class="absolute -right-4 -top-4 w-12 h-12 bg-surface-800 rounded-full opacity-50"></div>
                     <p class="text-sm font-bold text-surface-900">Need more features?</p>
                     <p class="text-[10px] text-surface-700 mt-0.5 mb-3">Upgrade to enterprise for unlimited sending.</p>
-                    <a href="#"
+                    <a href="{{ route('admin.billing.plans') }}"
                         class="text-xs font-bold text-white bg-surface-900 hover:bg-surface-800 px-2.5 py-2 rounded-sm inline-block transition-colors shadow-sm">Upgrade
                         Plan</a>
                 </div>
@@ -283,6 +308,31 @@
 
         {{-- ── Main Content ── --}}
         <main class="w-full ml-[260px] overflow-y-auto bg-surface-0">
+            {{-- Limit Warning Banner --}}
+            @php
+                $cUsage = auth()->user()->getContactsUsage();
+                $eUsage = auth()->user()->getEmailsUsage();
+            @endphp
+
+            @if($cUsage->is_exceeded || $eUsage->is_exceeded)
+            <div class="bg-red-600 text-white px-6 py-3 flex items-center justify-between shadow-lg sticky top-0 z-[60]">
+                <div class="flex items-center gap-3 text-left">
+                    <i class="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
+                    <div class="text-sm font-bold">
+                        @if($cUsage->is_exceeded)
+                            You have exceeded your contact limit ({{ number_format($cUsage->total) }} / {{ number_format($cUsage->limit) }}). 
+                        @elseif($eUsage->is_exceeded)
+                            You have exceeded your email sending limit ({{ number_format($eUsage->total) }} / {{ number_format($eUsage->limit) }}).
+                        @endif
+                        Campaigns and Imports are currently blocked.
+                    </div>
+                </div>
+                <a href="{{ route('admin.dashboard') }}" class="px-4 py-1.5 bg-white text-red-600 text-xs font-black rounded-sm uppercase tracking-widest hover:bg-red-50 transition-all shrink-0">
+                    Upgrade Now
+                </a>
+            </div>
+            @endif
+
             @if(View::hasSection('heading') || View::hasSection('header-actions'))
                 <div
                     class="fixed top-16 z-40 left-[260px] w-[calc(100%-260px)] flex justify-between items-center bg-surface-0 px-6 py-4 border-b border-color">

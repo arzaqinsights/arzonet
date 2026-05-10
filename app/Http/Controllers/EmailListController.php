@@ -44,6 +44,11 @@ class EmailListController extends Controller
      */
     public function store(Request $request, FileParserService $parser)
     {
+        // Check Limits
+        if (auth()->user()->getContactsUsage()->is_exceeded) {
+            return redirect()->route('admin.email-lists.index')->with('error', 'Contact limit exceeded. Please upgrade your plan before creating new lists.');
+        }
+
         $request->validate([
             'import_type' => 'required|in:upload,manual,paste',
         ]);
@@ -727,6 +732,11 @@ class EmailListController extends Controller
      */
     public function importMore(Request $request, EmailList $emailList, FileParserService $parser)
     {
+        // Check Limits
+        if (auth()->user()->getContactsUsage()->is_exceeded) {
+            return redirect()->back()->with('error', 'Contact limit exceeded. Please upgrade your plan before importing more contacts.');
+        }
+
         $request->validate(['import_type' => 'required|in:upload,paste']);
 
         if ($request->import_type === 'upload') {

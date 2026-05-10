@@ -16,6 +16,12 @@ class CampaignService
      */
     public function dispatch(Campaign $campaign): void
     {
+        // Check Limits
+        $usage = $campaign->user->getEmailsUsage();
+        if ($usage->is_exceeded) {
+            throw new \Exception("Campaign dispatch blocked: Email sending limit exceeded. Please upgrade your plan.");
+        }
+
         // Get valid emails excluding unsubscribed (Global Check)
         $unsubscribedEmails = Unsubscribe::pluck('email')->toArray();
         $suppressedEmails = \App\Models\EmailStatus::whereIn('status', ['bounced', 'complaint'])->pluck('email')->toArray();

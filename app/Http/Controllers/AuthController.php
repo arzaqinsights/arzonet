@@ -39,6 +39,11 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
+            
+            if (auth()->user()->isSuperAdmin()) {
+                return redirect()->route('admin.super.dashboard');
+            }
+
             return redirect()->intended(route('admin.dashboard'));
         }
 
@@ -85,6 +90,10 @@ class AuthController extends Controller
         ]);
 
         Auth::login($user);
+
+        if ($user->isSuperAdmin()) {
+            return redirect()->route('admin.super.dashboard');
+        }
 
         return redirect(route('admin.dashboard', absolute: false));
     }
