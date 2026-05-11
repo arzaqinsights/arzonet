@@ -12,7 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            $adminDomain = 'admin.' . parse_url(config('app.url'), PHP_URL_HOST);
+            $urlHost = parse_url(config('app.url'), PHP_URL_HOST);
+            $baseDomain = config('app.domain') ?: (str_starts_with($urlHost ?? '', 'admin.') ? substr($urlHost, 6) : $urlHost);
+            $adminDomain = 'admin.' . $baseDomain;
             
             // 1. Public Tracking Routes on Admin Subdomain (No Auth)
             Route::middleware(['web'])
@@ -30,7 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->redirectUsersTo(fn() => auth()->user()->isSuperAdmin() ? route('admin.super.dashboard') : route('admin.dashboard'));
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo(fn() => auth()->user()?->isSuperAdmin() ? route('admin.super.dashboard') : route('admin.dashboard'));
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
             'api/sns/*',
