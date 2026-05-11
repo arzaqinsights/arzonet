@@ -21,6 +21,8 @@ class PlansController extends Controller
             'amount'   => 'required|numeric',
         ]);
 
+        $amount = round($request->amount, 2);
+
         $user = auth()->user();
         $orderId = 'ORDER_' . strtoupper(\Illuminate\Support\Str::random(10));
 
@@ -28,7 +30,7 @@ class PlansController extends Controller
         $invoice = \App\Models\Invoice::create([
             'user_id' => $user->id,
             'invoice_number' => 'INV-' . time(),
-            'amount' => $request->amount,
+            'amount' => $amount,
             'currency' => 'INR',
             'status' => 'pending',
             'payment_id' => $orderId,
@@ -39,7 +41,7 @@ class PlansController extends Controller
         ]);
 
         // Create Cashfree Order
-        $order = $cashfree->createOrder($orderId, $request->amount, [
+        $order = $cashfree->createOrder($orderId, $amount, [
             'id' => $user->id,
             'email' => $user->email,
             'name' => $user->name,

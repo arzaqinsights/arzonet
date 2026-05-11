@@ -13,12 +13,12 @@ class CashfreeService
 
     public function __construct()
     {
-        $this->appId = env('CASHFREE_APP_ID');
-        $this->secretKey = env('CASHFREE_SECRET_KEY');
+        $this->appId = config('cashfree.app_id');
+        $this->secretKey = config('cashfree.secret_key');
         
-        $isProduction = app()->environment('production');
+        $mode = config('cashfree.mode');
         
-        $this->baseUrl = $isProduction 
+        $this->baseUrl = ($mode === 'production') 
             ? 'https://api.cashfree.com/pg/orders' 
             : 'https://sandbox.cashfree.com/pg/orders';
     }
