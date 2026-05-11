@@ -24,7 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     Route::get('/t/c/{token}',   [\App\Http\Controllers\TrackingController::class, 'click'])->name('admin.track.click');
                     Route::get('/unsubscribe/{token}', [\App\Http\Controllers\TrackingController::class, 'unsubscribe'])->name('admin.unsubscribe');
                 });
-
+                
             // 2. Authenticated Admin Routes
             Route::middleware(['web', 'auth'])
                 ->domain($adminDomain)
@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn() => auth()->user()?->isSuperAdmin() ? route('admin.super.dashboard') : route('admin.dashboard'));
         $middleware->validateCsrfTokens(except: [
