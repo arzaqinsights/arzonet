@@ -19,8 +19,8 @@ Route::get('/refund-policy', fn() => view('landing.refund'))->name('refund');
 
 
 // Public Tracking (must stay on root domain so pixel/link URLs resolve)
-Route::get('/t/o/{token}',   [TrackingController::class, 'open'])->name('track.open');
-Route::get('/t/c/{token}',   [TrackingController::class, 'click'])->name('track.click');
+Route::get('/t/o/{token}', [TrackingController::class, 'open'])->name('track.open');
+Route::get('/t/c/{token}', [TrackingController::class, 'click'])->name('track.click');
 Route::get('/unsubscribe/{token}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
 
 // SES Webhook (public — no CSRF)
@@ -28,7 +28,7 @@ Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('web
 Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::class, 'handleCashfree'])->name('webhooks.cashfree');
 
 // Auth Routes
-Route::middleware('guest')->group(function () {
+Route::domain('account.' . config('app.domain'))->middleware('guest')->group(function () {
     Route::post('/auth/start', [AuthController::class, 'start'])->name('auth.start');
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);

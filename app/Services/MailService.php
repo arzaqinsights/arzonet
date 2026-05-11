@@ -103,7 +103,14 @@ class MailService
             return $response->header('X-Message-Id') ?: 'sg_success_' . bin2hex(random_bytes(8));
         }
 
-        throw new \Exception("SendGrid Error: " . $response->body());
+        $errorBody = $response->body();
+        \Log::error("SendGrid API Failure: " . $errorBody, [
+            'to' => $to,
+            'sender' => $sender->email,
+            'status' => $response->status()
+        ]);
+
+        throw new \Exception("SendGrid Error: " . $errorBody);
     }
 
     protected function configureSmtp(Sender $sender): void

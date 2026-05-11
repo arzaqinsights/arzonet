@@ -41,6 +41,16 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
+
+    /*    |--------------------------------------------------------------------------
+    | Application Domain
+    |--------------------------------------------------------------------------
+    | This is the root domain for your application, used for generating links
+    | and routing. It should be set to your main domain (e.g. "example.com") without "www" or subdomains.
+    |    */
+
+    'domain' => env('APP_DOMAIN', 'example.com'),
+
     /*
     |--------------------------------------------------------------------------
     | Application URL
