@@ -10,7 +10,7 @@
 
 @section('content')
 <div class="mt-6">
-    <form action="{{ route('login') }}" method="POST" class="space-y-6">
+    <form action="{{ route('submit.login') }}" method="POST" class="space-y-6">
         @csrf
 
         @if($errors->any())

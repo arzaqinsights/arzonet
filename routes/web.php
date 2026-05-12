@@ -31,9 +31,9 @@ Route::domain('account.' . config('app.domain'))->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/', [AuthController::class, 'showLogin'])->name('login');
         Route::post('/auth/start', [AuthController::class, 'start'])->name('auth.start');
-        Route::post('/login', [AuthController::class, 'login']);
+        Route::post('/login', [AuthController::class, 'login'])->name('submit.login');
         Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/register', [AuthController::class, 'register'])->name('submit.register');
     });
     
     Route::match(['GET', 'POST'], '/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');

@@ -14,7 +14,7 @@
     nextStep() { if(this.step < 3) this.step++ },
     prevStep() { if(this.step > 1) this.step-- }
 }">
-    <form action="{{ route('register') }}" method="POST" class="space-y-6">
+    <form action="{{ route('submit.register') }}" method="POST" class="space-y-6">
         @csrf
 
         @if($errors->any())
