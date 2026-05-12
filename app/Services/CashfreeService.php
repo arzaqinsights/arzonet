@@ -25,6 +25,11 @@ class CashfreeService
 
     public function createOrder($orderId, $amount, $customerDetails, $metaData = [])
     {
+        // Build URLs on the admin subdomain so they resolve correctly in production
+        $adminBase = 'https://admin.' . config('app.domain');
+        $returnUrl = $adminBase . '/billing/payment-return?order_id={order_id}';
+        $notifyUrl = $adminBase . '/webhooks/cashfree';
+
         $response = Http::withHeaders([
             'x-client-id' => $this->appId,
             'x-client-secret' => $this->secretKey,
@@ -39,8 +44,8 @@ class CashfreeService
                 'customer_phone' => $customerDetails['phone'] ?? '9999999999',
             ],
             'order_meta' => [
-                'return_url' => route('admin.billing.plans') . '?order_id={order_id}',
-                'notify_url' => route('webhooks.cashfree'),
+                'return_url' => $returnUrl,
+                'notify_url' => $notifyUrl,
             ],
             'order_note' => 'Plan Upgrade - Arzonet',
             'order_tags' => $metaData

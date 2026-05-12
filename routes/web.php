@@ -24,7 +24,7 @@ Route::get('/t/o/{token}', [TrackingController::class, 'open'])->name('track.ope
 Route::get('/t/c/{token}', [TrackingController::class, 'click'])->name('track.click');
 Route::get('/unsubscribe/{token}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
 Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('webhooks.ses');
-Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::class, 'handleCashfree'])->name('webhooks.cashfree');
+// Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::class, 'handleCashfree'])->name('webhooks.cashfree');
 
 // 3. Auth Routes (Account Subdomain)
 Route::domain('account.' . config('app.domain'))->group(function () {

@@ -59,4 +59,56 @@ class PlansController extends Controller
         \Illuminate\Support\Facades\Log::error('Cashfree Payment Failed', ['response' => $order]);
         return back()->with('error', 'Payment initiation failed. Please check Cashfree configuration.');
     }
+
+    /**
+     * Handle user return from Cashfree payment gateway.
+     * Verify order status and activate plan if paid.
+     */
+    public function paymentReturn(Request $request, \App\Services\CashfreeService $cashfree)
+    {
+        $orderId = $request->query('order_id');
+
+        if (!$orderId) {
+            return redirect()->route('admin.billing.plans')->with('error', 'Invalid payment return. No order ID found.');
+        }
+
+        // Verify with Cashfree API
+        $order = $cashfree->getOrder($orderId);
+        $status = $order['order_status'] ?? 'UNKNOWN';
+
+        $invoice = \App\Models\Invoice::where('payment_id', $orderId)->first();
+
+        if (!$invoice) {
+            return redirect()->route('admin.billing.plans')->with('error', 'Order not found in our records.');
+        }
+
+        if ($status === 'PAID' && $invoice->status !== 'paid') {
+            $invoice->update([
+                'status' => 'paid',
+                'payment_id' => $order['cf_order_id'] ?? $orderId,
+            ]);
+
+            // Activate subscription
+            $details = $invoice->plan_details;
+            \App\Models\Subscription::updateOrCreate(
+                ['user_id' => $invoice->user_id],
+                [
+                    'contacts_limit' => $details['contacts_limit'],
+                    'emails_limit' => $details['emails_limit'],
+                    'plan_name' => 'Custom Power Plan',
+                    'status' => 'active',
+                    'starts_at' => now(),
+                    'ends_at' => now()->addMonth(),
+                ]
+            );
+
+            return redirect()->route('admin.billing.plans')->with('success', 'Payment successful! Your plan has been activated.');
+        }
+
+        if ($status === 'PAID') {
+            return redirect()->route('admin.billing.plans')->with('success', 'Your plan is already active.');
+        }
+
+        return redirect()->route('admin.billing.plans')->with('error', 'Payment was not completed. Status: ' . $status);
+    }
 }

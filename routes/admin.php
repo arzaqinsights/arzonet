@@ -123,9 +123,15 @@ Route::name('admin.')->group(function () {
     Route::prefix('billing')->name('billing.')->group(function () {
         Route::get('/plans', [\App\Http\Controllers\PlansController::class, 'index'])->name('plans');
         Route::post('/purchase', [\App\Http\Controllers\PlansController::class, 'purchase'])->name('purchase');
+        Route::get('/payment-return', [\App\Http\Controllers\PlansController::class, 'paymentReturn'])->name('payment-return');
         Route::get('/invoices', [\App\Http\Controllers\InvoicesController::class, 'index'])->name('invoices.index');
         Route::get('/invoices/{invoice}', [\App\Http\Controllers\InvoicesController::class, 'show'])->name('invoices.show');
     });
+
+    // Cashfree Webhook (inside admin subdomain so server handles it)
+    Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::class, 'handleCashfree'])
+        ->withoutMiddleware(['auth'])
+        ->name('webhooks.cashfree');
 
     // Users
     Route::prefix('users')->name('users.')->group(function () {
