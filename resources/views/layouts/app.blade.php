@@ -189,142 +189,107 @@
             <nav class="p-3 overflow-y-auto scrollbar">
                 @php
                     $sidebarMenu = [
-                        'Overview' => [
-                            [
-                                'title' => 'Dashboard',
-                                'route' => 'admin.dashboard',
-                                'active' => 'admin.dashboard',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />',
-                            ],
+                        [
+                            'title' => 'Dashboard',
+                            'route' => 'admin.dashboard',
+                            'active' => 'admin.dashboard',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />',
                         ],
-                        'Campaigns' => [
-                            [
-                                'title' => 'Email Campaigns',
-                                'route' => 'admin.campaigns.index',
-                                'active' => 'admin.campaigns.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />',
-                            ],
-                            [
-                                'title' => 'WhatsApp Campaigns',
-                                'route' => 'admin.whatsapp.campaigns.index',
-                                'active' => 'admin.whatsapp.campaigns.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />',
-                            ],
+                        [
+                            'title' => 'Campaigns',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />',
+                            'active' => 'admin.*campaigns*',
+                            'submenu' => [
+                                ['title' => 'Email Campaigns', 'route' => 'admin.campaigns.index', 'active' => 'admin.campaigns.*'],
+                                ['title' => 'WhatsApp Campaigns', 'route' => 'admin.whatsapp.campaigns.index', 'active' => 'admin.whatsapp.campaigns.*'],
+                            ]
                         ],
-                        'Templates' => [
-                            [
-                                'title' => 'Email Templates',
-                                'route' => 'admin.templates.index',
-                                'active' => 'admin.templates.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />',
-                            ],
-                            [
-                                'title' => 'WhatsApp Templates',
-                                'route' => 'admin.whatsapp.templates.index',
-                                'active' => 'admin.whatsapp.templates.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />',
-                            ],
+                        [
+                            'title' => 'Templates',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />',
+                            'active' => 'admin.*templates*',
+                            'submenu' => [
+                                ['title' => 'Email Templates', 'route' => 'admin.templates.index', 'active' => 'admin.templates.*'],
+                                ['title' => 'WhatsApp Templates', 'route' => 'admin.whatsapp.templates.index', 'active' => 'admin.whatsapp.templates.*'],
+                            ]
                         ],
-                        'Audience' => [
-                            [
-                                'title' => 'Contacts',
-                                'route' => 'admin.email-lists.index',
-                                'active' => 'admin.email-lists.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
-                            ],
-                            [
-                                'title' => 'Blacklist',
-                                'route' => 'admin.blacklist.index',
-                                'active' => 'admin.blacklist.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />',
-                            ],
+                        [
+                            'title' => 'Audience',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
+                            'active' => 'admin.*list*',
+                            'submenu' => [
+                                ['title' => 'Contacts List', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'],
+                                ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'],
+                            ]
                         ],
-                        'WhatsApp' => [
-                            [
-                                'title' => 'Conversations',
-                                'route' => 'admin.whatsapp.conversations.index',
-                                'active' => 'admin.whatsapp.conversations.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />',
-                            ],
-                            [
-                                'title' => 'WhatsApp Numbers',
-                                'route' => 'admin.whatsapp.accounts.index',
-                                'active' => 'admin.whatsapp.accounts.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />',
-                            ],
-                            [
-                                'title' => 'Analytics',
-                                'route' => 'admin.whatsapp.analytics',
-                                'active' => 'admin.whatsapp.analytics',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2z" />',
-                            ],
-                            [
-                                'title' => 'Settings',
-                                'route' => 'admin.whatsapp.settings',
-                                'active' => 'admin.whatsapp.settings',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />',
-                            ],
+                        [
+                            'title' => 'WhatsApp Ops',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />',
+                            'active' => 'admin.whatsapp.*',
+                            'submenu' => [
+                                ['title' => 'Live Chat', 'route' => 'admin.whatsapp.conversations.index', 'active' => 'admin.whatsapp.conversations.*'],
+                                ['title' => 'Phone Numbers', 'route' => 'admin.whatsapp.accounts.index', 'active' => 'admin.whatsapp.accounts.*'],
+                                ['title' => 'Engagement', 'route' => 'admin.whatsapp.analytics', 'active' => 'admin.whatsapp.analytics'],
+                                ['title' => 'WA Settings', 'route' => 'admin.whatsapp.settings', 'active' => 'admin.whatsapp.settings'],
+                            ]
                         ],
-                        'Settings' => [
-                            [
-                                'title' => 'Domains',
-                                'route' => 'admin.domains.index',
-                                'active' => 'admin.domains.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />',
-                            ],
-                            [
-                                'title' => 'Senders',
-                                'route' => 'admin.senders.index',
-                                'active' => 'admin.senders.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />',
-                            ],
-                            [
-                                'title' => 'Settings',
-                                'route' => 'admin.settings.index',
-                                'active' => 'admin.settings.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />',
-                            ],
-                            [
-                                'title' => 'Team',
-                                'route' => 'admin.users.index',
-                                'active' => 'admin.users.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />',
-                            ],
-                            [
-                                'title' => 'My Profile',
-                                'route' => 'admin.profile.index',
-                                'active' => 'admin.profile.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />',
-                            ],
-                            [
-                                'title' => 'Billing & Plan',
-                                'route' => 'admin.billing.plans',
-                                'active' => 'admin.billing.plans',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />',
-                            ],
-                            [
-                                'title' => 'Billing History',
-                                'route' => 'admin.billing.invoices.index',
-                                'active' => 'admin.billing.invoices.*',
-                                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />',
-                            ],
+                        [
+                            'title' => 'System',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />',
+                            'active' => 'admin.settings.*',
+                            'submenu' => [
+                                ['title' => 'Verified Domains', 'route' => 'admin.domains.index', 'active' => 'admin.domains.*'],
+                                ['title' => 'Active Senders', 'route' => 'admin.senders.index', 'active' => 'admin.senders.*'],
+                                ['title' => 'General Settings', 'route' => 'admin.settings.index', 'active' => 'admin.settings.index'],
+                                ['title' => 'Team Members', 'route' => 'admin.users.index', 'active' => 'admin.users.*'],
+                            ]
+                        ],
+                        [
+                            'title' => 'Billing',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />',
+                            'active' => 'admin.billing.*',
+                            'submenu' => [
+                                ['title' => 'Current Plan', 'route' => 'admin.billing.plans', 'active' => 'admin.billing.plans'],
+                                ['title' => 'Invoice History', 'route' => 'admin.billing.invoices.index', 'active' => 'admin.billing.invoices.*'],
+                            ]
                         ],
                     ];
                 @endphp
 
-                @foreach($sidebarMenu as $section => $links)
-                    <!-- <p class="px-3.5 my-3 text-[10px] flex items-center gap-2 font-bold text-gray-400 tracking-wider uppercase">{{ $section }} <span class="w-full h-px bg-gray-200"></span></p> -->
-                    @foreach($links as $link)
-                        <a href="{{ route($link['route']) }}"
-                            class="flex items-center p-2 mb-2 rounded-sm text-sm gap-2 {{ request()->routeIs($link['active']) ? 'bg-surface-200 text-black font-semibold' : 'text-surface-800 hover:bg-surface-100' }}">
-                            <svg class="w-4 h-4 shrink-0"
-                                fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                {!! $link['icon'] !!}
+                @foreach($sidebarMenu as $item)
+                    @if(isset($item['submenu']))
+                        <div x-data="{ open: {{ request()->routeIs($item['active']) ? 'true' : 'false' }} }" class="mb-1">
+                            <button @click="open = !open"
+                                class="flex items-center justify-between w-full p-2 rounded-sm text-sm transition-colors group cursor-pointer {{ request()->routeIs($item['active']) ? 'text-black font-bold' : 'text-surface-700 hover:bg-surface-100 hover:text-black' }}">
+                                <div class="flex items-center gap-2.5">
+                                    <svg class="w-4 h-4 shrink-0 {{ request()->routeIs($item['active']) ? 'text-brand' : 'text-gray-400 group-hover:text-black' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        {!! $item['icon'] !!}
+                                    </svg>
+                                    {{ $item['title'] }}
+                                </div>
+                                <svg class="w-3.5 h-3.5 transform transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            
+                            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 -translate-y-2" x-transition:enter-end="transform opacity-100 translate-y-0" class="mt-1 ml-4 pl-2.5 border-l-2 border-gray-100 space-y-1">
+                                @foreach($item['submenu'] as $sub)
+                                    <a href="{{ route($sub['route']) }}"
+                                        class="block py-1.5 px-2 rounded-sm text-[13px] transition-colors {{ request()->routeIs($sub['active']) ? 'text-brand font-bold' : 'text-surface-600 hover:text-black hover:bg-surface-50' }}">
+                                        {{ $sub['title'] }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <a href="{{ route($item['route']) }}"
+                            class="flex items-center p-2 mb-1 rounded-sm text-sm gap-2.5 transition-colors group {{ request()->routeIs($item['active']) ? 'bg-surface-100 text-black font-bold' : 'text-surface-700 hover:bg-surface-50 hover:text-black' }}">
+                            <svg class="w-4 h-4 shrink-0 {{ request()->routeIs($item['active']) ? 'text-brand' : 'text-gray-400 group-hover:text-black' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {!! $item['icon'] !!}
                             </svg>
-                            {{ $link['title'] }}
+                            {{ $item['title'] }}
                         </a>
-                    @endforeach
+                    @endif
                 @endforeach
             </nav>
 
