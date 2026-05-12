@@ -10,63 +10,63 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0a0a0a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-        .invoice-page { width: 210mm; max-height: 297mm; margin: 0 auto; background: #fff; position: relative; overflow: hidden; }
-        .invoice-content { padding: 28px 36px 20px; position: relative; z-index: 2; }
+        .invoice-page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; position: relative; overflow: hidden; }
+        .invoice-content { padding: 36px 44px 30px; position: relative; z-index: 2; }
 
         .watermark { position: absolute; bottom: 10px; left: 0; width: 100%; display: flex; justify-content: center; z-index: 1; pointer-events: none; }
         .watermark img { width: 400px; opacity: 0.035; }
 
         /* Header */
-        .inv-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 2px solid #0a0a0a; margin-bottom: 16px; }
-        .inv-header img { height: 28px; margin-bottom: 4px; }
+        .inv-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; border-bottom: 2px solid #0a0a0a; margin-bottom: 24px; }
+        .inv-header img { height: 32px; margin-bottom: 6px; }
         .inv-header .tag { font-size: 9px; color: #64748b; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
         .inv-header .right { text-align: right; }
-        .inv-header h1 { font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 900; }
-        .inv-header .num { font-size: 11px; font-weight: 700; color: #ff6b00; margin-top: 2px; }
-        .inv-header .badge { display: inline-block; margin-top: 4px; padding: 2px 10px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-radius: 2px; }
+        .inv-header h1 { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 900; }
+        .inv-header .num { font-size: 12px; font-weight: 700; color: #ff6b00; margin-top: 3px; }
+        .inv-header .badge { display: inline-block; margin-top: 6px; padding: 3px 12px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-radius: 2px; }
         .s-paid { background: #dcfce7; color: #166534; }
         .s-pending { background: #fef9c3; color: #854d0e; }
         .s-failed { background: #fee2e2; color: #991b1b; }
 
         /* Info Grid */
-        .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; }
-        .info-row h4 { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-        .info-row .nm { font-size: 13px; font-weight: 800; margin-bottom: 2px; }
-        .info-row .dt { font-size: 10px; color: #475569; line-height: 1.6; }
-        .info-row .gs { display: inline-block; margin-top: 4px; padding: 2px 8px; background: #f1f5f9; font-size: 9px; font-weight: 700; border: 1px solid #e2e8f0; }
+        .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 22px; }
+        .info-row h4 { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+        .info-row .nm { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
+        .info-row .dt { font-size: 11px; color: #475569; line-height: 1.7; }
+        .info-row .gs { display: inline-block; margin-top: 6px; padding: 3px 10px; background: #f1f5f9; font-size: 10px; font-weight: 700; border: 1px solid #e2e8f0; }
 
         /* Meta */
-        .meta-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; }
-        .meta-row label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; display: block; margin-bottom: 2px; }
-        .meta-row span { font-size: 11px; font-weight: 700; }
+        .meta-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; padding: 14px 16px; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .meta-row label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; display: block; margin-bottom: 3px; }
+        .meta-row span { font-size: 12px; font-weight: 700; }
 
         /* Table */
-        table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        thead th { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; text-align: left; padding: 6px 10px; border-bottom: 2px solid #0a0a0a; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        thead th { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; text-align: left; padding: 8px 12px; border-bottom: 2px solid #0a0a0a; }
         thead th:last-child, tbody td:last-child { text-align: right; }
-        tbody td { padding: 8px 10px; font-size: 11px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-        .i-name { font-weight: 700; font-size: 11px; }
-        .i-desc { font-size: 9px; color: #64748b; margin-top: 1px; }
-        .i-hsn { font-size: 8px; color: #94a3b8; margin-top: 1px; }
+        tbody td { padding: 12px 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        .i-name { font-weight: 700; font-size: 12px; }
+        .i-desc { font-size: 10px; color: #64748b; margin-top: 2px; }
+        .i-hsn { font-size: 9px; color: #94a3b8; margin-top: 2px; }
 
         /* Totals */
-        .totals { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-        .totals-box { width: 240px; }
-        .t-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
+        .totals { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+        .totals-box { width: 260px; }
+        .t-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
         .t-row .lb { color: #64748b; font-weight: 500; }
         .t-row .vl { font-weight: 700; }
-        .t-grand { border-top: 2px solid #0a0a0a; margin-top: 6px; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .t-grand .lb { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-        .t-grand .vl { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 900; color: #ff6b00; }
+        .t-grand { border-top: 2px solid #0a0a0a; margin-top: 8px; padding-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .t-grand .lb { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .t-grand .vl { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 900; color: #ff6b00; }
 
         /* Payment */
-        .pay-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; padding: 10px 14px; background: #fafafa; border: 1px solid #e2e8f0; margin-bottom: 14px; }
-        .pay-row .pl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 2px; }
-        .pay-row .pv { font-size: 10px; font-weight: 600; }
+        .pay-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; padding: 14px 16px; background: #fafafa; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .pay-row .pl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 3px; }
+        .pay-row .pv { font-size: 11px; font-weight: 600; }
 
         /* Footer */
-        .inv-footer { padding-top: 10px; border-top: 1px solid #e2e8f0; }
-        .inv-footer p { font-size: 8px; color: #94a3b8; line-height: 1.7; }
+        .inv-footer { padding-top: 14px; border-top: 1px solid #e2e8f0; }
+        .inv-footer p { font-size: 9px; color: #94a3b8; line-height: 1.8; }
 
         @media print { body { background: #fff; } .no-print { display: none !important; } .invoice-page { margin: 0; box-shadow: none; } }
         @media screen { .invoice-page { box-shadow: 0 0 30px rgba(0,0,0,0.06); margin-top: 20px; margin-bottom: 40px; } }
