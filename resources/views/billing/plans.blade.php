@@ -75,23 +75,77 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-surface-50 p-6 rounded-sm border border-surface-100 flex items-start gap-4">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-brand border border-surface-200 shrink-0">
-                        <i class="fa-solid fa-bolt-lightning"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-black text-black mb-1">Instant Activation</h4>
-                        <p class="text-[11px] text-surface-500 font-medium">Limits are updated immediately after payment via Cashfree.</p>
-                    </div>
+            <!-- Comprehensive Features List -->
+            <div class="bg-white border border-surface-200 rounded-sm shadow-sm overflow-hidden">
+                <div class="bg-surface-50 border-b border-surface-200 px-8 py-5">
+                    <h3 class="text-lg font-black text-black font-['Outfit'] flex items-center gap-2">
+                        <i class="fa-solid fa-star text-brand"></i> All-In-One Platform Features
+                    </h3>
                 </div>
-                <div class="bg-surface-50 p-6 rounded-sm border border-surface-100 flex items-start gap-4">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-black border border-surface-200 shrink-0">
-                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                <div class="p-8 space-y-6">
+                    <!-- Feature 1 -->
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-brand/10 text-brand flex items-center justify-center shrink-0 mt-1">
+                            <i class="fa-solid fa-filter"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-black mb-1">Advanced Contact Filtering & Cleaning</h4>
+                            <p class="text-[13px] text-surface-600 leading-relaxed">
+                                Apni list ko fix aur filter karein — 1 din me <strong>upto 1 Lakh contacts</strong> filter karein. Automatically remove duplicates. Invalid, typos, aur suspicious emails alag se mark ho jayengi taaki bounce possibility zero ho.
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h4 class="text-sm font-black text-black mb-1">Tax Compliant Invoices</h4>
-                        <p class="text-[11px] text-surface-500 font-medium">Download GST-ready PDF invoices for your business records.</p>
+                    
+                    <!-- Feature 2 -->
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-brand/10 text-brand flex items-center justify-center shrink-0 mt-1">
+                            <i class="fa-solid fa-file-export"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-black mb-1">Smart Custom Exports</h4>
+                            <p class="text-[13px] text-surface-600 leading-relaxed">
+                                Har filter ke sath contacts ko export karein. City, sectors, ya kisi bhi custom field ki value ke hisab se list ko alag-alag hisson me export aur segment karein.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-brand/10 text-brand flex items-center justify-center shrink-0 mt-1">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-black mb-1">Bulk, Transactional & Promotional Campaigns</h4>
+                            <p class="text-[13px] text-surface-600 leading-relaxed">
+                                Bulk mail, transactional alerts, ya promotional emails bhejein. Har campaign ki <strong>full analytics</strong> (open, click, bounce) real-time me track karein.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 4 -->
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-brand/10 text-brand flex items-center justify-center shrink-0 mt-1">
+                            <i class="fa-solid fa-user-tag"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-black mb-1">Deep Personalization</h4>
+                            <p class="text-[13px] text-surface-600 leading-relaxed">
+                                Har user ko bulk me personalize mail bhejein. Unke naam, company, ya kisi bhi custom data point ko email me dynamically inject karein.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 5 -->
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-black/5 text-black flex items-center justify-center shrink-0 mt-1">
+                            <i class="fa-solid fa-crown"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-black mb-1">Daily Use Ka One & Only Platform</h4>
+                            <p class="text-[13px] text-surface-600 leading-relaxed">
+                                Ek hi platform se apni poori email marketing, list hygiene, aur audience engagement ko daily manage karein.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
