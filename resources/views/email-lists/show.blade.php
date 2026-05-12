@@ -469,6 +469,8 @@
                                     </div>
                                 </th>
                                 <th class="px-8 py-4">Email Address</th>
+                                <th class="px-8 py-4">WhatsApp</th>
+
                                 <th class="px-8 py-4">Full Name</th>
                                 @foreach($displayedFields as $field)
                                     <th class="px-8 py-4">{{ str_replace(['_', 'custom_'], [' ', ''], $field) }}</th>

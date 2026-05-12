@@ -14,7 +14,10 @@ use App\Http\Controllers\SnsController;
 |
 */
 
+// WhatsApp Webhooks
+Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'verify']);
+Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'handle']);
+
 Route::post('/sns/webhook', [SnsController::class, 'handle']);
 Route::post('/sendgrid/webhook', [\App\Http\Controllers\SendGridWebhookController::class, 'handle']);
 Route::get('/email-statuses', [SnsController::class, 'index']);
-

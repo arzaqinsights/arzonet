@@ -15,6 +15,7 @@
         row: {
             id: {{ $email->id }},
             email: '{{ $email->email }}',
+            whatsapp_number: '{{ $email->whatsapp_number ?? '' }}',
             name: '{{ $email->name ?? '' }}',
             segment_name: '{{ $email->segment_name ?? '' }}',
             tags: '{{ $email->tags ?? '' }}',
@@ -59,6 +60,19 @@
         </template>
         <template x-if="editing">
             <input type="email" x-model="row.email" class="w-full px-2 py-1 bg-white border border-gray-200 rounded-sm text-sm font-bold focus:ring-0 focus:outline-none">
+        </template>
+    </td>
+
+    {{-- WhatsApp Column --}}
+    <td class="px-8 py-4 whitespace-nowrap">
+        <template x-if="!editing">
+            <div class="text-xs text-surface-600 font-bold flex items-center gap-1.5">
+                <i class="fa-brands fa-whatsapp text-emerald-500"></i>
+                <span x-text="row.whatsapp_number || '—'"></span>
+            </div>
+        </template>
+        <template x-if="editing">
+            <input type="text" x-model="row.whatsapp_number" placeholder="WhatsApp" class="w-full px-2 py-1 bg-white border border-gray-100 rounded-sm text-xs font-bold focus:ring-0 focus:outline-none">
         </template>
     </td>
 

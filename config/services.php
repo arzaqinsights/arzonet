@@ -39,4 +39,11 @@ return [
         ],
     ],
 
+    'whatsapp' => [
+        'app_id' => env('WHATSAPP_APP_ID'),
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
+        'config_id' => env('WHATSAPP_CONFIGURATION_ID'),
+        'webhook_verify_token' => env('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
+        'api_version' => env('WHATSAPP_API_VERSION', 'v22.0'),
+    ],
 ];

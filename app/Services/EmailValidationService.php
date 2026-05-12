@@ -68,6 +68,7 @@ class EmailValidationService
 
             $email = $this->normalizeEmail($rawEmail);
             $entry['email'] = $rawEmail;
+            $entry['whatsapp_number'] = $entry['whatsapp_number'] ?? null;
             
             // ── Health Tracking Initialization ──
             $entry['email_status'] = 'valid';

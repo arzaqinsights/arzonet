@@ -47,6 +47,32 @@ class User extends Authenticatable
         return $this->hasMany(EmailList::class);
     }
 
+    public function whatsappAccounts()
+    {
+        return $this->hasMany(WhatsAppAccount::class);
+    }
+
+    public function whatsappTemplates()
+    {
+        return $this->hasMany(WhatsAppTemplate::class);
+    }
+
+    public function whatsappCampaigns()
+    {
+        return $this->hasMany(WhatsAppCampaign::class);
+    }
+
+    public function whatsappMessages()
+    {
+        return $this->hasMany(WhatsAppMessage::class);
+    }
+
+    public function whatsappConversations()
+    {
+        return $this->hasMany(WhatsAppConversation::class);
+    }
+
+
     public function getContactsUsage()
     {
         $limit = optional($this->subscription)->contacts_limit ?? 0;

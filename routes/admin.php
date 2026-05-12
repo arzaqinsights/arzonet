@@ -139,6 +139,41 @@ Route::name('admin.')->group(function () {
     Route::post('/media/upload', [MediaController::class, 'upload'])->name('media.upload');
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
 
+    // WhatsApp
+    Route::prefix('whatsapp')->name('whatsapp.')->group(function () {
+        // Accounts
+        Route::prefix('accounts')->name('accounts.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\WhatsAppAccountController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\WhatsAppAccountController::class, 'store'])->name('store');
+            Route::delete('/{whatsappAccount}', [\App\Http\Controllers\WhatsAppAccountController::class, 'destroy'])->name('destroy');
+        });
+
+        // Templates
+        Route::prefix('templates')->name('templates.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\WhatsAppTemplateController::class, 'index'])->name('index');
+            Route::post('/sync/{account}', [\App\Http\Controllers\WhatsAppTemplateController::class, 'sync'])->name('sync');
+        });
+
+        // Campaigns
+        Route::prefix('campaigns')->name('campaigns.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\WhatsAppCampaignController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\WhatsAppCampaignController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\WhatsAppCampaignController::class, 'store'])->name('store');
+            Route::post('/{campaign}/send', [\App\Http\Controllers\WhatsAppCampaignController::class, 'send'])->name('send');
+        });
+
+        // Conversations / Inbox
+        Route::prefix('conversations')->name('conversations.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\WhatsAppConversationController::class, 'index'])->name('index');
+            Route::get('/{conversation}', [\App\Http\Controllers\WhatsAppConversationController::class, 'show'])->name('show');
+            Route::post('/{conversation}/reply', [\App\Http\Controllers\WhatsAppConversationController::class, 'reply'])->name('reply');
+        });
+
+        // Analytics & Settings
+        Route::get('/analytics', fn() => view('admin.whatsapp.analytics'))->name('analytics');
+        Route::get('/settings', fn() => view('admin.whatsapp.settings'))->name('settings');
+    });
+
     // Profile
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'index'])->name('profile.index');
     Route::put('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');

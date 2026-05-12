@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Audience Intelligence')
-@section('heading', 'Audience Repositories')
+@section('title', 'Contacts Intelligence')
+@section('heading', 'Contact Repositories')
 
 @section('header-actions')
     <a href="{{ route('admin.email-lists.create') }}"
@@ -9,7 +9,7 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
         </svg>
-        Create New Audience
+        Create New Contact List
     </a>
 @endsection
 
@@ -273,7 +273,7 @@
                             Import your contact ecosystem to start generating advanced deliverability analytics.</p>
                         <a href="{{ route('admin.email-lists.create') }}"
                             class="bg-brand text-white px-10 py-4 rounded-sm text-xs font-black uppercase tracking-[0.2em] hover:scale-[1.05] transition-all">Onboard
-                            First Audience</a>
+                            First Contact List</a>
                     </div>
                 @endforelse
             </div>

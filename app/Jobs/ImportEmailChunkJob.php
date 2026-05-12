@@ -67,6 +67,7 @@ class ImportEmailChunkJob implements ShouldQueue
                         'name'                => DB::raw("COALESCE(NULLIF(name,''), " . DB::getPdo()->quote($entry['name'] ?? '') . ")"),
                         'status'              => 'valid',
                         'subscription_status' => 'subscribed',
+                        'whatsapp_number'     => DB::raw("COALESCE(NULLIF(whatsapp_number,''), " . DB::getPdo()->quote($entry['whatsapp_number'] ?? '') . ")"),
                         // New health columns
                         'email_status'        => $entry['email_status'] ?? 'valid',
                         'email_score'         => $entry['email_score'] ?? 5,
@@ -138,6 +139,7 @@ class ImportEmailChunkJob implements ShouldQueue
             'email_list_id'       => $emailList->id,
             'activity_log_id'     => $this->activityLogId, // Only new inserts get this link
             'email'               => $entry['email'],
+            'whatsapp_number'     => $entry['whatsapp_number'] ?? null,
             'name'                => $entry['name'] ?? null,
             'status'              => $status,
             'subscription_status' => ($status === 'invalid') ? 'unsubscribed' : 'subscribed',

@@ -50,6 +50,7 @@
                              else $target = 'name';
                         }
                         elseif (str_contains($h, 'company') || str_contains($h, 'firm') || str_contains($h, 'organization')) $target = 'company';
+                        elseif (str_contains($h, 'whatsapp') || str_contains($h, 'wa number')) $target = 'whatsapp_number';
                         elseif (str_contains($h, 'phone') || str_contains($h, 'mobile') || str_contains($h, 'contact')) $target = 'phone';
                         elseif (str_contains($h, 'city')) $target = 'city';
                         elseif (str_contains($h, 'state')) $target = 'state';
@@ -133,6 +134,7 @@
                                         </optgroup>
                                         <optgroup label="Communication" class="bg-white">
                                             <option value="phone" :disabled="isOptionDisabled('phone', '{{ $header }}')" x-text="getOptionText('phone', 'Phone Number', '{{ $header }}')"></option>
+                                            <option value="whatsapp_number" :disabled="isOptionDisabled('whatsapp_number', '{{ $header }}')" x-text="getOptionText('whatsapp_number', 'WhatsApp Number', '{{ $header }}')"></option>
                                             <option value="city" :disabled="isOptionDisabled('city', '{{ $header }}')" x-text="getOptionText('city', 'City', '{{ $header }}')"></option>
                                             <option value="state" :disabled="isOptionDisabled('state', '{{ $header }}')" x-text="getOptionText('state', 'State', '{{ $header }}')"></option>
                                             <option value="zip" :disabled="isOptionDisabled('zip', '{{ $header }}')" x-text="getOptionText('zip', 'Zip Code', '{{ $header }}')"></option>
