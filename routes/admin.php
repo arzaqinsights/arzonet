@@ -133,6 +133,11 @@ Route::name('admin.')->group(function () {
         ->withoutMiddleware(['auth'])
         ->name('webhooks.cashfree');
 
+    // SendGrid Event Webhook (opens, clicks, bounces, etc.)
+    Route::post('/webhooks/sendgrid', [\App\Http\Controllers\SendGridWebhookController::class, 'handle'])
+        ->withoutMiddleware(['auth'])
+        ->name('webhooks.sendgrid');
+
     // Users
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');

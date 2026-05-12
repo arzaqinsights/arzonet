@@ -40,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/sns/*',
             'api/whatsapp/webhook',
             '*/webhooks/cashfree',
+            '*/webhooks/sendgrid',
         ]);
         $middleware->alias([
             'super_admin' => \App\Http\Middleware\SuperAdminMiddleware::class,

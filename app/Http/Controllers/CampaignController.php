@@ -270,12 +270,20 @@ class CampaignController extends Controller
 
     public function checkStatus(Campaign $campaign)
     {
+        $openCount = $campaign->logs()->where('open_count', '>', 0)->count();
+        $clickCount = $campaign->logs()->where('click_count', '>', 0)->count();
+        $delivered = max(1, $campaign->sent_count);
+
         return response()->json([
             'status'       => $campaign->status,
             'sent_count'   => $campaign->sent_count,
             'failed_count' => $campaign->failed_count,
             'bounce_count' => $campaign->bounce_count,
             'unsubscribe_count' => $campaign->unsubscribes()->count(),
+            'open_count'   => $openCount,
+            'click_count'  => $clickCount,
+            'open_rate'    => round(($openCount / $delivered) * 100, 1),
+            'click_rate'   => round(($clickCount / $delivered) * 100, 1),
             'total'        => $campaign->total_recipients,
             'progress'     => $campaign->progress(),
             'speed'        => $campaign->currentSpeed(),

@@ -467,11 +467,10 @@
             <table class="invoice-table">
                 <thead>
                     <tr>
-                        <th style="width:10%">#</th>
-                        <th style="width:50%">Description</th>
+                        <th style="width:8%">#</th>
+                        <th style="width:57%">Description</th>
                         <th style="width:15%">Qty</th>
-                        <th style="width:10%">Rate</th>
-                        <th style="width:15%">Amount</th>
+                        <th style="width:20%">Amount</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -483,7 +482,6 @@
                             <div class="item-hsn">SAC: 998361</div>
                         </td>
                         <td>{{ number_format($contacts) }}</td>
-                        <td>₹{{ $contactsBasePrice }}/1K</td>
                         <td>₹{{ number_format($contactsAmount, 2) }}</td>
                     </tr>
                     <tr>
@@ -494,7 +492,6 @@
                             <div class="item-hsn">SAC: 998315</div>
                         </td>
                         <td>{{ number_format($emails) }}/mo</td>
-                        <td>₹{{ $emailsBasePrice }}/1K</td>
                         <td>₹{{ number_format($emailsAmount, 2) }}</td>
                     </tr>
                     <tr>
@@ -504,7 +501,6 @@
                             <div class="item-desc">Dashboard, analytics, campaign builder, template designer, domain verification, sender management & team access.</div>
                         </td>
                         <td>1</td>
-                        <td>—</td>
                         <td>FREE</td>
                     </tr>
                 </tbody>

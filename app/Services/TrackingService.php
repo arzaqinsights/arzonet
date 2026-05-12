@@ -13,7 +13,9 @@ class TrackingService
      */
     public function injectTracking(string $html, EmailLog $log): string
     {
-        $baseUrl = config('app.url');
+        // Use admin subdomain for tracking URLs (production server only handles admin.*)
+        $domain = config('app.domain', parse_url(config('app.url'), PHP_URL_HOST));
+        $baseUrl = 'https://admin.' . $domain;
 
 
         // 1. Inject Tracking Pixel

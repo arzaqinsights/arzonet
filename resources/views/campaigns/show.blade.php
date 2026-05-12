@@ -321,8 +321,9 @@
 
 @push('scripts')
 <script>
-    @if($campaign->status === 'sending' || $campaign->status === 'paused')
-    // Auto-refresh stats every 5 seconds
+    @if($campaign->status !== 'draft')
+    // Auto-refresh stats: 5s for sending, 30s for completed (catches late open/click events)
+    const pollMs = {{ $campaign->status === 'sending' ? 5000 : 30000 }};
     const pollInterval = setInterval(() => {
         fetch('{{ route("admin.campaigns.status", $campaign) }}')
         .then(response => response.json())
@@ -332,6 +333,10 @@
             document.getElementById('stat-bounce-count').innerText = data.bounce_count.toLocaleString();
             document.getElementById('stat-unsubscribe-count').innerText = data.unsubscribe_count.toLocaleString();
             document.getElementById('stat-failed-count').innerText = data.failed_count.toLocaleString();
+            document.getElementById('stat-open-rate').innerText = data.open_rate + '%';
+            document.getElementById('stat-click-rate').innerText = data.click_rate + '%';
+            document.querySelector('#stat-open-rate + p').innerText = data.open_count + ' Total';
+            document.querySelector('#stat-click-rate + p').innerText = data.click_count + ' Total';
             
             // 2. Update Progress Engine (if visible)
             const engine = document.getElementById('progress-engine');
@@ -381,7 +386,7 @@
                 window.location.reload();
             }
         });
-    }, 5000);
+    }, pollMs);
     @endif
 
     function saveName() {
