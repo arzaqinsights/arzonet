@@ -8,6 +8,9 @@ class WhatsAppConversation extends Model
 {
     use \App\Traits\BelongsToUser;
 
+    protected $table = 'whatsapp_conversations';
+
+
     protected $fillable = [
         'user_id',
         'whatsapp_account_id',

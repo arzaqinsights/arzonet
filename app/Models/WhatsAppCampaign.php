@@ -8,6 +8,9 @@ class WhatsAppCampaign extends Model
 {
     use \App\Traits\BelongsToUser;
 
+    protected $table = 'whatsapp_campaigns';
+
+
     protected $fillable = [
         'user_id',
         'whatsapp_template_id',

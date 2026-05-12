@@ -8,6 +8,9 @@ class WhatsAppTemplate extends Model
 {
     use \App\Traits\BelongsToUser;
 
+    protected $table = 'whatsapp_templates';
+
+
     protected $fillable = [
         'user_id',
         'whatsapp_account_id',

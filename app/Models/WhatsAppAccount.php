@@ -8,6 +8,9 @@ class WhatsAppAccount extends Model
 {
     use \App\Traits\BelongsToUser;
 
+    protected $table = 'whatsapp_accounts';
+
+
     protected $fillable = [
         'user_id',
         'business_name',
