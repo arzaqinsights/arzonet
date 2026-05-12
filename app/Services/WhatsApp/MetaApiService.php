@@ -16,8 +16,8 @@ class MetaApiService
     {
         $apiVersion = config('services.whatsapp.api_version', 'v22.0');
         $this->baseUrl = "https://graph.facebook.com/{$apiVersion}";
-        $this->appId = config('services.whatsapp.app_id');
-        $this->appSecret = config('services.whatsapp.app_secret');
+        $this->appId = (string) config('services.whatsapp.app_id');
+        $this->appSecret = (string) config('services.whatsapp.app_secret');
     }
 
     /**
