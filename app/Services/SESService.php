@@ -14,12 +14,21 @@ class SESService
 
     public function __construct()
     {
+        $key = config('services.ses.key');
+        $secret = config('services.ses.secret');
+
+        if (empty($key) || empty($secret)) {
+            $this->client = null;
+            Log::warning('SESService: AWS Credentials not found. SES functionality will be disabled.');
+            return;
+        }
+
         $this->client = new SesClient([
             'version' => 'latest',
             'region'  => config('services.ses.region', 'us-east-1'),
             'credentials' => [
-                'key'    => config('services.ses.key'),
-                'secret' => config('services.ses.secret'),
+                'key'    => $key,
+                'secret' => $secret,
             ],
         ]);
     }

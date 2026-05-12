@@ -13,11 +13,8 @@ class TrackingService
      */
     public function injectTracking(string $html, EmailLog $log): string
     {
-        // Use the current request host if APP_URL is local/test, to ensure links work in production
         $baseUrl = config('app.url');
-        if (str_contains($baseUrl, 'localhost') || str_contains($baseUrl, '.test')) {
-             $baseUrl = 'https://' . request()->getHost();
-        }
+
 
         // 1. Inject Tracking Pixel
         $pixelUrl = $baseUrl . '/t/o/' . $log->tracking_token;
