@@ -105,4 +105,24 @@ class MetaApiService
 
         return $response->successful();
     }
+
+    /**
+     * Send a free-form text message (Session message).
+     */
+    public function sendFreeFormMessage(string $phoneNumberId, string $accessToken, string $to, string $text): array
+    {
+        $response = Http::withToken($accessToken)
+            ->post("{$this->baseUrl}/{$phoneNumberId}/messages", [
+                'messaging_product' => 'whatsapp',
+                'to' => $to,
+                'type' => 'text',
+                'text' => ['body' => $text],
+            ]);
+
+        if ($response->failed()) {
+            Log::error("WhatsApp free-form send error: " . $response->body());
+        }
+
+        return $response->json();
+    }
 }

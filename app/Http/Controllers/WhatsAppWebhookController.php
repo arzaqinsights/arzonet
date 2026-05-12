@@ -3,16 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Services\WhatsApp\WebhookProcessor;
-use Illuminate\Support\Facades\Log;
-
 class WhatsAppWebhookController extends Controller
 {
-    protected WebhookProcessor $processor;
 
-    public function __construct(WebhookProcessor $processor)
+    public function __construct()
     {
-        $this->processor = $processor;
     }
 
     /**
@@ -40,15 +35,9 @@ class WhatsAppWebhookController extends Controller
     {
         $payload = $request->all();
 
-        // Log for debugging (optional in production)
-        Log::info("WhatsApp Webhook Payload: ", $payload);
+        // Dispatch the job for background processing
+        \App\Jobs\ProcessWhatsAppWebhookJob::dispatch($payload);
 
-        try {
-            $this->processor->process($payload);
-            return response('OK', 200);
-        } catch (\Exception $e) {
-            Log::error("WhatsApp Webhook Error: " . $e->getMessage());
-            return response('Error', 500);
-        }
+        return response('OK', 200);
     }
 }

@@ -12,13 +12,22 @@ class WhatsAppConversation extends Model
         'user_id',
         'whatsapp_account_id',
         'contact_id',
+        'agent_id',
         'last_message_at',
+        'last_message_preview',
         'unread_count',
+        'metadata',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'metadata' => 'array',
     ];
+
+    public function agent()
+    {
+        return $this->belongsTo(User::class, 'agent_id');
+    }
 
     public function whatsappAccount()
     {
@@ -33,6 +42,7 @@ class WhatsAppConversation extends Model
     public function messages()
     {
         return $this->hasMany(WhatsAppMessage::class, 'contact_id', 'contact_id')
-            ->where('whatsapp_account_id', $this->whatsapp_account_id);
+            ->where('whatsapp_account_id', $this->whatsapp_account_id)
+            ->latest();
     }
 }

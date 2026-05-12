@@ -38,9 +38,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
             'api/sns/*',
+            'api/whatsapp/webhook',
         ]);
         $middleware->alias([
             'super_admin' => \App\Http\Middleware\SuperAdminMiddleware::class,
+            'whatsapp.verify' => \App\Http\Middleware\VerifyWhatsAppSignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

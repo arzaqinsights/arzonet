@@ -7,12 +7,13 @@ use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
 use App\Services\WhatsApp\MetaApiService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 
 class WhatsAppConversationController extends Controller
 {
     public function index()
     {
-        $conversations = WhatsAppConversation::with(['contact', 'whatsappAccount'])
+        $conversations = WhatsAppConversation::with(['contact', 'whatsappAccount', 'agent'])
             ->where('user_id', Auth::id())
             ->orderBy('last_message_at', 'desc')
             ->get();
@@ -27,18 +28,23 @@ class WhatsAppConversationController extends Controller
         // Mark as read
         $conversation->update(['unread_count' => 0]);
 
+        $conversations = WhatsAppConversation::with(['contact', 'whatsappAccount', 'agent'])
+            ->where('user_id', Auth::id())
+            ->orderBy('last_message_at', 'desc')
+            ->get();
+
         $messages = WhatsAppMessage::where('contact_id', $conversation->contact_id)
             ->where('whatsapp_account_id', $conversation->whatsapp_account_id)
             ->oldest()
             ->get();
 
-        return view('admin.whatsapp.conversations.show', compact('conversation', 'messages'));
+        return view('admin.whatsapp.conversations.index', compact('conversations', 'conversation', 'messages'));
     }
 
     /**
      * Send a direct reply (Session message).
      */
-    public function reply(Request $request, WhatsAppConversation $conversation)
+    public function reply(Request $request, WhatsAppConversation $conversation, MetaApiService $metaApi)
     {
         $request->validate([
             'message' => 'required|string',
@@ -47,26 +53,41 @@ class WhatsAppConversationController extends Controller
         $account = $conversation->whatsappAccount;
         $contact = $conversation->contact;
 
-        // Meta API call for free-form text message (within 24h window)
-        // Note: For production, you'd use a dedicated method in MetaApiService
-        // I'll add a simplified direct message sending here or update MetaApiService.
+        try {
+            $accessToken = Crypt::decryptString($account->access_token);
+            
+            $response = $metaApi->sendFreeFormMessage(
+                $account->phone_number_id,
+                $accessToken,
+                $contact->whatsapp_number,
+                $request->message
+            );
 
-        // Placeholder for sending message...
-        // For now, I'll just save it and assume the Meta call is successful.
-        // In a real implementation, you'd use MetaApiService@sendFreeFormMessage.
+            $waId = $response['messages'][0]['id'] ?? null;
 
-        WhatsAppMessage::create([
-            'user_id' => Auth::id(),
-            'whatsapp_account_id' => $account->id,
-            'contact_id' => $contact->id,
-            'direction' => 'outbound',
-            'type' => 'text',
-            'message_body' => $request->message,
-            'status' => 'sent',
-        ]);
+            if ($waId) {
+                WhatsAppMessage::create([
+                    'user_id' => Auth::id(),
+                    'whatsapp_account_id' => $account->id,
+                    'contact_id' => $contact->id,
+                    'wa_message_id' => $waId,
+                    'direction' => 'outbound',
+                    'type' => 'text',
+                    'message_body' => $request->message,
+                    'status' => 'sent',
+                ]);
 
-        $conversation->update(['last_message_at' => now()]);
+                $conversation->update([
+                    'last_message_at' => now(),
+                    'last_message_preview' => \Illuminate\Support\Str::limit($request->message, 100),
+                ]);
 
-        return back()->with('success', 'Message sent.');
+                return back()->with('success', 'Message sent.');
+            } else {
+                throw new \Exception('Failed to get message ID from Meta.');
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to send message: ' . $e->getMessage());
+        }
     }
 }

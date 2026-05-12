@@ -18,10 +18,12 @@ class WhatsAppMessage extends Model
         'message_body',
         'status',
         'payload',
+        'metadata',
     ];
 
     protected $casts = [
         'payload' => 'array',
+        'metadata' => 'array',
     ];
 
     public function whatsappAccount()
