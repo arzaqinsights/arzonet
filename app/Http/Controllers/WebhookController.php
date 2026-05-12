@@ -140,6 +140,13 @@ class WebhookController extends Controller
                     ]
                 );
 
+                // Send Invoice Email
+                try {
+                    \Illuminate\Support\Facades\Mail::to($invoice->user->email)->send(new \App\Mail\InvoiceMail($invoice));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to send invoice email via webhook: " . $e->getMessage());
+                }
+
                 Log::info("Plan activated for User: " . $invoice->user_id);
             }
         }

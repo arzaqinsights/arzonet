@@ -35,7 +35,20 @@ Route::domain('account.' . config('app.domain'))->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('submit.login');
         Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
         Route::post('/register', [AuthController::class, 'register'])->name('submit.register');
+
+        // Password Reset Routes
+        Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+        Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
+        Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+        Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
     });
     
-    Route::match(['GET', 'POST'], '/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+    Route::middleware('auth')->group(function () {
+        Route::match(['GET', 'POST'], '/logout', [AuthController::class, 'logout'])->name('logout');
+
+        // Email Verification Routes
+        Route::get('/email/verify', [AuthController::class, 'showVerifyEmail'])->name('verification.notice');
+        Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->middleware(['signed'])->name('verification.verify');
+        Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])->middleware(['throttle:6,1'])->name('verification.send');
+    });
 });

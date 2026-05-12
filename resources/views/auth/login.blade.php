@@ -45,7 +45,7 @@
             </div>
 
             <div class="text-sm">
-                <a href="#" class="font-medium text-brand hover:text-[#e05638]">
+                <a href="{{ route('password.request') }}" class="font-medium text-brand hover:text-[#e05638]">
                     Forgot your password?
                 </a>
             </div>

@@ -102,6 +102,13 @@ class PlansController extends Controller
                 ]
             );
 
+            // Send Invoice Email
+            try {
+                \Illuminate\Support\Facades\Mail::to($invoice->user->email)->send(new \App\Mail\InvoiceMail($invoice));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to send invoice email: " . $e->getMessage());
+            }
+
             return redirect()->route('admin.billing.plans')->with('success', 'Payment successful! Your plan has been activated.');
         }
 
