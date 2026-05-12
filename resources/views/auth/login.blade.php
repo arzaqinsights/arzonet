@@ -27,11 +27,14 @@
             </div>
         </div>
 
-        <div>
+        <div x-data="{ showPassword: false }">
             <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-            <div class="mt-1">
-                <input id="password" name="password" type="password" autocomplete="current-password" required
-                    class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand focus:border-brand sm:text-sm">
+            <div class="mt-1 relative">
+                <input id="password" name="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required
+                    class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand focus:border-brand sm:text-sm pr-10">
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-brand transition-colors" @click="showPassword = !showPassword">
+                    <i class="fa-solid" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                </div>
             </div>
         </div>
 
