@@ -32,7 +32,7 @@
 </section>
 
 {{-- PRICING --}}
-<section id="pricing" class="py-24 max-w-[1440px] mx-auto px-6 md:px-12">
+<!-- <section id="pricing" class="py-24 max-w-[1440px] mx-auto px-6 md:px-12">
     <div class="text-center mb-16">
         <h2 class="text-4xl md:text-5xl uppercase text-black font-bold mb-4">Simple, transparent <span class="text-brand">pricing.</span></h2>
         <p class="text-lg text-gray-600 font-light">Start free. Scale as you grow. No hidden fees.</p>
@@ -85,7 +85,7 @@
             <a href="mailto:hello@arzonet.com" class="block w-full text-center border-2 border-surface-200 hover:border-black text-black px-6 py-4 rounded-md font-bold transition-colors">Contact Sales</a>
         </div>
     </div>
-</section>
+</section> -->
 
 {{-- FAQ --}}
 <section id="faq" class="py-24 bg-surface-50 border-y border-surface-200">
