@@ -11,13 +11,13 @@
         body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0a0a0a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
         .invoice-page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; position: relative; overflow: hidden; }
-        .invoice-content { padding: 36px 44px 30px; position: relative; z-index: 2; }
+        .invoice-content { padding: 30px 40px 20px; position: relative; z-index: 2; }
 
         .watermark { position: absolute; bottom: 10px; left: 0; width: 100%; display: flex; justify-content: center; z-index: 1; pointer-events: none; }
         .watermark img { width: 400px; opacity: 0.035; }
 
         /* Header */
-        .inv-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; border-bottom: 2px solid #0a0a0a; margin-bottom: 24px; }
+        .inv-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; border-bottom: 2px solid #0a0a0a; margin-bottom: 20px; }
         .inv-header img { height: 32px; margin-bottom: 6px; }
         .inv-header .tag { font-size: 9px; color: #64748b; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
         .inv-header .right { text-align: right; }
@@ -29,19 +29,19 @@
         .s-failed { background: #fee2e2; color: #991b1b; }
 
         /* Info Grid */
-        .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 22px; }
+        .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 18px; }
         .info-row h4 { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
         .info-row .nm { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
         .info-row .dt { font-size: 11px; color: #475569; line-height: 1.7; }
         .info-row .gs { display: inline-block; margin-top: 6px; padding: 3px 10px; background: #f1f5f9; font-size: 10px; font-weight: 700; border: 1px solid #e2e8f0; }
 
         /* Meta */
-        .meta-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; padding: 14px 16px; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .meta-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; padding: 14px 16px; background: #f8fafc; border: 1px solid #e2e8f0; }
         .meta-row label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; display: block; margin-bottom: 3px; }
         .meta-row span { font-size: 12px; font-weight: 700; }
 
         /* Table */
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
         thead th { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; text-align: left; padding: 8px 12px; border-bottom: 2px solid #0a0a0a; }
         thead th:last-child, tbody td:last-child { text-align: right; }
         tbody td { padding: 12px 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
@@ -50,7 +50,7 @@
         .i-hsn { font-size: 9px; color: #94a3b8; margin-top: 2px; }
 
         /* Totals */
-        .totals { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+        .totals { display: flex; justify-content: flex-end; margin-bottom: 16px; }
         .totals-box { width: 260px; }
         .t-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
         .t-row .lb { color: #64748b; font-weight: 500; }
@@ -60,7 +60,7 @@
         .t-grand .vl { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 900; color: #ff6b00; }
 
         /* Payment */
-        .pay-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; padding: 14px 16px; background: #fafafa; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .pay-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; padding: 12px 14px; background: #fafafa; border: 1px solid #e2e8f0; margin-bottom: 16px; }
         .pay-row .pl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 3px; }
         .pay-row .pv { font-size: 11px; font-weight: 600; }
 
