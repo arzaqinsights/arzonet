@@ -30,6 +30,7 @@ Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::clas
 Route::domain('account.' . config('app.domain'))->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/', [AuthController::class, 'showLogin'])->name('login');
+        Route::post('/', [AuthController::class, 'login']);
         Route::post('/auth/start', [AuthController::class, 'start'])->name('auth.start');
         Route::post('/login', [AuthController::class, 'login'])->name('submit.login');
         Route::get('/register', [AuthController::class, 'showRegister'])->name('register');

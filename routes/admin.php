@@ -130,9 +130,9 @@ Route::name('admin.')->group(function () {
     // Users
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
-        Route::post('/add', [UserController::class, 'store'])->name('add');
-        Route::put('/update/{user}', [UserController::class, 'update'])->name('update');
-        Route::delete('/delete/{user}', [UserController::class, 'destroy'])->name('delete');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::put('/{user}', [UserController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
     });
 
     // Media
