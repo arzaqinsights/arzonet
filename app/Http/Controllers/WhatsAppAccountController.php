@@ -34,7 +34,9 @@ class WhatsAppAccountController extends Controller
         ]);
 
         try {
+            \Log::info('WhatsApp Onboarding started', ['user_id' => Auth::id(), 'code' => $request->code]);
             $account = $this->signupService->completeOnboarding($request->code, Auth::id());
+            \Log::info('WhatsApp Account saved successfully', ['account_id' => $account->id]);
 
             return response()->json([
                 'success' => true,
@@ -43,6 +45,11 @@ class WhatsAppAccountController extends Controller
             ]);
 
         } catch (Exception $e) {
+            \Log::error('WhatsApp Onboarding Failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Onboarding failed: ' . $e->getMessage()
