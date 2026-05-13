@@ -31,11 +31,22 @@ class WhatsAppAccountController extends Controller
     {
         $request->validate([
             'code' => 'required|string',
+            'waba_id' => 'nullable|string',
+            'phone_number_id' => 'nullable|string',
         ]);
 
         try {
-            \Log::info('WhatsApp Onboarding started', ['user_id' => Auth::id(), 'code' => $request->code]);
-            $account = $this->signupService->completeOnboarding($request->code, Auth::id());
+            \Log::info('WhatsApp Onboarding started', [
+                'user_id' => Auth::id(),
+                'waba_id_from_client' => $request->waba_id,
+                'phone_number_id_from_client' => $request->phone_number_id,
+            ]);
+            $account = $this->signupService->completeOnboarding(
+                $request->code,
+                Auth::id(),
+                $request->waba_id,
+                $request->phone_number_id
+            );
             \Log::info('WhatsApp Account saved successfully', ['account_id' => $account->id]);
 
             return response()->json([
@@ -48,7 +59,6 @@ class WhatsAppAccountController extends Controller
             \Log::error('WhatsApp Onboarding Failed', [
                 'error' => $e->getMessage(),
                 'user_id' => Auth::id(),
-                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,

@@ -18,34 +18,45 @@ class MetaEmbeddedSignupService
     /**
      * Complete the onboarding flow.
      */
-    public function completeOnboarding(string $code, int $userId): WhatsAppAccount
+    public function completeOnboarding(string $code, int $userId, ?string $clientWabaId = null, ?string $clientPhoneNumberId = null): WhatsAppAccount
     {
-        return DB::transaction(function () use ($code, $userId) {
+        return DB::transaction(function () use ($code, $userId, $clientWabaId, $clientPhoneNumberId) {
             // 1. Exchange code for long-lived token
             $tokenData = $this->tokenExchange->exchangeCodeForToken($code);
             $accessToken = $tokenData['access_token'];
 
-            // 2. Fetch Business Accounts
-            $businessAccounts = $this->accountSync->getBusinessAccounts($accessToken);
-
-            if (empty($businessAccounts)) {
-                throw new Exception("No WhatsApp Business Accounts found for this user.");
+            // 2. Use WABA ID from client postMessage if available, otherwise fetch from Meta API
+            if ($clientWabaId) {
+                Log::info('Using WABA ID from client postMessage', ['waba_id' => $clientWabaId]);
+                $wabaId = $clientWabaId;
+                $wabaName = 'WhatsApp Business Account';
+            } else {
+                $businessAccounts = $this->accountSync->getBusinessAccounts($accessToken);
+                if (empty($businessAccounts)) {
+                    throw new Exception("No WhatsApp Business Accounts found for this user.");
+                }
+                $waba = $businessAccounts[0];
+                $wabaId = $waba['id'];
+                $wabaName = $waba['name'] ?? 'WhatsApp Business Account';
             }
 
-            // For simplicity in this flow, we take the first one or iterate.
-            // A more advanced flow would let the user pick, but usually with code exchange,
-            // we get the IDs that were just authorized.
-            $waba = $businessAccounts[0];
-            $wabaId = $waba['id'];
-
-            // 3. Fetch Phone Numbers
-            $phoneNumbers = $this->accountSync->getPhoneNumbers($wabaId, $accessToken);
-
-            if (empty($phoneNumbers)) {
-                throw new Exception("No phone numbers found for the WhatsApp Business Account.");
+            // 3. Use Phone Number ID from client postMessage if available, otherwise fetch from Meta API
+            if ($clientPhoneNumberId) {
+                Log::info('Using Phone Number ID from client postMessage', ['phone_number_id' => $clientPhoneNumberId]);
+                // Fetch details of this specific phone number
+                $phoneNumbers = $this->accountSync->getPhoneNumbers($wabaId, $accessToken);
+                $primaryPhone = collect($phoneNumbers)->firstWhere('id', $clientPhoneNumberId) ?? $phoneNumbers[0] ?? [];
+            } else {
+                $phoneNumbers = $this->accountSync->getPhoneNumbers($wabaId, $accessToken);
+                if (empty($phoneNumbers)) {
+                    throw new Exception("No phone numbers found for the WhatsApp Business Account.");
+                }
+                $primaryPhone = $phoneNumbers[0];
             }
 
-            $primaryPhone = $phoneNumbers[0];
+            if (empty($primaryPhone)) {
+                throw new Exception("Could not fetch phone number details from Meta.");
+            }
 
             // 4. Subscribe to Webhooks
             $this->webhookSubscription->subscribeWabaToApp($wabaId, $accessToken);
@@ -57,10 +68,10 @@ class MetaEmbeddedSignupService
                     'whatsapp_business_account_id' => $wabaId,
                 ],
                 [
-                    'business_name' => $waba['name'] ?? 'WhatsApp Business Account',
+                    'business_name' => $wabaName,
                     'display_name' => $primaryPhone['verified_name'] ?? 'WhatsApp Number',
                     'phone_number' => $primaryPhone['display_phone_number'] ?? null,
-                    'phone_number_id' => $primaryPhone['id'] ?? null,
+                    'phone_number_id' => $primaryPhone['id'] ?? $clientPhoneNumberId,
                     'access_token' => Crypt::encryptString($accessToken),
                     'status' => 'active',
                     'metadata' => [

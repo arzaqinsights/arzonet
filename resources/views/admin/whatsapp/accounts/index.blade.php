@@ -131,8 +131,37 @@
         });
     };
 
+    // Meta sends WABA ID and Phone Number ID via postMessage from the embedded signup popup
+    let wabaIdFromMeta = null;
+    let phoneNumberIdFromMeta = null;
+
+    window.addEventListener('message', function(event) {
+        if (event.origin !== "https://www.facebook.com") return;
+        try {
+            const data = JSON.parse(event.data);
+            console.log('Meta postMessage received:', data);
+            if (data.type === 'WA_EMBEDDED_SIGNUP') {
+                if (data.event === 'FINISH' && data.data) {
+                    wabaIdFromMeta = data.data.waba_id || null;
+                    phoneNumberIdFromMeta = data.data.phone_number_id || null;
+                    console.log('WABA ID from Meta postMessage:', wabaIdFromMeta);
+                    console.log('Phone Number ID from Meta postMessage:', phoneNumberIdFromMeta);
+                } else if (data.event === 'CANCEL') {
+                    console.warn('User cancelled WhatsApp signup.', data);
+                } else if (data.event === 'ERROR') {
+                    console.error('WhatsApp signup error from Meta:', data);
+                }
+            }
+        } catch (e) {
+            // Non-JSON messages, ignore
+        }
+    });
+
     function launchWhatsAppSignup() {
         console.log('Launching Meta Signup...');
+        wabaIdFromMeta = null;
+        phoneNumberIdFromMeta = null;
+
         const btn = document.getElementById('connect-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i><span>Waiting for Meta...</span>';
@@ -141,36 +170,32 @@
             console.log('Meta FB.login response:', response);
             if (response.authResponse && response.authResponse.code) {
                 const code = response.authResponse.code;
-                console.log('Obtained Code:', code);
-                finishOnboarding(code);
+                console.log('Code from Meta:', code);
+                console.log('WABA ID captured via postMessage:', wabaIdFromMeta);
+                console.log('Phone Number ID captured via postMessage:', phoneNumberIdFromMeta);
+                finishOnboarding(code, wabaIdFromMeta, phoneNumberIdFromMeta);
             } else {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>Connect WhatsApp</span>';
-                console.error('Onboarding failed: No code returned from Meta.', response);
-                alert('Onboarding failed: No code returned from Meta. Check console for details.');
+                console.error('No auth code returned from Meta.', response);
+                alert('Onboarding failed: Meta did not return an auth code. Please try again.');
             }
         }, {
             config_id: '{{ config('services.whatsapp.config_id') }}',
             response_type: 'code',
             override_default_response_type: true,
-            scope: 'whatsapp_business_management,whatsapp_business_messaging',
         });
     }
 
-    function finishOnboarding(code) {
-        console.log('Sending code to backend...');
-        
-        // Safer way to access Alpine data
+    function finishOnboarding(code, wabaId, phoneNumberId) {
+        console.log('Sending to backend:', { code, wabaId, phoneNumberId });
+
         const el = document.querySelector('[x-data]');
         let scope = null;
         if (el) {
             scope = el._x_dataStack ? el._x_dataStack[0] : (el.__x ? el.__x.$data : null);
         }
-
-        if (scope) {
-            scope.loading = true;
-            scope.error = null;
-        }
+        if (scope) { scope.loading = true; scope.error = null; }
 
         fetch('{{ route('admin.whatsapp.accounts.store') }}', {
             method: 'POST',
@@ -178,7 +203,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({ code: code })
+            body: JSON.stringify({ code: code, waba_id: wabaId, phone_number_id: phoneNumberId })
         })
         .then(async response => {
             const data = await response.json();
@@ -188,14 +213,12 @@
         })
         .then(data => {
             if (data.success) {
-                alert('Success! WhatsApp connected.');
                 window.location.reload();
             }
         })
         .catch(err => {
             console.error('Fetch error:', err);
-            scope.loading = false;
-            scope.error = err.message;
+            if (scope) { scope.loading = false; scope.error = err.message; }
             alert('Error: ' + err.message);
             const btn = document.getElementById('connect-btn');
             btn.disabled = false;
@@ -205,4 +228,3 @@
 </script>
 <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
 @endsection
-
