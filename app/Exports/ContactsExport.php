@@ -29,10 +29,10 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function headings(): array
     {
-        // Removed 'Status', 'Subscription', 'Segment' as requested. 'Tag' is also excluded.
-        $base = ['Email Address', 'WhatsApp', 'Full Name'];
+        // Removed 'Status', 'Subscription', 'Segment', 'Tag', and 'Source'
+        $base = ['Email Address', 'Phone', 'Full Name'];
         $extra = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->extraFields);
-        $tail = ['Source', 'Joined'];
+        $tail = ['Joined'];
         
         return array_merge($base, $extra, $tail);
     }
@@ -40,16 +40,19 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     public function map($email): array
     {
         $meta = $email->meta ?? [];
+        
+        // Use whatsapp_number, fallback to meta['phone'] if exists
+        $phoneValue = $email->whatsapp_number ?: ($meta['phone'] ?? '');
+
         $base = [
             $email->email,
-            $email->whatsapp_number ?? '',
+            $phoneValue,
             $email->name ?? '',
         ];
         
         $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
         
         $tail = [
-            $email->signup_source ?? '',
             $email->created_at?->format('d M Y') ?? '',
         ];
         

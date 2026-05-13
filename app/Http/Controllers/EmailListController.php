@@ -387,7 +387,7 @@ class EmailListController extends Controller
         // Determine extra CRM fields from the list's column mapping
         // This ensures we export exactly what the user mapped/sees in the grid
         $mapping = $emailList->column_mapping ?? [];
-        $internalFields = ['email', 'name', 'whatsapp_number', 'segment_name', 'signup_source', '_settings'];
+        $internalFields = ['email', 'name', 'whatsapp_number', 'phone', 'segment_name', 'signup_source', '_settings'];
         $extraFields = [];
 
         foreach ($mapping as $field => $index) {
@@ -397,7 +397,7 @@ class EmailListController extends Controller
         }
 
         // Add common fields if they exist in mapping but were missed
-        foreach (['company', 'phone', 'city', 'country'] as $f) {
+        foreach (['company', 'city', 'country'] as $f) {
             if (isset($mapping[$f]) && !in_array($f, $extraFields)) {
                 $extraFields[] = $f;
             }
