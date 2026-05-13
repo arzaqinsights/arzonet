@@ -180,6 +180,7 @@ Route::name('admin.')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsAppConversationController::class, 'index'])->name('index');
             Route::get('/{conversation}', [\App\Http\Controllers\WhatsAppConversationController::class, 'show'])->name('show');
             Route::post('/{conversation}/reply', [\App\Http\Controllers\WhatsAppConversationController::class, 'reply'])->name('reply');
+            Route::post('/initiate', [\App\Http\Controllers\WhatsAppConversationController::class, 'initiate'])->name('initiate');
         });
 
         // Engagement Analytics

@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\WhatsAppConversation;
 use App\Models\WhatsAppMessage;
+use App\Models\WhatsAppAccount;
+use App\Models\WhatsAppTemplate;
+use App\Models\Email as Contact;
 use App\Services\WhatsApp\MetaApiService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 
 class WhatsAppConversationController extends Controller
 {
@@ -18,27 +22,27 @@ class WhatsAppConversationController extends Controller
             ->orderBy('last_message_at', 'desc')
             ->get();
 
-        return view('admin.whatsapp.conversations.index', compact('conversations'));
+        $accounts  = WhatsAppAccount::where('user_id', Auth::id())->where('status', 'active')->get();
+        $templates = WhatsAppTemplate::where('user_id', Auth::id())->where('status', 'approved')->get();
+
+        return view('admin.whatsapp.conversations.index', compact('conversations', 'accounts', 'templates'));
     }
 
     public function show(WhatsAppConversation $conversation)
     {
         $this->authorize('view', $conversation);
-
-        // Mark as read
         $conversation->update(['unread_count' => 0]);
 
         $conversations = WhatsAppConversation::with(['contact', 'whatsappAccount', 'agent'])
-            ->where('user_id', Auth::id())
-            ->orderBy('last_message_at', 'desc')
-            ->get();
+            ->where('user_id', Auth::id())->orderBy('last_message_at', 'desc')->get();
 
-        $messages = WhatsAppMessage::where('contact_id', $conversation->contact_id)
-            ->where('whatsapp_account_id', $conversation->whatsapp_account_id)
-            ->oldest()
-            ->get();
+        $messages  = WhatsAppMessage::where('contact_id', $conversation->contact_id)
+            ->where('whatsapp_account_id', $conversation->whatsapp_account_id)->oldest()->get();
 
-        return view('admin.whatsapp.conversations.index', compact('conversations', 'conversation', 'messages'));
+        $accounts  = WhatsAppAccount::where('user_id', Auth::id())->where('status', 'active')->get();
+        $templates = WhatsAppTemplate::where('user_id', Auth::id())->where('status', 'approved')->get();
+
+        return view('admin.whatsapp.conversations.index', compact('conversations', 'conversation', 'messages', 'accounts', 'templates'));
     }
 
     /**
@@ -88,6 +92,76 @@ class WhatsAppConversationController extends Controller
             }
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to send message: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Initiate a new conversation using an approved template.
+     */
+    public function initiate(Request $request, MetaApiService $metaApi)
+    {
+        $request->validate([
+            'whatsapp_account_id' => 'required|exists:whatsapp_accounts,id',
+            'template_id'         => 'required|exists:whatsapp_templates,id',
+            'phone_number'        => 'required|string',
+        ]);
+
+        $account  = WhatsAppAccount::where('id', $request->whatsapp_account_id)->where('user_id', Auth::id())->firstOrFail();
+        $template = WhatsAppTemplate::where('id', $request->template_id)->where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+
+        // Normalize phone number (remove spaces, dashes)
+        $to = preg_replace('/[^0-9+]/', '', $request->phone_number);
+
+        try {
+            $accessToken = Crypt::decryptString($account->access_token);
+
+            $response = $metaApi->sendTemplateMessage(
+                $account->phone_number_id,
+                $accessToken,
+                $to,
+                $template->name,
+                $template->language
+            );
+
+            $waId = $response['messages'][0]['id'] ?? null;
+
+            if (!$waId) {
+                throw new \Exception($response['error']['message'] ?? 'Meta did not return a message ID.');
+            }
+
+            // Find or create contact
+            $contact = Contact::firstOrCreate(
+                ['user_id' => Auth::id(), 'whatsapp_number' => $to],
+                ['email' => $to . '@whatsapp.com', 'name' => $to, 'subscription_status' => 'subscribed']
+            );
+
+            DB::transaction(function () use ($account, $contact, $waId, $template) {
+                WhatsAppMessage::create([
+                    'user_id'             => Auth::id(),
+                    'whatsapp_account_id' => $account->id,
+                    'contact_id'          => $contact->id,
+                    'wa_message_id'       => $waId,
+                    'direction'           => 'outbound',
+                    'type'                => 'template',
+                    'message_body'        => $template->body,
+                    'status'              => 'sent',
+                ]);
+
+                WhatsAppConversation::updateOrCreate(
+                    ['whatsapp_account_id' => $account->id, 'contact_id' => $contact->id],
+                    [
+                        'user_id'              => Auth::id(),
+                        'last_message_at'      => now(),
+                        'last_message_preview' => \Illuminate\Support\Str::limit($template->body, 100),
+                        'unread_count'         => 0,
+                    ]
+                );
+            });
+
+            return back()->with('success', "Template message sent to {$to} successfully!");
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to initiate conversation: ' . $e->getMessage());
         }
     }
 }

@@ -2,7 +2,78 @@
 
 @section('title', 'WhatsApp Inbox')
 
+@section('header-actions')
+    <button x-data @click="$dispatch('open-new-chat')" 
+        class="bg-brand text-white text-[10px] font-black uppercase tracking-widest px-8 py-3 rounded-sm hover:bg-black transition-all flex items-center gap-2">
+        <i class="fa-solid fa-plus"></i> New Chat
+    </button>
+@endsection
+
 @section('content')
+{{-- New Chat Modal --}}
+<div x-data="{ open: false }" 
+     @open-new-chat.window="open = true"
+     x-show="open" x-cloak
+     class="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-white rounded-sm shadow-2xl w-full max-w-md p-6 space-y-5" @click.outside="open = false">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-sm font-black text-surface-900 uppercase tracking-widest">Start New Chat</h2>
+                <p class="text-[10px] text-surface-400 font-bold uppercase tracking-widest mt-0.5">Outbound chats require an approved template</p>
+            </div>
+            <button @click="open = false" class="text-surface-300 hover:text-surface-900 transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+
+        @if($templates->count() === 0)
+        <div class="p-4 bg-amber-50 border border-amber-100 rounded-sm">
+            <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest">No Approved Templates</p>
+            <p class="text-xs text-amber-600 mt-1">You need at least one approved WhatsApp template to initiate a conversation. Your submitted template is likely still pending Meta review.</p>
+            <a href="{{ route('admin.whatsapp.templates.index') }}" class="inline-block mt-2 text-[10px] font-black text-brand uppercase tracking-widest hover:underline">
+                Manage Templates →
+            </a>
+        </div>
+        @else
+        <form action="{{ route('admin.whatsapp.conversations.initiate') }}" method="POST" class="space-y-4">
+            @csrf
+            <div>
+                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-2">From Number *</label>
+                <select name="whatsapp_account_id" required
+                    class="w-full border border-color rounded-sm px-4 py-2.5 text-sm focus:ring-brand focus:border-brand bg-surface-50">
+                    @foreach($accounts as $account)
+                    <option value="{{ $account->id }}">{{ $account->display_name }} ({{ $account->phone_number }})</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-2">To Phone Number *</label>
+                <input type="text" name="phone_number" required placeholder="+919876543210" 
+                    class="w-full border border-color rounded-sm px-4 py-2.5 text-sm focus:ring-brand focus:border-brand bg-surface-50">
+                <p class="text-[9px] text-surface-400 mt-1 font-bold">Include country code (e.g. +91 for India)</p>
+            </div>
+            <div>
+                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-2">Template Message *</label>
+                <select name="template_id" required
+                    class="w-full border border-color rounded-sm px-4 py-2.5 text-sm focus:ring-brand focus:border-brand bg-surface-50">
+                    @foreach($templates as $template)
+                    <option value="{{ $template->id }}">{{ $template->name }} ({{ strtoupper($template->language) }}) — {{ $template->category }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="bg-surface-50 border border-color rounded-sm p-3">
+                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5"><i class="fa-solid fa-circle-info mr-1"></i>How it works</p>
+                <p class="text-[10px] text-surface-500">Meta allows businesses to initiate conversations only via approved templates. Once the recipient replies, a 24-hour free chat window opens.</p>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" @click="open = false" class="flex-1 text-[10px] font-black uppercase tracking-widest py-3 border border-color rounded-sm hover:bg-surface-50 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 bg-brand text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-sm hover:bg-black transition-all">
+                    <i class="fa-brands fa-whatsapp mr-1"></i> Send & Start Chat
+                </button>
+            </div>
+        </form>
+        @endif
+    </div>
+</div>
+
 <div class="h-[calc(100vh-140px)] flex bg-white border border-color rounded-sm overflow-hidden" x-data="{ 
     scrollToBottom() {
         const el = document.getElementById('chat-scroll');
