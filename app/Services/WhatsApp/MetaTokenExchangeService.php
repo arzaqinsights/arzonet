@@ -24,16 +24,31 @@ class MetaTokenExchangeService
      */
     public function exchangeCodeForToken(string $code): array
     {
-        $response = Http::get("{$this->baseUrl}/oauth/access_token", [
-            'client_id' => $this->appId,
+        $params = [
+            'client_id'     => $this->appId,
             'client_secret' => $this->appSecret,
-            'code' => $code,
+            'code'          => $code,
+        ];
+
+        \Log::info('Attempting Meta token exchange', ['app_id' => $this->appId]);
+
+        $response = Http::get("{$this->baseUrl}/oauth/access_token", $params);
+
+        \Log::info('Meta token exchange response', [
+            'status'  => $response->status(),
+            'body'    => $response->body(),
         ]);
 
         if ($response->failed()) {
             throw new Exception("Meta Token Exchange Failed: " . $response->body());
         }
 
-        return $response->json();
+        $data = $response->json();
+
+        if (empty($data['access_token'])) {
+            throw new Exception("Meta Token Exchange returned no access_token: " . $response->body());
+        }
+
+        return $data;
     }
 }
