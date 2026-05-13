@@ -20,14 +20,23 @@ class MetaAccountSyncService
      */
     public function getBusinessAccounts(string $accessToken): array
     {
+        // Using explicit fields query which is more robust in newer API versions
         $response = Http::withToken($accessToken)
-            ->get("{$this->baseUrl}/me/whatsapp_business_accounts");
+            ->get("{$this->baseUrl}/me", [
+                'fields' => 'whatsapp_business_accounts'
+            ]);
 
         if ($response->failed()) {
             throw new Exception("Failed to fetch WhatsApp Business Accounts: " . $response->body());
         }
 
-        return $response->json('data', []);
+        $data = $response->json('whatsapp_business_accounts.data', []);
+        
+        if (empty($data)) {
+             \Log::warning('No WABAs found in Meta response', ['response' => $response->json()]);
+        }
+
+        return $data;
     }
 
     /**
