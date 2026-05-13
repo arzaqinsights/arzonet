@@ -241,7 +241,8 @@
                                 ['title' => 'Verified Domains', 'route' => 'admin.domains.index', 'active' => 'admin.domains.*'],
                                 ['title' => 'Active Senders', 'route' => 'admin.senders.index', 'active' => 'admin.senders.*'],
                                 ['title' => 'General Settings', 'route' => 'admin.settings.index', 'active' => 'admin.settings.index'],
-                                ['title' => 'Team Members', 'route' => 'admin.users.index', 'active' => 'admin.users.*'],
+                                // Temporarily hidden to prevent accidental deletion of platform users
+                                // ['title' => 'Team Members', 'route' => 'admin.users.index', 'active' => 'admin.users.*'],
                             ]
                         ],
                         [
