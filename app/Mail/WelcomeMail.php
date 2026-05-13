@@ -28,7 +28,8 @@ class WelcomeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Welcome Mail',
+            from: new \Illuminate\Mail\Mailables\Address('welcome@arzonet.com', 'Arzonet Welcome Team'),
+            subject: 'Welcome to Arzonet — Your Marketing Growth Partner',
         );
     }
 
@@ -38,7 +39,7 @@ class WelcomeMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'view.name',
+            markdown: 'emails.welcome',
         );
     }
 

@@ -16,8 +16,8 @@ class CustomVerifyEmail extends BaseVerifyEmail
     protected function buildMailMessage($url)
     {
         return (new MailMessage)
-            ->from('welcome@arzonet.com', 'Arzonet Welcome Team')
-            ->subject('Welcome to Arzonet! Please verify your email')
+            ->from('no-reply@arzonet.com', 'Arzonet Security')
+            ->subject('Verify your email address - Arzonet')
             ->greeting('Welcome to Arzonet!')
             ->line('We are excited to have you on board. Arzonet gives you the power to manage your email and WhatsApp marketing effectively.')
             ->line('To get started, please click the button below to verify your email address.')
