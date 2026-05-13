@@ -64,33 +64,77 @@ class FileParserService
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($path);
-        $worksheet = $spreadsheet->getActiveSheet();
 
-        $allRows = [];
-        $count = 0;
-        foreach ($worksheet->getRowIterator() as $row) {
-            if ($count >= 100) break;
-            $cellIterator = $row->getCellIterator();
-            $cellIterator->setIterateOnlyExistingCells(false);
-            $rowData = [];
-            foreach ($cellIterator as $cell) {
-                $rowData[] = trim((string) $cell->getValue());
+        $bestWorksheet = null;
+        $bestScore = -1;
+        $bestRows = [];
+
+        foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+            $allRows = [];
+            $count = 0;
+            $hasEmail = false;
+
+            foreach ($worksheet->getRowIterator() as $row) {
+                if ($count >= 100) break;
+                $cellIterator = $row->getCellIterator();
+                $cellIterator->setIterateOnlyExistingCells(false);
+                $rowData = [];
+                foreach ($cellIterator as $cell) {
+                    $rowData[] = trim((string) $cell->getValue());
+                }
+
+                // Trim trailing empty cells
+                while (!empty($rowData) && end($rowData) === '') {
+                    array_pop($rowData);
+                }
+
+                if (!empty(array_filter($rowData))) {
+                    $allRows[] = $rowData;
+                    if (!$hasEmail && str_contains(strtolower(implode(' ', $rowData)), 'email')) {
+                        $hasEmail = true;
+                    }
+                }
+                $count++;
             }
-            $allRows[] = $rowData;
-            $count++;
+
+            $score = count($allRows) + ($hasEmail ? 1000 : 0);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestRows = $allRows;
+                $bestWorksheet = $worksheet;
+            }
         }
 
-        if (empty($allRows)) throw new \RuntimeException('Excel file is empty.');
+        if (empty($bestRows)) throw new \RuntimeException('Excel file is empty or has no valid data.');
 
-        $headerIndex = $this->detectHeaderIndex($allRows);
-        $headers = $allRows[$headerIndex];
-        $rows = [];
-
-        for ($i = $headerIndex + 1; $i < count($allRows); $i++) {
-            $rowData = $allRows[$i];
-            if (count($rowData) === count($headers)) {
-                $rows[] = array_combine($headers, $rowData);
+        $headerIndex = $this->detectHeaderIndex($bestRows);
+        $rawHeaders = $bestRows[$headerIndex];
+        
+        $headers = [];
+        foreach ($rawHeaders as $idx => $h) {
+            $h = trim($h);
+            if ($h === '') $h = 'Column_' . ($idx + 1);
+            
+            $original = $h;
+            $c = 1;
+            while (in_array($h, $headers)) {
+                $h = $original . '_' . $c;
+                $c++;
             }
+            $headers[] = $h;
+        }
+
+        $rows = [];
+        for ($i = $headerIndex + 1; $i < count($bestRows); $i++) {
+            $rowData = $bestRows[$i];
+            
+            if (count($rowData) > count($headers)) {
+                $rowData = array_slice($rowData, 0, count($headers));
+            } elseif (count($rowData) < count($headers)) {
+                $rowData = array_pad($rowData, count($headers), '');
+            }
+            
+            $rows[] = array_combine($headers, $rowData);
         }
 
         return [
@@ -134,7 +178,19 @@ class FileParserService
         if (empty($firstRows)) return;
 
         $headerIndex = $this->detectHeaderIndex($firstRows);
-        $headers = array_map(fn($h) => trim(preg_replace('/[\x{FEFF}]/u', '', $h ?? '')), $firstRows[$headerIndex]);
+        $rawHeaders = $firstRows[$headerIndex];
+        $headers = [];
+        foreach ($rawHeaders as $idx => $h) {
+            $h = trim(preg_replace('/[\x{FEFF}]/u', '', $h ?? ''));
+            if ($h === '') $h = 'Column_' . ($idx + 1);
+            $original = $h;
+            $c = 1;
+            while (in_array($h, $headers)) {
+                $h = $original . '_' . $c;
+                $c++;
+            }
+            $headers[] = $h;
+        }
         $headerCount = count($headers);
         
         // 2. Reset and skip to data
@@ -149,15 +205,10 @@ class FileParserService
             $rowNumber++;
             $columnCount = count($row);
 
-            // Handle Column Mismatch Safely (The FIX)
             if ($columnCount !== $headerCount) {
-                \Illuminate\Support\Facades\Log::warning("CSV Column Mismatch at row {$rowNumber}: Expected {$headerCount}, got {$columnCount}. Adjusting row data.");
-                
                 if ($columnCount < $headerCount) {
-                    // Pad with nulls if missing columns
                     $row = array_pad($row, $headerCount, null);
                 } else {
-                    // Trim extra columns (e.g., trailing commas)
                     $row = array_slice($row, 0, $headerCount);
                 }
             }
@@ -179,31 +230,83 @@ class FileParserService
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($path);
-        $worksheet = $spreadsheet->getActiveSheet();
+
+        $bestWorksheet = null;
+        $bestScore = -1;
+
+        // 1. Find the best worksheet (same logic as parseXlsx)
+        foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+            $count = 0;
+            $hasEmail = false;
+            foreach ($worksheet->getRowIterator() as $row) {
+                if ($count >= 10) break;
+                $cellIterator = $row->getCellIterator();
+                $cellIterator->setIterateOnlyExistingCells(false);
+                $rowData = [];
+                foreach ($cellIterator as $cell) {
+                    $rowData[] = trim((string) $cell->getValue());
+                }
+                while (!empty($rowData) && end($rowData) === '') array_pop($rowData);
+                
+                if (!empty(array_filter($rowData))) {
+                    $count++;
+                    if (!$hasEmail && str_contains(strtolower(implode(' ', $rowData)), 'email')) {
+                        $hasEmail = true;
+                    }
+                }
+            }
+            $score = $count + ($hasEmail ? 1000 : 0);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestWorksheet = $worksheet;
+            }
+        }
+
+        if (!$bestWorksheet) return;
 
         $headerIndex = -1;
         $headers = [];
 
-        foreach ($worksheet->getRowIterator() as $index => $row) {
+        foreach ($bestWorksheet->getRowIterator() as $index => $row) {
             $cellIterator = $row->getCellIterator();
             $cellIterator->setIterateOnlyExistingCells(false);
             $rowData = [];
             foreach ($cellIterator as $cell) {
                 $rowData[] = trim((string) $cell->getValue());
             }
+            while (!empty($rowData) && end($rowData) === '') array_pop($rowData);
+
+            if (empty(array_filter($rowData))) continue;
 
             if ($headerIndex === -1) {
-                if (str_contains(strtolower(implode(' ', $rowData)), 'email')) {
+                $rowString = strtolower(implode(' ', $rowData));
+                $nonEmptyCount = count(array_filter($rowData, fn($c) => $c !== ''));
+                if (str_contains($rowString, 'email') || $nonEmptyCount >= 3) {
                     $headerIndex = $index;
-                    $headers = $rowData;
+                    
+                    foreach ($rowData as $idx => $h) {
+                        $h = trim($h);
+                        if ($h === '') $h = 'Column_' . ($idx + 1);
+                        $original = $h;
+                        $c = 1;
+                        while (in_array($h, $headers)) {
+                            $h = $original . '_' . $c;
+                            $c++;
+                        }
+                        $headers[] = $h;
+                    }
                 }
                 continue;
             }
 
-            if (count($rowData) === count($headers)) {
-                $mapped = $this->mapSingleRow(array_combine($headers, $rowData), $mapping);
-                foreach ($mapped as $item) yield $item;
+            if (count($rowData) > count($headers)) {
+                $rowData = array_slice($rowData, 0, count($headers));
+            } elseif (count($rowData) < count($headers)) {
+                $rowData = array_pad($rowData, count($headers), '');
             }
+
+            $mapped = $this->mapSingleRow(array_combine($headers, $rowData), $mapping);
+            foreach ($mapped as $item) yield $item;
         }
     }
 
