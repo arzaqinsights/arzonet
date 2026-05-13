@@ -152,7 +152,7 @@ Route::name('admin.')->group(function () {
 
     // WhatsApp
     Route::prefix('whatsapp')->name('whatsapp.')->group(function () {
-        // Accounts
+        // Accounts / Phone Numbers
         Route::prefix('accounts')->name('accounts.')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsAppAccountController::class, 'index'])->name('index');
             Route::post('/', [\App\Http\Controllers\WhatsAppAccountController::class, 'store'])->name('store');
@@ -162,6 +162,8 @@ Route::name('admin.')->group(function () {
         // Templates
         Route::prefix('templates')->name('templates.')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsAppTemplateController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\WhatsAppTemplateController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\WhatsAppTemplateController::class, 'store'])->name('store');
             Route::post('/sync/{account}', [\App\Http\Controllers\WhatsAppTemplateController::class, 'sync'])->name('sync');
         });
 
@@ -173,16 +175,18 @@ Route::name('admin.')->group(function () {
             Route::post('/{campaign}/send', [\App\Http\Controllers\WhatsAppCampaignController::class, 'send'])->name('send');
         });
 
-        // Conversations / Inbox
+        // Conversations / Live Chat
         Route::prefix('conversations')->name('conversations.')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsAppConversationController::class, 'index'])->name('index');
             Route::get('/{conversation}', [\App\Http\Controllers\WhatsAppConversationController::class, 'show'])->name('show');
             Route::post('/{conversation}/reply', [\App\Http\Controllers\WhatsAppConversationController::class, 'reply'])->name('reply');
         });
 
-        // Analytics & Settings
-        Route::get('/analytics', fn() => view('admin.whatsapp.analytics'))->name('analytics');
-        Route::get('/settings', fn() => view('admin.whatsapp.settings'))->name('settings');
+        // Engagement Analytics
+        Route::get('/analytics', [\App\Http\Controllers\WhatsAppAnalyticsController::class, 'index'])->name('analytics');
+
+        // Settings
+        Route::get('/settings', [\App\Http\Controllers\WhatsAppSettingsController::class, 'index'])->name('settings');
     });
 
     // Profile

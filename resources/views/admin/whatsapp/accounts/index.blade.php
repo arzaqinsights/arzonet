@@ -1,228 +1,204 @@
 @extends('layouts.app')
 
-@section('title', 'WhatsApp Connectivity')
+@section('title', 'WhatsApp Phone Numbers')
 
 @section('header-actions')
     <button onclick="launchWhatsAppSignup()" id="connect-btn" class="bg-brand text-white text-[10px] font-black uppercase tracking-widest px-8 py-3 rounded-sm hover:bg-black transition-all flex items-center gap-2">
-        <i class="fa-brands fa-whatsapp text-sm"></i>
-        <span>Connect WhatsApp</span>
+        <i class="fa-solid fa-plus text-sm"></i>
+        <span>Add Number</span>
     </button>
 @endsection
 
 @section('content')
-<div class="space-y-6" x-data="{ loading: false, error: null }">
+<div class="space-y-4" x-data="{ loading: false, error: null }">
     {{-- Onboarding Loading Overlay --}}
     <div x-show="loading" x-cloak class="fixed inset-0 bg-surface-900/80 z-[100] flex items-center justify-center backdrop-blur-sm">
-        <div class="text-center space-y-6 animate-slide-up">
-            <div class="relative w-20 h-20 mx-auto">
+        <div class="text-center space-y-6">
+            <div class="relative w-16 h-16 mx-auto">
                 <div class="absolute inset-0 border-4 border-white/20 rounded-full"></div>
                 <div class="absolute inset-0 border-4 border-t-brand rounded-full animate-spin"></div>
             </div>
             <div>
-                <h3 class="text-white font-black uppercase tracking-widest text-xl">Finalizing Connection</h3>
-                <p class="text-white/40 text-[10px] font-black uppercase tracking-widest mt-2">Exchanging credentials and subscribing webhooks</p>
+                <h3 class="text-white font-black uppercase tracking-widest">Connecting Number...</h3>
+                <p class="text-white/40 text-[10px] font-black uppercase tracking-widest mt-2">Please wait while we finalize the connection</p>
             </div>
         </div>
     </div>
 
-    {{-- Error Banner --}}
-    <div x-show="error" x-cloak class="p-6 bg-red-50 border border-red-100 rounded-sm flex items-center justify-between">
-        <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            <div>
-                <p class="text-[10px] font-black text-red-900 uppercase tracking-widest">Authentication Error</p>
-                <p class="text-sm font-bold text-red-600" x-text="error"></p>
-            </div>
+    {{-- Error / Success Banners --}}
+    @if(session('success'))
+    <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-sm flex items-center gap-3 text-emerald-700">
+        <i class="fa-solid fa-circle-check"></i>
+        <span class="text-sm font-bold">{{ session('success') }}</span>
+    </div>
+    @endif
+
+    <div x-show="error" x-cloak class="p-4 bg-red-50 border border-red-100 rounded-sm flex items-center justify-between">
+        <div class="flex items-center gap-3 text-red-700">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span class="text-sm font-bold" x-text="error"></span>
         </div>
-        <button @click="error = null" class="text-red-400 hover:text-red-900 transition-colors">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
+        <button @click="error = null"><i class="fa-solid fa-xmark text-red-400"></i></button>
     </div>
 
-    {{-- Connected Accounts Grid --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        @forelse($accounts as $account)
-        <div class="bg-white border border-color rounded-sm overflow-hidden group hover:border-brand transition-all duration-300">
-            {{-- Card Header --}}
-            <div class="p-6 border-b border-color bg-surface-50/50 flex items-start justify-between">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-sm bg-brand text-white flex items-center justify-center">
-                        <i class="fa-brands fa-whatsapp text-2xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-black text-surface-900 uppercase tracking-tight">{{ $account->display_name ?: 'Unnamed Number' }}</h3>
-                        <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest mt-0.5">{{ $account->phone_number }}</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-black uppercase tracking-widest">
-                    <span class="w-1 h-1 bg-emerald-600 rounded-full animate-pulse"></span>
-                    {{ $account->status }}
-                </div>
-            </div>
+    {{-- Stats Summary --}}
+    @if($accounts->count() > 0)
+    <div class="grid grid-cols-3 gap-4">
+        <div class="bg-white border border-color rounded-sm p-5">
+            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Total Numbers</p>
+            <p class="text-3xl font-black text-surface-900 mt-1">{{ $accounts->count() }}</p>
+        </div>
+        <div class="bg-white border border-color rounded-sm p-5">
+            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Active</p>
+            <p class="text-3xl font-black text-emerald-600 mt-1">{{ $accounts->where('status', 'active')->count() }}</p>
+        </div>
+        <div class="bg-white border border-color rounded-sm p-5">
+            <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Inactive</p>
+            <p class="text-3xl font-black text-surface-400 mt-1">{{ $accounts->where('status', '!=', 'active')->count() }}</p>
+        </div>
+    </div>
+    @endif
 
-            {{-- Card Body --}}
-            <div class="p-6 space-y-6">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Quality Rating</p>
-                        <div class="flex items-center gap-1.5">
-                            @php
-                                $rating = $account->metadata['quality_rating'] ?? 'UNKNOWN';
-                                $ratingColor = match($rating) {
-                                    'GREEN' => 'text-emerald-500',
-                                    'YELLOW' => 'text-amber-500',
-                                    'RED' => 'text-red-500',
-                                    default => 'text-surface-400'
-                                };
-                            @endphp
-                            <span class="text-xs font-black uppercase tracking-tight {{ $ratingColor }}">{{ $rating }}</span>
+    {{-- Accounts Table --}}
+    <div class="bg-white border border-color rounded-sm overflow-hidden">
+        @if($accounts->count() > 0)
+        <div class="border-b border-color px-6 py-4 flex items-center justify-between bg-surface-50/50">
+            <h2 class="text-[10px] font-black text-surface-900 uppercase tracking-widest">Connected Numbers</h2>
+            <span class="text-[9px] text-surface-400 font-black uppercase tracking-widest">{{ $accounts->count() }} Account(s)</span>
+        </div>
+        <table class="w-full">
+            <thead>
+                <tr class="border-b border-color bg-surface-50/50">
+                    <th class="text-left px-6 py-3 text-[9px] font-black text-surface-400 uppercase tracking-widest">Business / Number</th>
+                    <th class="text-left px-6 py-3 text-[9px] font-black text-surface-400 uppercase tracking-widest">WABA ID</th>
+                    <th class="text-left px-6 py-3 text-[9px] font-black text-surface-400 uppercase tracking-widest">Quality</th>
+                    <th class="text-left px-6 py-3 text-[9px] font-black text-surface-400 uppercase tracking-widest">Msg Limit</th>
+                    <th class="text-left px-6 py-3 text-[9px] font-black text-surface-400 uppercase tracking-widest">Status</th>
+                    <th class="text-right px-6 py-3 text-[9px] font-black text-surface-400 uppercase tracking-widest">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-color/50">
+                @foreach($accounts as $account)
+                <tr class="hover:bg-surface-50/50 transition-colors group">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-sm bg-brand/10 text-brand flex items-center justify-center flex-shrink-0">
+                                <i class="fa-brands fa-whatsapp text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-black text-surface-900">{{ $account->display_name ?: 'Unnamed Number' }}</p>
+                                <p class="text-[10px] font-bold text-surface-400 mt-0.5">{{ $account->phone_number ?: 'Number not fetched' }}</p>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Messaging Limit</p>
-                        <span class="text-xs font-black text-surface-900 uppercase tracking-tight">
-                            {{ str_replace('TIER_', '', $account->metadata['messaging_limit'] ?? '1K') }}
+                    </td>
+                    <td class="px-6 py-4">
+                        <p class="text-[10px] font-mono text-surface-600">{{ $account->whatsapp_business_account_id }}</p>
+                    </td>
+                    <td class="px-6 py-4">
+                        @php
+                            $rating = $account->metadata['quality_rating'] ?? 'UNKNOWN';
+                            $ratingClass = match($rating) { 'GREEN' => 'text-emerald-600 bg-emerald-50', 'YELLOW' => 'text-amber-600 bg-amber-50', 'RED' => 'text-red-600 bg-red-50', default => 'text-surface-400 bg-surface-100' };
+                        @endphp
+                        <span class="px-2 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-widest {{ $ratingClass }}">{{ $rating }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-[10px] font-black text-surface-600 uppercase">
+                            {{ str_replace('TIER_', '', $account->metadata['messaging_limit'] ?? 'UNKNOWN') }}
                         </span>
-                    </div>
-                </div>
-
-                <div class="pt-4 border-t border-color flex items-center justify-between">
-                    <div class="flex flex-col">
-                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-0.5">WABA ID</p>
-                        <p class="text-[10px] font-bold text-surface-600">{{ $account->whatsapp_business_account_id }}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <form action="{{ route('admin.whatsapp.accounts.destroy', $account) }}" method="POST" onsubmit="return confirm('Disconnecting this number will stop all active campaigns. Proceed?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="p-2 text-surface-300 hover:text-red-500 hover:bg-red-50 rounded-sm transition-all" title="Disconnect Number">
-                                <i class="fa-solid fa-power-off text-sm"></i>
-                            </button>
-                        </form>
-                    </div>
-                </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full {{ $account->status === 'active' ? 'bg-emerald-500' : 'bg-surface-300' }}"></span>
+                            <span class="text-[9px] font-black uppercase tracking-widest {{ $account->status === 'active' ? 'text-emerald-600' : 'text-surface-400' }}">{{ $account->status }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{{ route('admin.whatsapp.templates.sync', $account) }}" 
+                               onclick="return confirm('Sync templates from Meta for this number?')"
+                               class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-color rounded-sm hover:bg-surface-50 transition-colors text-surface-600">
+                                <i class="fa-solid fa-rotate mr-1"></i> Sync Templates
+                            </a>
+                            <form action="{{ route('admin.whatsapp.accounts.destroy', $account) }}" method="POST" 
+                                  onsubmit="return confirm('Disconnect this number?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-red-100 rounded-sm hover:bg-red-50 transition-colors text-red-500">
+                                    <i class="fa-solid fa-power-off mr-1"></i> Disconnect
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+        @else
+        <div class="py-24 text-center">
+            <div class="w-16 h-16 rounded-full bg-surface-100 flex items-center justify-center mx-auto mb-4">
+                <i class="fa-brands fa-whatsapp text-3xl text-surface-300"></i>
             </div>
-        </div>
-        @empty
-        <div class="col-span-full py-20 text-center border-2 border-dashed border-color rounded-sm bg-surface-50/50">
-            <div class="w-16 h-16 rounded-full bg-white border border-color flex items-center justify-center mx-auto mb-6">
-                <i class="fa-brands fa-whatsapp text-3xl text-surface-200"></i>
-            </div>
-            <h3 class="text-lg font-black text-surface-900 tracking-tight uppercase">Ready to Expand?</h3>
-            <p class="text-[10px] text-surface-400 font-bold uppercase tracking-widest mt-2 max-w-sm mx-auto">Connect your WhatsApp Business API and start broadcasting templates to your contacts instantly.</p>
-            <button onclick="launchWhatsAppSignup()" class="mt-8 bg-brand text-white text-[10px] font-black uppercase tracking-widest px-10 py-4 rounded-sm hover:bg-black transition-all shadow-xl shadow-brand/10">
+            <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest">No Numbers Connected</h3>
+            <p class="text-[10px] text-surface-400 font-bold uppercase tracking-widest mt-2">Connect your WhatsApp Business API number to get started.</p>
+            <button onclick="launchWhatsAppSignup()" class="mt-6 bg-brand text-white text-[10px] font-black uppercase tracking-widest px-8 py-3 rounded-sm hover:bg-black transition-all">
                 Begin Official Onboarding
             </button>
         </div>
-        @endforelse
+        @endif
     </div>
 </div>
 
-{{-- Meta SDK Integration Logic --}}
+{{-- Meta SDK --}}
 <script>
     window.fbAsyncInit = function() {
-        FB.init({
-            appId      : '{{ config('services.whatsapp.app_id') }}',
-            cookie     : true,
-            xfbml      : true,
-            version    : '{{ config('services.whatsapp.api_version') }}'
-        });
+        FB.init({ appId: '{{ config('services.whatsapp.app_id') }}', cookie: true, xfbml: true, version: '{{ config('services.whatsapp.api_version') }}' });
     };
 
-    // Meta sends WABA ID and Phone Number ID via postMessage from the embedded signup popup
-    let wabaIdFromMeta = null;
-    let phoneNumberIdFromMeta = null;
+    let wabaIdFromMeta = null, phoneNumberIdFromMeta = null;
 
     window.addEventListener('message', function(event) {
         if (event.origin !== "https://www.facebook.com") return;
         try {
             const data = JSON.parse(event.data);
-            console.log('Meta postMessage received:', data);
-            if (data.type === 'WA_EMBEDDED_SIGNUP') {
-                if (data.event === 'FINISH' && data.data) {
-                    wabaIdFromMeta = data.data.waba_id || null;
-                    phoneNumberIdFromMeta = data.data.phone_number_id || null;
-                    console.log('WABA ID from Meta postMessage:', wabaIdFromMeta);
-                    console.log('Phone Number ID from Meta postMessage:', phoneNumberIdFromMeta);
-                } else if (data.event === 'CANCEL') {
-                    console.warn('User cancelled WhatsApp signup.', data);
-                } else if (data.event === 'ERROR') {
-                    console.error('WhatsApp signup error from Meta:', data);
-                }
+            if (data.type === 'WA_EMBEDDED_SIGNUP' && data.event === 'FINISH' && data.data) {
+                wabaIdFromMeta = data.data.waba_id || null;
+                phoneNumberIdFromMeta = data.data.phone_number_id || null;
             }
-        } catch (e) {
-            // Non-JSON messages, ignore
-        }
+        } catch (e) {}
     });
 
     function launchWhatsAppSignup() {
-        console.log('Launching Meta Signup...');
-        wabaIdFromMeta = null;
-        phoneNumberIdFromMeta = null;
-
+        wabaIdFromMeta = null; phoneNumberIdFromMeta = null;
         const btn = document.getElementById('connect-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i><span>Waiting for Meta...</span>';
 
         FB.login(function (response) {
-            console.log('Meta FB.login response:', response);
             if (response.authResponse && response.authResponse.code) {
-                const code = response.authResponse.code;
-                console.log('Code from Meta:', code);
-                console.log('WABA ID captured via postMessage:', wabaIdFromMeta);
-                console.log('Phone Number ID captured via postMessage:', phoneNumberIdFromMeta);
-                finishOnboarding(code, wabaIdFromMeta, phoneNumberIdFromMeta);
+                finishOnboarding(response.authResponse.code, wabaIdFromMeta, phoneNumberIdFromMeta);
             } else {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>Connect WhatsApp</span>';
-                console.error('No auth code returned from Meta.', response);
-                alert('Onboarding failed: Meta did not return an auth code. Please try again.');
+                btn.innerHTML = '<i class="fa-solid fa-plus"></i><span>Add Number</span>';
             }
-        }, {
-            config_id: '{{ config('services.whatsapp.config_id') }}',
-            response_type: 'code',
-            override_default_response_type: true,
-        });
+        }, { config_id: '{{ config('services.whatsapp.config_id') }}', response_type: 'code', override_default_response_type: true });
     }
 
     function finishOnboarding(code, wabaId, phoneNumberId) {
-        console.log('Sending to backend:', { code, wabaId, phoneNumberId });
-
         const el = document.querySelector('[x-data]');
-        let scope = null;
-        if (el) {
-            scope = el._x_dataStack ? el._x_dataStack[0] : (el.__x ? el.__x.$data : null);
-        }
+        const scope = el ? (el._x_dataStack ? el._x_dataStack[0] : null) : null;
         if (scope) { scope.loading = true; scope.error = null; }
 
         fetch('{{ route('admin.whatsapp.accounts.store') }}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({ code: code, waba_id: wabaId, phone_number_id: phoneNumberId })
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            body: JSON.stringify({ code, waba_id: wabaId, phone_number_id: phoneNumberId })
         })
-        .then(async response => {
-            const data = await response.json();
-            console.log('Backend response:', data);
-            if (!response.ok) throw new Error(data.message || 'Server error during onboarding');
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            }
-        })
+        .then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; })
+        .then(() => window.location.reload())
         .catch(err => {
-            console.error('Fetch error:', err);
             if (scope) { scope.loading = false; scope.error = err.message; }
-            alert('Error: ' + err.message);
-            const btn = document.getElementById('connect-btn');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>Connect WhatsApp</span>';
+            document.getElementById('connect-btn').disabled = false;
+            document.getElementById('connect-btn').innerHTML = '<i class="fa-solid fa-plus"></i><span>Add Number</span>';
         });
     }
 </script>
