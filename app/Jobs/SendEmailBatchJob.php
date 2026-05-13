@@ -97,7 +97,16 @@ class SendEmailBatchJob implements ShouldQueue
 
             // ── 3. Distributed Throttling ──
             if (!$quotaManager->throttle('ses_global_limit', $effectiveRate)) {
-                $this->release(1);
+                $this->saveBatchResults($results, $campaign, $usageTracker);
+                
+                // Re-dispatch remaining emails instead of releasing the whole job
+                // because we've already processed and saved some emails in this chunk.
+                $remainingIds = array_slice($this->emailIds, array_search($emailId, $this->emailIds));
+                if (!empty($remainingIds)) {
+                    self::dispatch($this->campaignId, $remainingIds)
+                        ->delay(now()->addSeconds(2))
+                        ->onQueue($this->queue);
+                }
                 return;
             }
 
@@ -141,6 +150,8 @@ class SendEmailBatchJob implements ShouldQueue
                 $maxPerMinute = $currentSender->emails_per_minute ?: 60;
                 
                 if (!\Illuminate\Support\Facades\RateLimiter::attempt($limitKey, $maxPerMinute, function() {}, 60)) {
+                    $this->saveBatchResults($results, $campaign, $usageTracker);
+
                     // Release remaining emails back to queue and stop this job
                     $remainingIds = array_slice($this->emailIds, array_search($emailId, $this->emailIds));
                     if (!empty($remainingIds)) {
@@ -182,7 +193,19 @@ class SendEmailBatchJob implements ShouldQueue
             }
         }
 
-        // ── 4. BATCH UPDATES (Minimized DB I/O) ──
+        $this->saveBatchResults($results, $campaign, $usageTracker);
+        $this->checkCompletion($campaign);
+    }
+
+    /**
+     * Save batch results to the database
+     */
+    protected function saveBatchResults(array $results, Campaign $campaign, UsageTrackingService $usageTracker)
+    {
+        if ($results['sent_count'] === 0 && $results['failed_count'] === 0) {
+            return;
+        }
+
         DB::transaction(function() use ($results, $campaign, $usageTracker) {
             foreach ($results['sent'] as $sent) {
                 EmailLog::where('id', $sent['id'])->update([
@@ -208,8 +231,6 @@ class SendEmailBatchJob implements ShouldQueue
                 $usageTracker->incrementFailed($results['failed_count'], $campaign->user_id);
             }
         });
-
-        $this->checkCompletion($campaign);
     }
 
     protected function shouldAutoPause(Campaign $campaign): bool
