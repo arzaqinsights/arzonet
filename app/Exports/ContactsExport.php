@@ -29,9 +29,12 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function headings(): array
     {
-        $base = ['Email Address', 'Full Name', 'Status', 'Subscription', 'Segment', 'Source', 'Joined'];
+        // Removed 'Status', 'Subscription', 'Segment' as requested. 'Tag' is also excluded.
+        $base = ['Email Address', 'WhatsApp', 'Full Name'];
         $extra = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->extraFields);
-        return array_merge($base, $extra);
+        $tail = ['Source', 'Joined'];
+        
+        return array_merge($base, $extra, $tail);
     }
 
     public function map($email): array
@@ -39,15 +42,18 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
         $meta = $email->meta ?? [];
         $base = [
             $email->email,
+            $email->whatsapp_number ?? '',
             $email->name ?? '',
-            $email->status,
-            $email->subscription_status ?? 'subscribed',
-            $email->segment_name ?? '',
+        ];
+        
+        $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
+        
+        $tail = [
             $email->signup_source ?? '',
             $email->created_at?->format('d M Y') ?? '',
         ];
-        $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
-        return array_merge($base, $extra);
+        
+        return array_merge($base, $extra, $tail);
     }
 
     public function styles(Worksheet $sheet): array

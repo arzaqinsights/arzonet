@@ -384,16 +384,23 @@ class EmailListController extends Controller
             });
         }
 
-        // Determine extra CRM fields from mapping
+        // Determine extra CRM fields from the list's column mapping
+        // This ensures we export exactly what the user mapped/sees in the grid
         $mapping = $emailList->column_mapping ?? [];
+        $internalFields = ['email', 'name', 'whatsapp_number', 'segment_name', 'signup_source', '_settings'];
         $extraFields = [];
-        foreach (['company', 'job_title', 'phone', 'city', 'state', 'zip', 'country', 'address', 'website'] as $f) {
-            if (isset($mapping[$f]))
-                $extraFields[] = $f;
+
+        foreach ($mapping as $field => $index) {
+            if (!in_array($field, $internalFields)) {
+                $extraFields[] = $field;
+            }
         }
-        foreach ($mapping as $key => $val) {
-            if (str_starts_with($key, 'custom_'))
-                $extraFields[] = $key;
+
+        // Add common fields if they exist in mapping but were missed
+        foreach (['company', 'phone', 'city', 'country'] as $f) {
+            if (isset($mapping[$f]) && !in_array($f, $extraFields)) {
+                $extraFields[] = $f;
+            }
         }
 
         $ext = $request->input('format') === 'csv' ? 'csv' : 'xlsx';
