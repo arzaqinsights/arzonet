@@ -82,8 +82,26 @@
 
     <div class="action-bar no-print">
         <a href="{{ route('admin.billing.invoices.index') }}"><i class="fa-solid fa-arrow-left"></i> Back to Billing</a>
-        <button onclick="window.print()" class="bp"><i class="fa-solid fa-print"></i> Print Invoice</button>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="downloadInvoice()" class="bp" style="background: #ff6b00;"><i class="fa-solid fa-download"></i> Download PDF</button>
+            <button onclick="window.print()" class="bp"><i class="fa-solid fa-print"></i> Print Invoice</button>
+        </div>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        function downloadInvoice() {
+            const element = document.querySelector('.invoice-page');
+            const opt = {
+                margin: 0,
+                filename: 'Invoice-{{ $invoice->invoice_number }}.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
 
     @php
         $details = $invoice->plan_details ?? [];
