@@ -1,4 +1,7 @@
 <?php
+require 'vendor/autoload.php';
+$app = require_once 'bootstrap/app.php';
+$app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 $sgKey = config('services.sendgrid.key'); // WARNING: Do not hardcode API keys here!
 
 function callSg($endpoint) {
