@@ -132,18 +132,22 @@
     };
 
     function launchWhatsAppSignup() {
+        console.log('Launching Meta Signup...');
         const btn = document.getElementById('connect-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i><span>Waiting for Meta...</span>';
 
         FB.login(function (response) {
-            if (response.authResponse) {
+            console.log('Meta FB.login response:', response);
+            if (response.authResponse && response.authResponse.code) {
                 const code = response.authResponse.code;
+                console.log('Obtained Code:', code);
                 finishOnboarding(code);
             } else {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>Connect WhatsApp</span>';
-                console.warn('Onboarding cancelled by user.');
+                console.error('Onboarding failed: No code returned from Meta.', response);
+                alert('Onboarding failed: No code returned from Meta. Check console for details.');
             }
         }, {
             config_id: '{{ config('services.whatsapp.config_id') }}',
@@ -154,6 +158,7 @@
     }
 
     function finishOnboarding(code) {
+        console.log('Sending code to backend...');
         // Use the x-data scope for state management
         const scope = document.querySelector('[x-data]').__x.$data;
         scope.loading = true;
@@ -169,17 +174,21 @@
         })
         .then(async response => {
             const data = await response.json();
+            console.log('Backend response:', data);
             if (!response.ok) throw new Error(data.message || 'Server error during onboarding');
             return data;
         })
         .then(data => {
             if (data.success) {
+                alert('Success! WhatsApp connected.');
                 window.location.reload();
             }
         })
         .catch(err => {
+            console.error('Fetch error:', err);
             scope.loading = false;
             scope.error = err.message;
+            alert('Error: ' + err.message);
             const btn = document.getElementById('connect-btn');
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>Connect WhatsApp</span>';
