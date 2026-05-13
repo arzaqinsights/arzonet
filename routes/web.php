@@ -11,12 +11,13 @@ use App\Http\Controllers\AuthController;
 */
 
 // 1. Main Domain Routes (Landing Pages)
-// We remove the strict domain check to allow both naked (arzonet.com) and www (www.arzonet.com) to work.
-Route::get('/', fn() => view('landing.index'))->name('home');
-Route::get('/contact', fn() => view('landing.contact'))->name('contact');
-Route::get('/privacy-policy', fn() => view('landing.privacy'))->name('privacy');
-Route::get('/terms', fn() => view('landing.terms'))->name('terms');
-Route::get('/refund-policy', fn() => view('landing.refund'))->name('refund');
+Route::domain(config('app.domain'))->group(function () {
+    Route::get('/', fn() => view('landing.index'))->name('home');
+    Route::get('/contact', fn() => view('landing.contact'))->name('contact');
+    Route::get('/privacy-policy', fn() => view('landing.privacy'))->name('privacy');
+    Route::get('/terms', fn() => view('landing.terms'))->name('terms');
+    Route::get('/refund-policy', fn() => view('landing.refund'))->name('refund');
+});
 
 // 2. Public Tracking & Webhooks (Global)
 Route::get('/t/o/{token}', [TrackingController::class, 'open'])->name('track.open');
