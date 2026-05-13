@@ -159,10 +159,18 @@
 
     function finishOnboarding(code) {
         console.log('Sending code to backend...');
-        // Use the x-data scope for state management
-        const scope = document.querySelector('[x-data]').__x.$data;
-        scope.loading = true;
-        scope.error = null;
+        
+        // Safer way to access Alpine data
+        const el = document.querySelector('[x-data]');
+        let scope = null;
+        if (el) {
+            scope = el._x_dataStack ? el._x_dataStack[0] : (el.__x ? el.__x.$data : null);
+        }
+
+        if (scope) {
+            scope.loading = true;
+            scope.error = null;
+        }
 
         fetch('{{ route('admin.whatsapp.accounts.store') }}', {
             method: 'POST',
