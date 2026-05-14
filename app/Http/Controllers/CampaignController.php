@@ -198,14 +198,19 @@ class CampaignController extends Controller
         $stats = [
             'total'         => $campaign->total_recipients,
             'sent'          => $campaign->sent_count,
+            'delivered'     => $campaign->logs()->whereIn('status', ['delivered', 'sent'])->count(),
             'failed'        => $campaign->failed_count,
-            'opens'         => $campaign->activities()->where('type', 'opened')->count(),
-            'unique_opens'  => $campaign->activities()->where('type', 'opened')->distinct('email_id')->count(),
-            'clicks'        => $campaign->activities()->where('type', 'clicked')->count(),
-            'unique_clicks' => $campaign->activities()->where('type', 'clicked')->distinct('email_id')->count(),
+            'opens'         => $campaign->activities()->where('type', 'open')->count(),
+            'unique_opens'  => $campaign->activities()->where('type', 'open')->distinct('email_log_id')->count(),
+            'clicks'        => $campaign->activities()->where('type', 'click')->count(),
+            'unique_clicks' => $campaign->activities()->where('type', 'click')->distinct('email_log_id')->count(),
             'unsubscribes'  => $campaign->unsubscribes()->count(),
             'bounces'       => $campaign->logs()->where('status', 'bounced')->count(),
-            'complaints'    => $campaign->logs()->where('status', 'complaint')->count(),
+            'spam_reports'  => $campaign->logs()->whereIn('status', ['complaint', 'spamreport'])->count(),
+            'blocks'        => $campaign->logs()->where('status', 'blocked')->count(),
+            'drops'         => $campaign->logs()->where('status', 'dropped')->count(),
+            'invalid'       => $campaign->logs()->where('error_message', 'LIKE', '%invalid%')->count(),
+            'deferred'      => $campaign->logs()->where('status', 'deferred')->count(),
         ];
 
         // Provider-wise breakdown

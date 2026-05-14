@@ -5,27 +5,78 @@
 @section('content')
 <div class="space-y-8 animate-slide-up">
     
-    {{-- Main Stats Dashboard --}}
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="glass-card p-6 rounded-md border-b-4 border-primary-500">
-            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Total Reach</span>
-            <h3 class="text-3xl font-black text-surface-900">{{ number_format($stats['total']) }}</h3>
-            <p class="text-[10px] text-surface-400 mt-1 font-bold uppercase">Targeted Audience</p>
+    <div class="glass-card p-6 rounded-md">
+        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest mb-6">Delivery Intelligence Overview</h4>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-6 mb-8 border-b border-surface-100 pb-8">
+            <div class="text-center">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-2">Requests</span>
+                <h3 class="text-3xl font-black text-primary-600">{{ number_format($stats['sent']) }}</h3>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivered</span>
+                <h3 class="text-3xl font-black text-emerald-600">{{ number_format($stats['delivered']) }}</h3>
+                <p class="text-[10px] text-emerald-500 mt-1 font-bold">{{ $stats['sent'] > 0 ? round(($stats['delivered'] / $stats['sent']) * 100, 1) : 0 }}%</p>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-2">Opened</span>
+                <h3 class="text-3xl font-black text-sky-600">{{ number_format($stats['unique_opens']) }}</h3>
+                <p class="text-[10px] text-sky-500 mt-1 font-bold">{{ $stats['delivered'] > 0 ? round(($stats['unique_opens'] / $stats['delivered']) * 100, 1) : 0 }}%</p>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-2">Clicked</span>
+                <h3 class="text-3xl font-black text-indigo-600">{{ number_format($stats['unique_clicks']) }}</h3>
+                <p class="text-[10px] text-indigo-500 mt-1 font-bold">{{ $stats['delivered'] > 0 ? round(($stats['unique_clicks'] / $stats['delivered']) * 100, 1) : 0 }}%</p>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-2">Bounces</span>
+                <h3 class="text-3xl font-black text-rose-500">{{ number_format($stats['bounces']) }}</h3>
+                <p class="text-[10px] text-rose-400 mt-1 font-bold">{{ $stats['sent'] > 0 ? round(($stats['bounces'] / $stats['sent']) * 100, 1) : 0 }}%</p>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-2">Spam Reports</span>
+                <h3 class="text-3xl font-black text-amber-500">{{ number_format($stats['spam_reports']) }}</h3>
+                <p class="text-[10px] text-amber-400 mt-1 font-bold">{{ $stats['sent'] > 0 ? round(($stats['spam_reports'] / $stats['sent']) * 100, 1) : 0 }}%</p>
+            </div>
         </div>
-        <div class="glass-card p-6 rounded-md border-b-4 border-indigo-500">
-            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Engagement (Opens)</span>
-            <h3 class="text-3xl font-black text-surface-900">{{ number_format($stats['unique_opens']) }}</h3>
-            <p class="text-[10px] text-indigo-500 mt-1 font-bold uppercase">{{ round(($stats['unique_opens'] / max(1, $stats['sent'])) * 100, 1) }}% Open Rate</p>
-        </div>
-        <div class="glass-card p-6 rounded-md border-b-4 border-emerald-500">
-            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Click-Through</span>
-            <h3 class="text-3xl font-black text-surface-900">{{ number_format($stats['unique_clicks']) }}</h3>
-            <p class="text-[10px] text-emerald-500 mt-1 font-bold uppercase">{{ round(($stats['unique_clicks'] / max(1, $stats['sent'])) * 100, 1) }}% CTR</p>
-        </div>
-        <div class="glass-card p-6 rounded-md border-b-4 border-rose-500">
-            <span class="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-4">Reputation Health</span>
-            <h3 class="text-3xl font-black text-rose-600">{{ $stats['bounces'] + $stats['complaints'] }}</h3>
-            <p class="text-[10px] text-rose-400 mt-1 font-bold uppercase">Bounces & Complaints</p>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8">
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Total Opens</span>
+                <span class="text-sm font-black text-surface-900">{{ number_format($stats['opens']) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Unique Opens</span>
+                <span class="text-sm font-black text-sky-600">{{ number_format($stats['unique_opens']) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Total Clicks</span>
+                <span class="text-sm font-black text-surface-900">{{ number_format($stats['clicks']) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Unique Clicks</span>
+                <span class="text-sm font-black text-indigo-600">{{ number_format($stats['unique_clicks']) }}</span>
+            </div>
+            
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Unsubscribes</span>
+                <span class="text-sm font-black text-purple-600">{{ number_format($stats['unsubscribes']) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Blocks</span>
+                <span class="text-sm font-black text-orange-600">{{ number_format($stats['blocks']) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Bounce Drops</span>
+                <span class="text-sm font-black text-rose-400">{{ number_format($stats['drops']) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Invalid Emails</span>
+                <span class="text-sm font-black text-rose-700">{{ number_format($stats['invalid']) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-surface-100 pb-2">
+                <span class="text-[11px] font-bold text-surface-500 uppercase">Deferred</span>
+                <span class="text-sm font-black text-amber-600">{{ number_format($stats['deferred']) }}</span>
+            </div>
         </div>
     </div>
 
@@ -143,10 +194,32 @@
                         <tr>
                             <td class="!pl-6 font-bold text-surface-900">{{ $log->email->email ?? 'Unknown' }}</td>
                             <td>
-                                @php $lcls = match($log->status) { 'sent' => 'text-emerald-600', 'bounced' => 'text-rose-600', 'failed' => 'text-rose-600', default => 'text-surface-400' }; @endphp
+                                @php 
+                                    $lcls = match($log->status) { 
+                                        'delivered' => 'text-emerald-600',
+                                        'sent' => 'text-primary-600', 
+                                        'bounced', 'failed', 'dropped', 'invalid' => 'text-rose-600', 
+                                        'blocked' => 'text-orange-600',
+                                        'spamreport', 'complaint' => 'text-amber-500',
+                                        'unsubscribed' => 'text-purple-600',
+                                        'deferred' => 'text-amber-600',
+                                        default => 'text-surface-400' 
+                                    }; 
+                                @endphp
                                 <span class="font-black uppercase tracking-widest {{ $lcls }}">{{ $log->status }}</span>
+                                @if($log->error_message)
+                                <p class="text-[10px] text-rose-500 font-medium truncate max-w-[200px]" title="{{ $log->error_message }}">{{ $log->error_message }}</p>
+                                @endif
                             </td>
-                            <td class="text-right !pr-6 text-surface-400">{{ $log->created_at->format('H:i:s') }}</td>
+                            <td class="text-right !pr-6 text-surface-400">
+                                {{ $log->created_at->format('H:i:s') }}
+                                @if($log->open_count > 0)
+                                <div class="text-[9px] text-sky-500 font-bold uppercase mt-1">Opened ({{ $log->open_count }})</div>
+                                @endif
+                                @if($log->click_count > 0)
+                                <div class="text-[9px] text-indigo-500 font-bold uppercase mt-1">Clicked ({{ $log->click_count }})</div>
+                                @endif
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>

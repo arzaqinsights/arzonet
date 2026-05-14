@@ -35,7 +35,7 @@ class SendGridWebhookController extends Controller
 
             switch ($type) {
                 case 'delivered':
-                    $log->update(['status' => 'delivered', 'delivered_at' => now()]);
+                    $log->update(['status' => 'delivered', 'delivered_at' => now(), 'error_message' => null]);
                     break;
 
                 case 'open':
@@ -78,7 +78,6 @@ class SendGridWebhookController extends Controller
                     break;
 
                 case 'bounce':
-                case 'dropped':
                     if ($log->status !== 'bounced') {
                         $log->update(['status' => 'bounced', 'error_message' => $event['reason'] ?? 'Bounced']);
                         if ($campaign) {
@@ -88,8 +87,16 @@ class SendGridWebhookController extends Controller
                     }
                     break;
 
+                case 'dropped':
+                    $log->update(['status' => 'dropped', 'error_message' => $event['reason'] ?? 'Dropped by SendGrid']);
+                    break;
+
+                case 'blocked':
+                    $log->update(['status' => 'blocked', 'error_message' => $event['reason'] ?? 'Blocked by Receiving MTA']);
+                    break;
+
                 case 'spamreport':
-                    $log->update(['status' => 'complaint']);
+                    $log->update(['status' => 'spamreport', 'error_message' => 'Spam Complaint']);
                     Unsubscribe::firstOrCreate([
                         'email_id' => $log->email_id,
                         'campaign_id' => $log->campaign_id,
@@ -97,6 +104,7 @@ class SendGridWebhookController extends Controller
                     break;
 
                 case 'unsubscribe':
+                    $log->update(['status' => 'unsubscribed']);
                     Unsubscribe::firstOrCreate([
                         'email_id' => $log->email_id,
                         'campaign_id' => $log->campaign_id,
@@ -104,7 +112,7 @@ class SendGridWebhookController extends Controller
                     break;
 
                 case 'deferred':
-                    $log->update(['error_message' => 'Deferred: ' . ($event['reason'] ?? 'Temporary failure')]);
+                    $log->update(['status' => 'deferred', 'error_message' => 'Deferred: ' . ($event['reason'] ?? 'Temporary failure')]);
                     break;
             }
         }
