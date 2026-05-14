@@ -17,6 +17,14 @@ class Email extends Model
         'email',
         'name',
         'status',
+        'email_status',
+        'email_score',
+        'email_risk_level',
+        'is_role_based',
+        'is_disposable',
+        'is_catch_all',
+        'has_typo',
+        'validation_reason',
         'subscription_status',
         'is_archived',
         'archived_at',
@@ -29,6 +37,13 @@ class Email extends Model
         'unsubscribed_at',
         'engagement_score',
         'last_engaged_at',
+        'whatsapp_number',
+        'whatsapp_opt_in',
+        'whatsapp_last_message_at',
+        'last_campaign_status',
+        'bounce_count',
+        'complaint_count',
+        'last_bounce_type',
     ];
 
     protected function casts(): array

@@ -128,7 +128,14 @@ class SendGridWebhookController extends Controller
                         
                         // Update list-specific email status
                         if ($log->email) {
-                            $log->email->update(['status' => 'invalid', 'reason' => 'Bounced: ' . ($event['reason'] ?? 'Hard Bounce')]);
+                            $log->email->update([
+                                'status' => 'invalid', 
+                                'email_status' => 'hard_bounce',
+                                'subscription_status' => 'unsubscribed',
+                                'unsubscribed_at' => now(),
+                                'email_score' => 1,
+                                'validation_reason' => 'Bounced: ' . ($event['reason'] ?? 'Hard Bounce')
+                            ]);
                         }
                     }
                     break;
@@ -139,9 +146,20 @@ class SendGridWebhookController extends Controller
                     
                     if ($log->email) {
                         if (stripos($reason, 'Unsubscribed') !== false) {
-                            $log->email->update(['subscription_status' => 'unsubscribed', 'unsubscribed_at' => now()]);
+                            $log->email->update([
+                                'subscription_status' => 'unsubscribed', 
+                                'unsubscribed_at' => now(),
+                                'email_status' => 'invalid'
+                            ]);
                         } elseif (stripos($reason, 'Bounced') !== false || stripos($reason, 'Invalid') !== false) {
-                            $log->email->update(['status' => 'invalid', 'reason' => $reason]);
+                            $log->email->update([
+                                'status' => 'invalid', 
+                                'email_status' => 'hard_bounce',
+                                'subscription_status' => 'unsubscribed',
+                                'unsubscribed_at' => now(),
+                                'email_score' => 1,
+                                'validation_reason' => $reason
+                            ]);
                         }
                     }
                     break;
