@@ -179,7 +179,7 @@
                         <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Recent Activity</h4>
                     </div>
                     <div class="p-0">
-                        @foreach($campaign->emailEvents()->with('emailLog')->whereIn('email_events.type', ['open', 'click'])->latest('email_events.created_at')->take(10)->get() as $activity)
+                        @foreach($campaign->emailEvents()->with('log')->whereIn('email_events.type', ['open', 'click'])->latest('email_events.created_at')->take(10)->get() as $activity)
                         <div class="p-4 border-b border-surface-50 last:border-0 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div @class([
@@ -194,7 +194,7 @@
                                     @endif
                                 </div>
                                 <div>
-                                    <p class="text-xs font-bold text-surface-900">{{ $activity->emailLog->email_address ?? 'Unknown' }}</p>
+                                    <p class="text-xs font-bold text-surface-900">{{ $activity->log->email_address ?? 'Unknown' }}</p>
                                     <p class="text-[10px] text-surface-400 mt-0.5">{{ $activity->created_at->diffForHumans() }} from {{ $activity->ip_address ?? 'Global' }}</p>
                                 </div>
                             </div>
