@@ -19,17 +19,26 @@ class SendGridWebhookController extends Controller
             if (!is_array($event)) continue;
 
             $messageId = $event['sg_message_id'] ?? null;
-            $email = $event['email'] ?? null;
             $type = $event['event'] ?? null;
+            $logId = $event['log_id'] ?? null;
+            $log = null;
 
-            if (!$messageId || !$type) continue;
+            if (!$type) continue;
 
-            // Extract the base message ID (SendGrid appends .filter stuff)
-            $baseId = explode('.', $messageId)[0];
+            if ($logId) {
+                $log = EmailLog::find($logId);
+            }
 
-            $log = EmailLog::where('message_id', 'LIKE', $baseId . '%')->first();
+            if (!$log && $messageId) {
+                // Extract the base message ID (SendGrid appends .filter stuff)
+                $baseId = explode('.', $messageId)[0];
+                $log = EmailLog::where('message_id', 'LIKE', $baseId . '%')->first();
+            }
 
-            if (!$log) continue;
+            if (!$log) {
+                Log::warning("SendGrid Webhook: No log found for message_id: {$messageId} and log_id: {$logId}");
+                continue;
+            }
 
             $campaign = $log->campaign;
 

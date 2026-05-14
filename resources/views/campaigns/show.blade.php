@@ -83,13 +83,13 @@
         <div class="glass-card p-5 rounded-md border-b-4 border-indigo-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Opens</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-open-rate">{{ $campaign->open_rate }}%</h3>
-            <p class="text-[10px] text-indigo-600 mt-1 font-bold">{{ number_format($stats['opens'] ?? 0) }} Total</p>
+            <p class="text-[10px] text-indigo-600 mt-1 font-bold">{{ number_format($stats['unique_opens'] ?? 0) }} Unique</p>
         </div>
 
         <div class="glass-card p-5 rounded-md border-b-4 border-emerald-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Clicks</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-click-rate">{{ $campaign->click_rate }}%</h3>
-            <p class="text-[10px] text-emerald-600 mt-1 font-bold">{{ number_format($stats['clicks'] ?? 0) }} Total</p>
+            <p class="text-[10px] text-emerald-600 mt-1 font-bold">{{ number_format($stats['unique_clicks'] ?? 0) }} Unique</p>
         </div>
 
         <div class="glass-card p-5 rounded-md border-b-4 border-rose-500">

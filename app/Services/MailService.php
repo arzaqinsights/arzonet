@@ -96,7 +96,10 @@ class MailService
                 'content' => [[
                     'type' => 'text/html',
                     'value' => $html
-                ]]
+                ]],
+                'custom_args' => [
+                    'log_id' => (string) $logId,
+                ]
             ]);
 
         if ($response->successful()) {
