@@ -82,7 +82,7 @@
     <div class="grid grid-cols-1 md:grid-cols-6 gap-4" id="stats-grid">
         <div class="glass-card p-5 rounded-md border-b-4 border-primary-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivery</span>
-            <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($campaign->sent_count) }}</h3>
+            <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($stats['sent'] ?? 0) }}</h3>
             <p class="text-[10px] text-primary-600 mt-1 font-bold">{{ $campaign->progress() }}% Complete</p>
         </div>
 
@@ -100,7 +100,7 @@
 
         <div class="glass-card p-5 rounded-md border-b-4 border-rose-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Bounced</span>
-            <h3 class="text-2xl font-black text-surface-900" id="stat-bounce-count">{{ number_format($campaign->bounce_count) }}</h3>
+            <h3 class="text-2xl font-black text-surface-900" id="stat-bounce-count">{{ number_format($stats['bounced'] ?? 0) }}</h3>
             <p class="text-[10px] text-rose-600 mt-1 font-bold">Rejected by Server</p>
         </div>
 
@@ -112,7 +112,7 @@
 
         <div class="glass-card p-5 rounded-md border-b-4 border-surface-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Failed</span>
-            <h3 class="text-2xl font-black text-surface-900" id="stat-failed-count">{{ number_format($campaign->failed_count) }}</h3>
+            <h3 class="text-2xl font-black text-surface-900" id="stat-failed-count">{{ number_format($stats['failed'] ?? 0) }}</h3>
             <p class="text-[10px] text-surface-600 mt-1 font-bold">Errors</p>
         </div>
     </div>
@@ -136,9 +136,9 @@
         <div class="h-2 w-full bg-surface-100 rounded-full overflow-hidden flex border border-surface-200">
             @php 
                 $total = max(1, $campaign->total_recipients);
-                $sentP = ($campaign->sent_count / $total) * 100;
-                $bounceP = ($campaign->bounce_count / $total) * 100;
-                $failedP = ($campaign->failed_count / $total) * 100;
+                $sentP = (($stats['sent'] ?? 0) / $total) * 100;
+                $bounceP = (($stats['bounced'] ?? 0) / $total) * 100;
+                $failedP = (($stats['failed'] ?? 0) / $total) * 100;
             @endphp
             <div class="h-full bg-primary-500 transition-all duration-1000 shadow-inner" id="bar-sent" style="width: {{ $sentP }}%"></div>
             <div class="h-full bg-rose-500 transition-all duration-1000" id="bar-bounce" style="width: {{ $bounceP }}%"></div>

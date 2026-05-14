@@ -203,12 +203,22 @@ class CampaignService
      */
     public function getStats(Campaign $campaign): array
     {
+        $logStats = $campaign->logs()
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $sentCount = ($logStats['sent'] ?? 0) + ($logStats['delivered'] ?? 0);
+        $failedCount = ($logStats['failed'] ?? 0);
+        $bounceCount = ($logStats['bounced'] ?? 0);
+        $pendingCount = ($logStats['pending'] ?? 0);
+
         return [
             'total'      => $campaign->total_recipients,
-            'sent'       => $campaign->logs()->where('status', 'sent')->count(),
-            'failed'     => $campaign->logs()->whereIn('status', ['failed', 'bounced'])->count(),
-            'pending'    => $campaign->logs()->where('status', 'pending')->count(),
-            'bounced'    => $campaign->logs()->where('status', 'bounced')->count(),
+            'sent'       => $sentCount,
+            'failed'     => $failedCount,
+            'pending'    => $pendingCount,
+            'bounced'    => $bounceCount,
             'opens'        => $campaign->logs()->sum('open_count'),
             'unique_opens' => $campaign->logs()->where('open_count', '>', 0)->count(),
             'clicks'       => $campaign->logs()->sum('click_count'),

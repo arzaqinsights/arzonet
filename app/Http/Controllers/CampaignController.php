@@ -325,24 +325,21 @@ class CampaignController extends Controller
 
 
 
-    public function checkStatus(Campaign $campaign)
+    public function checkStatus(Campaign $campaign, CampaignService $campaignService)
     {
-        $uniqueOpens = $campaign->logs()->where('open_count', '>', 0)->count();
-        $uniqueClicks = $campaign->logs()->where('click_count', '>', 0)->count();
-        $totalOpens = $campaign->logs()->sum('open_count');
-        $totalClicks = $campaign->logs()->sum('click_count');
-        $delivered = max(1, $campaign->sent_count);
+        $stats = $campaignService->getStats($campaign);
+        $delivered = max(1, $stats['sent']);
 
         return response()->json([
             'status'       => $campaign->status,
-            'sent_count'   => $campaign->sent_count,
-            'failed_count' => $campaign->failed_count,
-            'bounce_count' => $campaign->bounce_count,
-            'unsubscribe_count' => $campaign->unsubscribes()->count(),
-            'open_count'   => $totalOpens,
-            'click_count'  => $totalClicks,
-            'open_rate'    => round(($uniqueOpens / $delivered) * 100, 1),
-            'click_rate'   => round(($uniqueClicks / $delivered) * 100, 1),
+            'sent_count'   => $stats['sent'],
+            'failed_count' => $stats['failed'],
+            'bounce_count' => $stats['bounced'],
+            'unsubscribe_count' => $stats['unsubscribed'],
+            'open_count'   => $stats['opens'],
+            'click_count'  => $stats['clicks'],
+            'open_rate'    => round(($stats['unique_opens'] / $delivered) * 100, 1),
+            'click_rate'   => round(($stats['unique_clicks'] / $delivered) * 100, 1),
             'total'        => $campaign->total_recipients,
             'progress'     => $campaign->progress(),
             'speed'        => $campaign->currentSpeed(),
