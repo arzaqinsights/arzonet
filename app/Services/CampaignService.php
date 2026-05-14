@@ -136,20 +136,27 @@ class CampaignService
             ->toArray();
 
         if (empty($pendingLogIds)) {
-            $campaign->update([
-                'status'       => 'completed',
-                'completed_at' => now(),
-            ]);
+            if ($campaign->logs()->count() > 0) {
+                $campaign->update([
+                    'status'       => 'completed',
+                    'completed_at' => now(),
+                ]);
+            } else {
+                $campaign->update(['status' => 'paused']);
+            }
             return;
         }
 
-        $providerType = $campaign->sender?->type ?? 'ses';
+        $sender = $campaign->sender;
+        $providerType = $sender ? strtolower($sender->type) : 'ses';
+        
         $batchSize = match($providerType) {
             'smtp' => 5,
             'sendgrid' => 50,
             'ses' => 200,
             default => 25
         };
+        
         $queueName = "bulk-{$providerType}";
         $chunks = array_chunk($pendingLogIds, $batchSize);
 
