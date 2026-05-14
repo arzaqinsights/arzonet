@@ -109,8 +109,18 @@ class WhatsAppConversationController extends Controller
         $account  = WhatsAppAccount::where('id', $request->whatsapp_account_id)->where('user_id', Auth::id())->firstOrFail();
         $template = WhatsAppTemplate::where('id', $request->template_id)->where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
 
-        // Normalize phone number (remove spaces, dashes)
-        $to = preg_replace('/[^0-9+]/', '', $request->phone_number);
+        // Normalize: remove all non-numeric characters
+        $to = preg_replace('/[^0-9]/', '', $request->phone_number);
+        
+        // Remove leading zero if present (common in manual entry)
+        if (str_starts_with($to, '0')) {
+            $to = substr($to, 1);
+        }
+
+        // If exactly 10 digits remain, assume it's an Indian number without a code
+        if (strlen($to) === 10) {
+            $to = '91' . $to;
+        }
 
         try {
             $accessToken = Crypt::decryptString($account->access_token);
