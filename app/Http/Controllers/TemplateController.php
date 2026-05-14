@@ -24,14 +24,12 @@ class TemplateController extends Controller
     {
         $request->validate([
             'name'         => 'required|string|max:255',
-            'subject'      => 'required|string|max:255',
             'html_content' => 'required|string',
             'json_design'  => 'nullable|string',
         ]);
 
         $template = Template::create([
             'name'         => $request->name,
-            'subject'      => $request->subject,
             'html_content' => $request->html_content,
             'json_design'  => $request->json_design,
         ]);
@@ -50,12 +48,11 @@ class TemplateController extends Controller
     {
         $request->validate([
             'name'         => 'required|string|max:255',
-            'subject'      => 'required|string|max:255',
             'html_content' => 'required|string',
             'json_design'  => 'nullable|string',
         ]);
 
-        $template->update($request->only('name', 'subject', 'html_content', 'json_design'));
+        $template->update($request->only('name', 'html_content', 'json_design'));
 
         return redirect()
             ->route('admin.templates.index')

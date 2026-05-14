@@ -20,10 +20,17 @@
                     </div>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-surface-400 ml-1">Email Subject Line</label>
-                    <div class="relative">
-                        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                        <input type="text" x-model="subject" class="form-input pl-11 py-3 text-sm font-bold bg-surface-50/50 border-surface-100 focus:bg-white transition-all" placeholder="Enter subject line..." required>
+                    <label class="text-[10px] font-black uppercase tracking-widest text-surface-400 ml-1">Upload File (PDF/Docs)</label>
+                    <div class="flex gap-2">
+                        <input type="file" id="file-uploader" class="hidden" @change="uploadFile($event)">
+                        <button type="button" @click="document.getElementById('file-uploader').click()" class="btn border-surface-200 hover:bg-surface-50 text-surface-700 py-3 px-4 w-full text-left flex justify-between items-center" :disabled="uploadingFile">
+                            <span x-text="uploadingFile ? 'Uploading...' : 'Choose File...'" class="text-sm font-bold text-surface-500"></span>
+                            <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        </button>
+                    </div>
+                    <div x-show="uploadedUrl" class="mt-1 flex items-center gap-2" style="display: none;">
+                        <input type="text" readonly :value="uploadedUrl" class="form-input text-[10px] py-1 px-2 flex-1 bg-green-50 border-green-200 text-green-700 font-mono">
+                        <button type="button" @click="navigator.clipboard.writeText(uploadedUrl); alert('Link copied! You can now paste this link in any Button or Text in the editor.');" class="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">Copy Link</button>
                     </div>
                 </div>
             </div>
@@ -61,7 +68,6 @@
     <form id="template-form" action="{{ route('admin.templates.store') }}" method="POST" class="hidden">
         @csrf
         <input type="hidden" name="name" :value="name">
-        <input type="hidden" name="subject" :value="subject">
         <input type="hidden" name="html_content" id="html-content">
         <input type="hidden" name="json_design" id="json-design">
     </form>
@@ -71,8 +77,9 @@
 function templateEditor() {
     return {
         name: '',
-        subject: '',
         saving: false,
+        uploadingFile: false,
+        uploadedUrl: '',
 
         init() {
             this.$nextTick(() => {
@@ -89,6 +96,12 @@ function templateEditor() {
                     features: {
                         preview: true,
                         imageEditor: true,
+                        textEditor: {
+                            spellChecker: true,
+                            tables: true,
+                            codeView: true,
+                            emojis: true,
+                        }
                     },
                     mergeTags: {
                         first_name: { name: "First Name", value: "@{{ first_name }}" },
@@ -115,9 +128,25 @@ function templateEditor() {
             });
         },
 
+        uploadFile(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+            this.uploadingFile = true;
+            let formData = new FormData();
+            formData.append('file', file);
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+            fetch('{{ route("admin.media.upload") }}', { method: 'POST', body: formData })
+            .then(r => r.json()).then(data => {
+                if (data.success) {
+                    this.uploadedUrl = data.url;
+                } else alert('Upload failed: ' + data.message);
+            }).catch(e => { console.error(e); alert('Upload error.'); })
+            .finally(() => { this.uploadingFile = false; event.target.value = ''; });
+        },
+
         saveTemplate() {
-            if (!this.name || !this.subject) {
-                alert('Please fill in the template name and subject.');
+            if (!this.name) {
+                alert('Please fill in the template name.');
                 return;
             }
             this.saving = true;

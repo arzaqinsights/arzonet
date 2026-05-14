@@ -256,7 +256,7 @@ class CampaignController extends Controller
             $previewHtml = $template->html_content;
         }
 
-        $subjectSource = $request->subject ?: $template->subject;
+        $subjectSource = $request->subject;
         $previewSubject = $personalizer->preview($subjectSource ?? '', $sampleData);
 
         return response()->json([

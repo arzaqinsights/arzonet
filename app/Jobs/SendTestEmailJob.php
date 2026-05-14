@@ -56,7 +56,7 @@ class SendTestEmailJob implements ShouldQueue
             $mailService->send(
                 sender: $sender,
                 to: $this->email,
-                subject: "[TEST] " . $template->subject,
+                subject: "[TEST] " . $template->name,
                 html: $personalizedHtml
             );
             

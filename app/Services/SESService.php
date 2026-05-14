@@ -176,7 +176,7 @@ class SESService
             ];
             
             $html = $this->replaceVariables($template->html_content, $data);
-            $subject = $this->replaceVariables($template->subject, $data);
+            $subject = '';
 
             try {
                 $this->sendSingleEmail(

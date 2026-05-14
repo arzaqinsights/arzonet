@@ -46,9 +46,6 @@
                 <div class="flex items-start justify-between mb-3">
                     <div>
                         <h3 class="text-surface-900 font-black text-base uppercase tracking-tight">{{ $template->name }}</h3>
-                        <p class="text-[10px] font-bold text-primary-500 uppercase tracking-widest mt-1 truncate max-w-[200px]">
-                            {{ $template->subject }}
-                        </p>
                     </div>
                     <form action="{{ route('admin.templates.destroy', $template) }}" method="POST" onsubmit="return confirm('Delete this template permanently?')">
                         @csrf @method('DELETE')

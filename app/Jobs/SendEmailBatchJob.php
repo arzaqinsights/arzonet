@@ -138,7 +138,7 @@ class SendEmailBatchJob implements ShouldQueue
                     continue;
                 }
 
-                $subjectSource = $campaign->subject ?: $template->subject;
+                $subjectSource = $campaign->subject;
                 $subject = $mailService->replaceVariables($subjectSource, $recipientData, false);
                 $trackedHtml = $analyticsTracker->injectTracking($html, $log);
 

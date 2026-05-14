@@ -54,7 +54,6 @@
     <div class="glass-card p-4">
         <div class="flex items-center gap-6 text-sm text-surface-400">
             <span><strong class="text-white">Template:</strong> {{ $template->name }}</span>
-            <span><strong class="text-white">Subject:</strong> {{ $template->subject }}</span>
         </div>
     </div>
 
