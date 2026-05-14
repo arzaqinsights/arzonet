@@ -32,7 +32,9 @@ class WhatsAppConversationController extends Controller
 
     public function show(WhatsAppConversation $conversation)
     {
-        $this->authorize('view', $conversation);
+        if ($conversation->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
         $conversation->update(['unread_count' => 0]);
 
         $conversations = WhatsAppConversation::with(['contact', 'whatsappAccount', 'agent'])
