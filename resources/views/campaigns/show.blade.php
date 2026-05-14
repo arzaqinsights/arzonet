@@ -149,27 +149,31 @@
         </div>
 
         {{-- Analytics Tab --}}
-        <div x-show="tab === 'analytics'" class="grid grid-cols-1 md:grid-cols-3 gap-8" x-transition>
-            <div class="md:col-span-2 space-y-8">
-                {{-- Link Performance --}}
-                <div class="glass-card rounded-md">
-                    <div class="p-6 border-b border-surface-100">
-                        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Link Performance</h4>
+        <div x-show="tab === 'analytics'" class="grid grid-cols-1 xl:grid-cols-3 gap-8" x-transition>
+            
+            <div class="xl:col-span-2 space-y-6">
+                
+                {{-- Charts Grid --}}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card rounded-md">
+                        <div class="p-6 border-b border-surface-100 flex items-center justify-between">
+                            <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Engagement Overview</h4>
+                        </div>
+                        <div class="p-6">
+                            <div id="engagement-chart" class="w-full h-[300px]"></div>
+                        </div>
                     </div>
-                    <div class="p-6 space-y-6">
-                        @forelse($topLinks ?? [] as $link)
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between text-xs font-bold">
-                                <span class="text-surface-600 truncate max-w-md">{{ $link->url }}</span>
-                                <span class="text-primary-600">{{ $link->count }} clicks</span>
-                            </div>
-                            <div class="w-full h-2 bg-surface-50 rounded-md overflow-hidden border border-surface-100">
-                                <div class="h-full bg-primary-500" style="width: {{ ($link->count / max(1, $stats['clicks'] ?? 1)) * 100 }}%"></div>
+
+                    {{-- Geographic Engagement Map --}}
+                    <div class="glass-card rounded-md">
+                        <div class="p-6 border-b border-surface-100 flex items-center justify-between">
+                            <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Global Engagement (Locations)</h4>
+                        </div>
+                        <div class="p-6">
+                            <div id="location-chart" class="w-full h-[300px] flex items-center justify-center">
+                                <span class="text-xs font-black text-surface-400 uppercase tracking-widest animate-pulse" id="location-loading">Analyzing Global Nodes...</span>
                             </div>
                         </div>
-                        @empty
-                        <p class="text-sm text-surface-400 text-center py-12 italic">No link engagement tracked yet.</p>
-                        @endforelse
                     </div>
                 </div>
 
@@ -205,31 +209,33 @@
                         @endforeach
                     </div>
                 </div>
-                {{-- Geographic Engagement Map & Chart Placeholder --}}
-                <div class="glass-card rounded-md">
-                    <div class="p-6 border-b border-surface-100 flex items-center justify-between">
-                        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Global Engagement (Locations)</h4>
-                    </div>
-                    <div class="p-6">
-                        <div id="location-chart" class="w-full h-[300px] flex items-center justify-center">
-                            <span class="text-xs font-black text-surface-400 uppercase tracking-widest animate-pulse" id="location-loading">Analyzing Global Nodes...</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="glass-card rounded-md">
-                    <div class="p-6 border-b border-surface-100 flex items-center justify-between">
-                        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Engagement Overview</h4>
-                    </div>
-                    <div class="p-6">
-                        <div id="engagement-chart" class="w-full h-[300px]"></div>
-                    </div>
-                </div>
 
             </div>
 
             {{-- Sidebar Stats --}}
             <div class="space-y-6">
+                
+                {{-- Link Performance --}}
+                <div class="glass-card p-6 rounded-md">
+                    <h4 class="text-[10px] font-black text-surface-900 uppercase tracking-widest mb-6">Link Performance</h4>
+                    <div class="space-y-6">
+                        @forelse($topLinks ?? [] as $link)
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-xs font-bold">
+                                <span class="text-surface-600 truncate max-w-[150px]" title="{{ $link->url }}">{{ str_replace(['http://', 'https://'], '', $link->url) }}</span>
+                                <span class="text-primary-600">{{ $link->count }} clicks</span>
+                            </div>
+                            <div class="w-full h-1 bg-surface-50 rounded-md overflow-hidden border border-surface-100">
+                                <div class="h-full bg-primary-500" style="width: {{ ($link->count / max(1, $stats['clicks'] ?? 1)) * 100 }}%"></div>
+                            </div>
+                        </div>
+                        @empty
+                        <p class="text-[10px] font-bold text-surface-400 text-center py-4 italic">No link engagement tracked yet.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Device Profile --}}
                 <div class="glass-card p-6 rounded-md">
                     <h4 class="text-[10px] font-black text-surface-900 uppercase tracking-widest mb-6">Device Profile</h4>
                     <div class="space-y-4">
