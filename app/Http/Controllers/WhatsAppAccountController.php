@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\WhatsAppAccount;
 use App\Services\WhatsApp\MetaEmbeddedSignupService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Exception;
 
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
