@@ -83,6 +83,10 @@ class WhatsAppAccountController extends Controller
             $success = $api->registerPhoneNumber($account->phone_number_id, $token);
 
             if ($success) {
+                $metadata = $account->metadata ?? [];
+                $metadata['is_registered'] = true;
+                $account->update(['metadata' => $metadata]);
+
                 return back()->with('success', 'Phone number registered and activated on Cloud API.');
             } else {
                 return back()->with('error', 'Registration failed. Check Meta dashboard.');

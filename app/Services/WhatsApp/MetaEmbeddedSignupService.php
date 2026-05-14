@@ -86,6 +86,7 @@ class MetaEmbeddedSignupService
                     'metadata' => [
                         'quality_rating' => $primaryPhone['quality_rating'] ?? 'UNKNOWN',
                         'messaging_limit' => $primaryPhone['messaging_limit_tier'] ?? 'UNKNOWN',
+                        'is_registered' => true,
                     ],
                 ]
             );
