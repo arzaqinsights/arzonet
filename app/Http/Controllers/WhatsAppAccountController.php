@@ -73,7 +73,9 @@ class WhatsAppAccountController extends Controller
 
     public function register(WhatsAppAccount $account, \App\Services\WhatsApp\MetaApiService $api)
     {
-        $this->authorize('update', $account);
+        if ($account->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
 
         try {
             $token = Crypt::decryptString($account->access_token);
@@ -91,7 +93,9 @@ class WhatsAppAccountController extends Controller
 
     public function destroy(WhatsAppAccount $whatsappAccount)
     {
-        $this->authorize('delete', $whatsappAccount);
+        if ($whatsappAccount->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
         $whatsappAccount->delete();
         return back()->with('success', 'Account disconnected.');
     }
