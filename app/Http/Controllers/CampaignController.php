@@ -113,7 +113,7 @@ class CampaignController extends Controller
         $estimatedCost = $costService->campaignCost($campaign->total_recipients);
 
         // Top clicked links
-        $topLinks = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+        $topLinks = \App\Models\EmailEvent::whereHas('log', function($q) use ($campaign) {
                 $q->where('campaign_id', $campaign->id);
             })
             ->where('type', 'click')
@@ -126,7 +126,7 @@ class CampaignController extends Controller
             ->get();
 
         // Device Analytics (User Agent parsing)
-        $deviceStats = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+        $deviceStats = \App\Models\EmailEvent::whereHas('log', function($q) use ($campaign) {
                 $q->where('campaign_id', $campaign->id);
             })
             ->whereIn('type', ['open', 'click'])
@@ -141,7 +141,7 @@ class CampaignController extends Controller
         $mobilePercent = $totalDevices > 0 ? round((($deviceStats->mobile_count ?? 0) / $totalDevices) * 100, 1) : 0;
 
         // Top IPs for GeoLocation
-        $topIps = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+        $topIps = \App\Models\EmailEvent::whereHas('log', function($q) use ($campaign) {
                 $q->where('campaign_id', $campaign->id);
             })
             ->whereNotNull('ip_address')
@@ -271,7 +271,7 @@ class CampaignController extends Controller
             ->get();
 
         // Top clicked links
-        $topLinks = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+        $topLinks = \App\Models\EmailEvent::whereHas('log', function($q) use ($campaign) {
                 $q->where('campaign_id', $campaign->id);
             })
             ->where('type', 'click')
