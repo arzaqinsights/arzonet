@@ -125,4 +125,23 @@ class MetaApiService
 
         return $response->json();
     }
+
+    /**
+     * Register a phone number for the WhatsApp Business Cloud API.
+     */
+    public function registerPhoneNumber(string $phoneNumberId, string $accessToken): bool
+    {
+        $response = Http::withToken($accessToken)
+            ->post("{$this->baseUrl}/{$phoneNumberId}/register", [
+                'messaging_product' => 'whatsapp',
+                'pin' => '000000', 
+            ]);
+
+        if ($response->failed()) {
+            Log::error("WhatsApp registration error: " . $response->body());
+            return false;
+        }
+
+        return true;
+    }
 }

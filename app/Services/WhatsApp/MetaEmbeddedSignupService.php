@@ -62,6 +62,14 @@ class MetaEmbeddedSignupService
             // 4. Subscribe to Webhooks
             $this->webhookSubscription->subscribeWabaToApp($wabaId, $accessToken);
 
+            // 4.5 Register Phone Number (Cloud API activation)
+            try {
+                $api = app(MetaApiService::class);
+                $api->registerPhoneNumber($primaryPhone['id'] ?? $clientPhoneNumberId, $accessToken);
+            } catch (\Exception $regEx) {
+                Log::warning('WhatsApp Registration Step Failed during onboarding: ' . $regEx->getMessage());
+            }
+
             // 5. Store/Update WhatsApp Account
             $account = WhatsAppAccount::updateOrCreate(
                 [

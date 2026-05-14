@@ -156,6 +156,7 @@ Route::name('admin.')->group(function () {
         Route::prefix('accounts')->name('accounts.')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsAppAccountController::class, 'index'])->name('index');
             Route::post('/', [\App\Http\Controllers\WhatsAppAccountController::class, 'store'])->name('store');
+            Route::post('/{account}/register', [\App\Http\Controllers\WhatsAppAccountController::class, 'register'])->name('register');
             Route::delete('/{whatsappAccount}', [\App\Http\Controllers\WhatsAppAccountController::class, 'destroy'])->name('destroy');
         });
 

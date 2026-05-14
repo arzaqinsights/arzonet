@@ -67,6 +67,24 @@ class WhatsAppAccountController extends Controller
         }
     }
 
+    public function register(WhatsAppAccount $account, \App\Services\WhatsApp\MetaApiService $api)
+    {
+        $this->authorize('update', $account);
+
+        try {
+            $token = Crypt::decryptString($account->access_token);
+            $success = $api->registerPhoneNumber($account->phone_number_id, $token);
+
+            if ($success) {
+                return back()->with('success', 'Phone number registered and activated on Cloud API.');
+            } else {
+                return back()->with('error', 'Registration failed. Check Meta dashboard.');
+            }
+        } catch (Exception $e) {
+            return back()->with('error', 'Registration error: ' . $e->getMessage());
+        }
+    }
+
     public function destroy(WhatsAppAccount $whatsappAccount)
     {
         $this->authorize('delete', $whatsappAccount);

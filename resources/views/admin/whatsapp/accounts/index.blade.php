@@ -114,6 +114,13 @@
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex items-center justify-end gap-2">
+                            <form action="{{ route('admin.whatsapp.accounts.register', $account) }}" method="POST">
+                                @csrf
+                                <button type="submit" 
+                                   class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-brand/20 bg-brand/5 rounded-sm hover:bg-brand/10 transition-colors text-brand">
+                                    <i class="fa-solid fa-bolt mr-1"></i> Activate on Cloud API
+                                </button>
+                            </form>
                             <a href="{{ route('admin.whatsapp.templates.sync', $account) }}" 
                                onclick="return confirm('Sync templates from Meta for this number?')"
                                class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-color rounded-sm hover:bg-surface-50 transition-colors text-surface-600">
