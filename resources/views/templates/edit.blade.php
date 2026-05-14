@@ -201,10 +201,27 @@
                 console.log('Editor is ready!');
                 @if($template->json_design)
                     try {
-                        const design = {!! $template->json_design ?: 'null' !!};
-                        if (design) unlayer.loadDesign(design);
+                        const designData = {!! json_encode($template->json_design) !!};
+                        let design = null;
+                        
+                        if (typeof designData === 'string' && designData.trim() !== '') {
+                            design = JSON.parse(designData);
+                        } else if (designData && typeof designData === 'object') {
+                            design = designData;
+                        }
+                        
+                        if (design && Object.keys(design).length > 0) {
+                            console.log('Attempting to load design...');
+                            // Small delay ensures the internal editor state is fully ready
+                            setTimeout(() => {
+                                unlayer.loadDesign(design);
+                                console.log('Design loaded into Unlayer');
+                            }, 300);
+                        } else {
+                            console.log('No valid design data found to load');
+                        }
                     } catch(e) {
-                        console.error('Error loading design:', e);
+                        console.error('Error in editor:ready design loading:', e);
                     }
                 @endif
                 
