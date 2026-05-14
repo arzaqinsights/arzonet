@@ -26,7 +26,16 @@
 <div class="space-y-6 animate-fade-in">
 
     {{-- ── Unlayer Canvas ── --}}
-    <div class="glass-card overflow-hidden shadow-2xl shadow-surface-100 border-surface-200" style="height: 800px;">
+    <div class="glass-card overflow-hidden shadow-2xl shadow-surface-100 border-surface-200 relative" style="height: 800px;">
+        {{-- Loading Skeleton --}}
+        <div id="editor-loader" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4 transition-opacity duration-500">
+            <div class="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin"></div>
+            <div class="flex flex-col items-center">
+                <p class="text-xs font-black uppercase tracking-widest text-surface-900">Arzonet Editor</p>
+                <p class="text-[10px] font-bold text-surface-400 uppercase tracking-widest mt-1">Loading your saved design...</p>
+            </div>
+        </div>
+
         <div id="unlayer-editor" style="height: 100%;"></div>
     </div>
 
@@ -66,7 +75,15 @@
         });
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function initUnlayer() {
+        if (typeof unlayer === 'undefined') {
+            console.log('Unlayer script not loaded yet, retrying in 500ms...');
+            setTimeout(initUnlayer, 500);
+            return;
+        }
+
+        console.log('Initializing Unlayer for Editing...');
+        
         unlayer.registerPropertyEditor({
           name: 'my_file_uploader',
           Widget: unlayer.createWidget({
@@ -179,12 +196,20 @@
             }).catch(e => { console.error(e); alert('Upload error.'); });
         });
 
-        @if($template->json_design)
-            unlayer.addEventListener('editor:ready', () => {
+        unlayer.addEventListener('editor:ready', () => {
+            console.log('Editor is ready!');
+            @if($template->json_design)
                 unlayer.loadDesign({!! $template->json_design !!});
-            });
-        @endif
-    });
+            @endif
+            
+            document.getElementById('editor-loader').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('editor-loader').style.display = 'none';
+            }, 500);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initUnlayer);
 
     function saveTemplate() {
         let name = document.getElementById('template-name').value;
