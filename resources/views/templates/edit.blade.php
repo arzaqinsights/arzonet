@@ -75,20 +75,29 @@
         });
     };
 
+    function hideLoader() {
+        const loader = document.getElementById('editor-loader');
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => { loader.style.display = 'none'; }, 500);
+        }
+    }
+
     function initUnlayer() {
         if (typeof unlayer === 'undefined') {
-            console.log('Unlayer script not loaded yet, retrying in 200ms...');
             setTimeout(initUnlayer, 200);
             return;
         }
 
         console.log('Initializing Unlayer for Editing...');
-        
+
         try {
+            // ─── KEY FIX: Pass saved design directly into init() ───
+            // This is Unlayer's official recommended approach — most reliable way
             unlayer.init({
                 id: 'unlayer-editor',
                 displayMode: 'email',
-                appearance: { 
+                appearance: {
                     theme: 'light',
                     panels: { tools: { dock: 'left' } }
                 },
@@ -104,88 +113,76 @@
                 },
                 mergeTags: {
                     first_name: { name: "First Name", value: "@{{ first_name }}" },
-                    last_name: { name: "Last Name", value: "@{{ last_name }}" },
-                    full_name: { name: "Full Name", value: "@{{ full_name }}" },
-                    email: { name: "Email Address", value: "@{{ email }}" },
-                    company: { name: "Company Name", value: "@{{ company }}" },
-                    job_title: { name: "Job Title", value: "@{{ job_title }}" },
-                    city: { name: "City", value: "@{{ city }}" },
+                    last_name:  { name: "Last Name",  value: "@{{ last_name }}" },
+                    full_name:  { name: "Full Name",  value: "@{{ full_name }}" },
+                    email:      { name: "Email Address", value: "@{{ email }}" },
+                    company:    { name: "Company Name",  value: "@{{ company }}" },
+                    job_title:  { name: "Job Title",     value: "@{{ job_title }}" },
+                    city:       { name: "City",          value: "@{{ city }}" },
                     unsubscribe_url: { name: "Unsubscribe Link", value: "@{{ unsubscribe_url }}" }
-                }
+                },
+                @if($template->json_design)
+                design: {!! $template->json_design !!},
+                @endif
             });
 
+            // Register custom file uploader property editor
             unlayer.registerPropertyEditor({
-              name: 'my_file_uploader',
-              Widget: unlayer.createWidget({
-                render(value, updateValue, data) {
-                  return `
-                    <div style="text-align:center;">
-                      <button type="button" onclick="document.getElementById('my_file_input').click()" style="background:#10b981; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Upload File (PDF/Docs)</button>
-                      <input type="file" id="my_file_input" style="display:none;" onchange="window.uploadPdfForUnlayer(this)">
-                      <div style="font-size:11px; margin-top:8px; word-break:break-all; color:#4b5563;" id="my_file_url">${value ? 'Link: ' + value : 'No file uploaded yet.'}</div>
-                    </div>
-                  `;
-                },
-                mount(node, value, updateValue, data) {
-                  window.unlayerUpdateValue = updateValue;
-                }
-              })
+                name: 'my_file_uploader',
+                Widget: unlayer.createWidget({
+                    render(value, updateValue, data) {
+                        return `
+                            <div style="text-align:center;">
+                              <button type="button" onclick="document.getElementById('my_file_input').click()" style="background:#10b981; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Upload File (PDF/Docs)</button>
+                              <input type="file" id="my_file_input" style="display:none;" onchange="window.uploadPdfForUnlayer(this)">
+                              <div style="font-size:11px; margin-top:8px; word-break:break-all; color:#4b5563;" id="my_file_url">${value ? 'Link: ' + value : 'No file uploaded yet.'}</div>
+                            </div>
+                        `;
+                    },
+                    mount(node, value, updateValue, data) {
+                        window.unlayerUpdateValue = updateValue;
+                    }
+                })
             });
 
+            // Register custom file/PDF tool
             unlayer.registerTool({
-              name: 'custom_file',
-              label: 'File / PDF',
-              icon: 'fa-paperclip',
-              supportedDisplayModes: ['web', 'email'],
-              options: {
-                buttonColors: {
-                  title: "Button Style",
-                  position: 1,
-                  options: {
-                    backgroundColor: {
-                      label: "Background Color",
-                      defaultValue: "#10b981",
-                      widget: "color_picker"
+                name: 'custom_file',
+                label: 'File / PDF',
+                icon: 'fa-paperclip',
+                supportedDisplayModes: ['web', 'email'],
+                options: {
+                    buttonColors: {
+                        title: "Button Style", position: 1,
+                        options: {
+                            backgroundColor: { label: "Background Color", defaultValue: "#10b981", widget: "color_picker" },
+                            textColor:       { label: "Text Color",        defaultValue: "#ffffff", widget: "color_picker" }
+                        }
                     },
-                    textColor: {
-                      label: "Text Color",
-                      defaultValue: "#ffffff",
-                      widget: "color_picker"
+                    fileData: {
+                        title: "File Attachment", position: 2,
+                        options: {
+                            buttonText: { label: "Button Text",    defaultValue: "Download File", widget: "text" },
+                            fileUrl:    { label: "Upload your file", defaultValue: "", widget: "my_file_uploader" }
+                        }
                     }
-                  }
                 },
-                fileData: {
-                  title: "File Attachment",
-                  position: 2,
-                  options: {
-                    buttonText: {
-                      label: "Button Text",
-                      defaultValue: "Download File",
-                      widget: "text"
+                values: {},
+                renderer: {
+                    Viewer: unlayer.createViewer({
+                        render(values) {
+                            return `<div style="text-align:center;padding:10px;"><a href="${values.fileUrl}" style="display:inline-block;padding:12px 24px;background-color:${values.backgroundColor};color:${values.textColor};text-decoration:none;border-radius:4px;font-family:sans-serif;font-weight:bold;">📎 ${values.buttonText}</a></div>`;
+                        }
+                    }),
+                    exporters: {
+                        web:   function(values) { return `<div style="text-align:center;padding:10px;"><a href="${values.fileUrl}" style="display:inline-block;padding:12px 24px;background-color:${values.backgroundColor};color:${values.textColor};text-decoration:none;border-radius:4px;font-family:sans-serif;font-weight:bold;">📎 ${values.buttonText}</a></div>`; },
+                        email: function(values) { return `<div style="text-align:center;padding:10px;"><a href="${values.fileUrl}" style="display:inline-block;padding:12px 24px;background-color:${values.backgroundColor};color:${values.textColor};text-decoration:none;border-radius:4px;font-family:sans-serif;font-weight:bold;">📎 ${values.buttonText}</a></div>`; }
                     },
-                    fileUrl: {
-                      label: "Upload your file",
-                      defaultValue: "",
-                      widget: "my_file_uploader"
-                    }
-                  }
+                    head: { css: function() {}, js: function() {} }
                 }
-              },
-              values: {},
-              renderer: {
-                Viewer: unlayer.createViewer({
-                  render(values) {
-                    return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`;
-                  }
-                }),
-                exporters: {
-                  web: function(values) { return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`; },
-                  email: function(values) { return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`; }
-                },
-                head: { css: function() {}, js: function() {} }
-              }
             });
 
+            // Register image upload callback
             unlayer.registerCallback('image', function(file, done) {
                 let formData = new FormData();
                 formData.append('file', file.attachments[0]);
@@ -197,42 +194,18 @@
                 }).catch(e => { console.error(e); alert('Upload error.'); });
             });
 
+            // editor:ready — just hide the loader (design already loaded via init)
             unlayer.addEventListener('editor:ready', () => {
-                console.log('Editor is ready!');
-                try {
-                    @if($template->json_design)
-                        // Safely pass the JSON from PHP to a JS object
-                        const design = {!! json_encode(json_decode($template->json_design) ?: []) !!};
-                        if (design && Object.keys(design).length > 0) {
-                            unlayer.loadDesign(design);
-                            console.log('Design loaded successfully');
-                        } else {
-                            console.log('Design data was empty or invalid');
-                        }
-                    @endif
-                } catch(e) {
-                    console.error('Critical error loading design:', e);
-                }
-                
+                console.log('Editor ready — design loaded from init()');
                 hideLoader();
             });
 
-            // Fallback: hide loader after 10 seconds anyway
+            // Safety fallback — hide loader after 10s no matter what
             setTimeout(hideLoader, 10000);
 
         } catch (err) {
-            console.error('Unlayer Init Error:', err);
+            console.error('Unlayer init error:', err);
             hideLoader();
-        }
-    }
-
-    function hideLoader() {
-        const loader = document.getElementById('editor-loader');
-        if (loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => {
-                loader.style.display = 'none';
-            }, 500);
         }
     }
 
@@ -240,15 +213,12 @@
 
     function saveTemplate() {
         let name = document.getElementById('template-name').value;
-        if (!name) {
-            alert('Please fill in the template name.');
-            return;
-        }
+        if (!name) { alert('Please fill in the template name.'); return; }
+        
         document.getElementById('save-btn').disabled = true;
         document.getElementById('save-btn').innerHTML = 'Saving...';
-        
         document.getElementById('hidden-name').value = name;
-        
+
         unlayer.exportHtml((data) => {
             document.getElementById('html-content').value = data.html;
             document.getElementById('json-design').value = JSON.stringify(data.design);
