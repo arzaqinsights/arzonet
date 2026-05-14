@@ -89,6 +89,7 @@ class MailService
                 'personalizations' => [[
                     'to' => [['email' => $to]],
                     'subject' => $subject,
+                    'headers' => (object) $headers,
                 ]],
                 'from' => [
                     'email' => $sender->email,

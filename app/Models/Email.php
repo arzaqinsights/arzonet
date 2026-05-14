@@ -66,6 +66,14 @@ class Email extends Model
      */
     public function getUnsubscribeUrl(?int $logId = null): string
     {
+        if ($logId) {
+            $log = EmailLog::find($logId);
+            if ($log && $log->tracking_token) {
+                return route('unsubscribe', ['token' => $log->tracking_token]);
+            }
+        }
+
+        // Fallback for tests or manual links
         $token = hash_hmac('sha256', $this->id . $this->email, config('app.key'));
         return route('unsubscribe', ['token' => $token]);
     }
