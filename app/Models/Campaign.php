@@ -69,6 +69,11 @@ class Campaign extends Model
         return $this->hasMany(ContactActivity::class);
     }
 
+    public function emailEvents(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(EmailEvent::class, EmailLog::class);
+    }
+
     public function successRate(): float
     {
         $sent = $this->logs()->where('status', 'sent')->count();
@@ -108,15 +113,15 @@ class Campaign extends Model
     public function openRate(): float
     {
         if ($this->sent_count === 0) return 0;
-        $uniqueOpens = $this->activities()->where('type', 'opened')->distinct('email_id')->count();
-        return round(($uniqueOpens / $this->sent_count) * 100, 1);
+        $uniqueOpens = $this->logs()->where('open_count', '>', 0)->count();
+        return round(($uniqueOpens / max(1, $this->sent_count)) * 100, 1);
     }
 
     public function clickRate(): float
     {
         if ($this->sent_count === 0) return 0;
-        $uniqueClicks = $this->activities()->where('type', 'clicked')->distinct('email_id')->count();
-        return round(($uniqueClicks / $this->sent_count) * 100, 1);
+        $uniqueClicks = $this->logs()->where('click_count', '>', 0)->count();
+        return round(($uniqueClicks / max(1, $this->sent_count)) * 100, 1);
     }
 
     public function bounceRate(): float

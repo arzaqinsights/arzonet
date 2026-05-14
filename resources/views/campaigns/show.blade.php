@@ -179,32 +179,53 @@
                         <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Recent Activity</h4>
                     </div>
                     <div class="p-0">
-                        @foreach($campaign->activities()->with('email')->latest()->take(10)->get() as $activity)
+                        @foreach($campaign->emailEvents()->with('emailLog')->whereIn('email_events.type', ['open', 'click'])->latest('email_events.created_at')->take(10)->get() as $activity)
                         <div class="p-4 border-b border-surface-50 last:border-0 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div @class([
                                     'w-8 h-8 rounded-md flex items-center justify-center text-xs',
-                                    'bg-indigo-50 text-indigo-600' => $activity->type === 'opened',
-                                    'bg-emerald-50 text-emerald-600' => $activity->type === 'clicked',
+                                    'bg-indigo-50 text-indigo-600' => $activity->type === 'open',
+                                    'bg-emerald-50 text-emerald-600' => $activity->type === 'click',
                                 ])>
-                                    @if($activity->type === 'opened')
+                                    @if($activity->type === 'open')
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     @else
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                                     @endif
                                 </div>
                                 <div>
-                                    <p class="text-xs font-bold text-surface-900">{{ $activity->email->email ?? 'Unknown' }}</p>
+                                    <p class="text-xs font-bold text-surface-900">{{ $activity->emailLog->email_address ?? 'Unknown' }}</p>
                                     <p class="text-[10px] text-surface-400 mt-0.5">{{ $activity->created_at->diffForHumans() }} from {{ $activity->ip_address ?? 'Global' }}</p>
                                 </div>
                             </div>
-                            @if($activity->type === 'clicked')
+                            @if($activity->type === 'click')
                             <span class="text-[9px] font-black px-2 py-0.5 bg-surface-50 text-surface-400 rounded-md border border-surface-100">CLICKED LINK</span>
                             @endif
                         </div>
                         @endforeach
                     </div>
                 </div>
+                {{-- Geographic Engagement Map & Chart Placeholder --}}
+                <div class="glass-card rounded-md">
+                    <div class="p-6 border-b border-surface-100 flex items-center justify-between">
+                        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Global Engagement (Locations)</h4>
+                    </div>
+                    <div class="p-6">
+                        <div id="location-chart" class="w-full h-[300px] flex items-center justify-center">
+                            <span class="text-xs font-black text-surface-400 uppercase tracking-widest animate-pulse" id="location-loading">Analyzing Global Nodes...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-md">
+                    <div class="p-6 border-b border-surface-100 flex items-center justify-between">
+                        <h4 class="text-xs font-black text-surface-900 uppercase tracking-widest">Engagement Overview</h4>
+                    </div>
+                    <div class="p-6">
+                        <div id="engagement-chart" class="w-full h-[300px]"></div>
+                    </div>
+                </div>
+
             </div>
 
             {{-- Sidebar Stats --}}
@@ -214,11 +235,11 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between text-xs">
                             <span class="text-surface-500 font-bold">Desktop</span>
-                            <span class="text-surface-900 font-black">-- %</span>
+                            <span class="text-surface-900 font-black">{{ $desktopPercent }}%</span>
                         </div>
                         <div class="flex items-center justify-between text-xs">
-                            <span class="text-surface-500 font-bold">Mobile</span>
-                            <span class="text-surface-900 font-black">-- %</span>
+                            <span class="text-surface-500 font-bold">Mobile/Tablet</span>
+                            <span class="text-surface-900 font-black">{{ $mobilePercent }}%</span>
                         </div>
                     </div>
                 </div>
@@ -240,44 +261,8 @@
         </div>
 
         {{-- Logs Tab --}}
-        <div x-show="tab === 'logs'" class="glass-card rounded-md overflow-hidden" x-transition>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th class="!pl-6">Recipient</th>
-                        <th>Status</th>
-                        <th>Message ID</th>
-                        <th class="text-right !pr-6">Sent At</th>
-                    </tr>
-                </thead>
-                <tbody id="logs-body">
-                    @forelse($recentLogs as $log)
-                    <tr>
-                        <td class="!pl-6">
-                            <span class="font-bold text-surface-900">{{ $log->email_address }}</span>
-                        </td>
-                        <td>
-                            <span @class([
-                                'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border',
-                                'bg-green-50 text-green-700 border-green-100' => $log->status === 'sent',
-                                'bg-amber-50 text-amber-700 border-amber-100' => $log->status === 'pending',
-                                'bg-red-50 text-red-700 border-red-100' => in_array($log->status, ['failed', 'bounced', 'complaint']),
-                            ])>
-                                {{ $log->status }}
-                            </span>
-                        </td>
-                        <td class="font-mono text-[10px] text-surface-400">{{ $log->message_id ?? 'N/A' }}</td>
-                        <td class="text-right !pr-6 text-surface-500 font-medium text-xs">
-                            {{ $log->sent_at ? $log->sent_at->format('H:i:s') : '—' }}
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="4" class="text-center py-12 text-surface-400 italic">No logs found.</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+        <div x-show="tab === 'logs'" class="glass-card rounded-md overflow-hidden" x-transition id="logs-container">
+            @include('campaigns.partials.logs_table', ['logs' => $logs])
         </div>
 
         {{-- Configuration Tab --}}
@@ -320,7 +305,159 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
+    // Initialize ApexCharts
+    document.addEventListener("DOMContentLoaded", function () {
+        var options = {
+            series: [{
+                name: 'Unique Opens',
+                data: [{{ $stats['unique_opens'] ?? 0 }}]
+            }, {
+                name: 'Total Clicks',
+                data: [{{ $stats['clicks'] ?? 0 }}]
+            }, {
+                name: 'Bounces',
+                data: [{{ $stats['bounces'] ?? 0 }}]
+            }],
+            chart: {
+                type: 'bar',
+                height: 300,
+                toolbar: { show: false },
+                fontFamily: 'inherit',
+                animations: {
+                    enabled: true,
+                    easing: 'easeinout',
+                    speed: 800,
+                    animateGradually: {
+                        enabled: true,
+                        delay: 150
+                    },
+                    dynamicAnimation: {
+                        enabled: true,
+                        speed: 350
+                    }
+                }
+            },
+            plotOptions: {
+                bar: {
+                    horizontal: false,
+                    columnWidth: '40%',
+                    borderRadius: 4
+                },
+            },
+            dataLabels: { enabled: false },
+            stroke: {
+                show: true,
+                width: 2,
+                colors: ['transparent']
+            },
+            xaxis: {
+                categories: ['Campaign Engagement'],
+                labels: { style: { cssClass: 'text-xs font-bold text-surface-500 uppercase' } }
+            },
+            yaxis: {
+                labels: { style: { cssClass: 'text-xs font-bold text-surface-500' } }
+            },
+            colors: ['#0284c7', '#4f46e5', '#f43f5e'],
+            fill: { opacity: 1 },
+            tooltip: {
+                y: {
+                    formatter: function (val) {
+                        return val + " contacts"
+                    }
+                }
+            },
+            grid: {
+                borderColor: '#f1f5f9',
+                strokeDashArray: 4,
+            }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#engagement-chart"), options);
+        chart.render();
+
+        // Location Chart Logic (Frontend IP to Geo)
+        const topIps = {!! json_encode($topIps ?? []) !!};
+        if (topIps.length > 0) {
+            let promises = topIps.map(item => 
+                fetch(`https://ipapi.co/${item.ip_address}/json/`)
+                    .then(res => res.json())
+                    .then(data => ({
+                        country: data.country_name ? data.country_name : 'Unknown',
+                        count: item.count
+                    }))
+                    .catch(() => ({ country: 'Unknown', count: item.count }))
+            );
+
+            Promise.all(promises).then(results => {
+                // Group by country
+                let countryMap = {};
+                results.forEach(r => {
+                    countryMap[r.country] = (countryMap[r.country] || 0) + r.count;
+                });
+
+                let labels = Object.keys(countryMap);
+                let series = Object.values(countryMap);
+
+                document.getElementById('location-loading').style.display = 'none';
+
+                var geoOptions = {
+                    series: series,
+                    labels: labels,
+                    chart: { type: 'donut', height: 300, fontFamily: 'inherit' },
+                    colors: ['#0ea5e9', '#10b981', '#6366f1', '#f43f5e', '#f59e0b'],
+                    dataLabels: { enabled: false },
+                    stroke: { width: 0 },
+                    plotOptions: {
+                        pie: {
+                            donut: {
+                                size: '70%',
+                                labels: {
+                                    show: true,
+                                    name: { fontSize: '10px', fontWeight: 800, color: '#64748b' },
+                                    value: { fontSize: '24px', fontWeight: 900, color: '#0f172a' }
+                                }
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'bottom',
+                        fontFamily: 'inherit',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        markers: { radius: 2 }
+                    }
+                };
+
+                new ApexCharts(document.querySelector("#location-chart"), geoOptions).render();
+            });
+        } else {
+            document.getElementById('location-loading').innerText = "No location data available.";
+        }
+    });
+
+    // AJAX Pagination for Logs Tab
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('.logs-pagination a');
+        if (link) {
+            e.preventDefault();
+            const url = link.href;
+            const container = document.getElementById('logs-container');
+            container.style.opacity = '0.5';
+            
+            fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                container.innerHTML = data.html;
+                container.style.opacity = '1';
+            })
+            .catch(() => container.style.opacity = '1');
+        }
+    });
+
     @if($campaign->status !== 'draft')
     // Auto-refresh stats: 5s for sending, 30s for completed (catches late open/click events)
     const pollMs = {{ $campaign->status === 'sending' ? 5000 : 30000 }};

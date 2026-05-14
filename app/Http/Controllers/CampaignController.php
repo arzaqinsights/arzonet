@@ -106,39 +106,84 @@ class CampaignController extends Controller
         ]);
     }
 
-    public function show(Campaign $campaign, CampaignService $campaignService, CostEstimationService $costService)
+    public function show(Request $request, Campaign $campaign, CampaignService $campaignService, CostEstimationService $costService)
     {
-        $campaign->load(['emailList', 'template']);
+        $campaign->load(['emailList', 'template', 'sender']);
         $stats = $campaignService->getStats($campaign);
         $estimatedCost = $costService->campaignCost($campaign->total_recipients);
 
+        // Top clicked links
+        $topLinks = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+                $q->where('campaign_id', $campaign->id);
+            })
+            ->where('type', 'click')
+            ->whereNotNull('url')
+            ->select('url')
+            ->selectRaw('count(*) as count')
+            ->groupBy('url')
+            ->orderByDesc('count')
+            ->take(5)
+            ->get();
+
+        // Device Analytics (User Agent parsing)
+        $deviceStats = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+                $q->where('campaign_id', $campaign->id);
+            })
+            ->whereIn('type', ['open', 'click'])
+            ->selectRaw("
+                SUM(CASE WHEN LOWER(user_agent) LIKE '%mobile%' OR LOWER(user_agent) LIKE '%android%' OR LOWER(user_agent) LIKE '%iphone%' THEN 1 ELSE 0 END) as mobile_count,
+                SUM(CASE WHEN LOWER(user_agent) NOT LIKE '%mobile%' AND LOWER(user_agent) NOT LIKE '%android%' AND LOWER(user_agent) NOT LIKE '%iphone%' THEN 1 ELSE 0 END) as desktop_count
+            ")
+            ->first();
+
+        $totalDevices = ($deviceStats->mobile_count ?? 0) + ($deviceStats->desktop_count ?? 0);
+        $desktopPercent = $totalDevices > 0 ? round((($deviceStats->desktop_count ?? 0) / $totalDevices) * 100, 1) : 0;
+        $mobilePercent = $totalDevices > 0 ? round((($deviceStats->mobile_count ?? 0) / $totalDevices) * 100, 1) : 0;
+
+        // Top IPs for GeoLocation
+        $topIps = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+                $q->where('campaign_id', $campaign->id);
+            })
+            ->whereNotNull('ip_address')
+            ->select('ip_address')
+            ->selectRaw('count(*) as count')
+            ->groupBy('ip_address')
+            ->orderByDesc('count')
+            ->take(5)
+            ->get();
+
         // If draft, show expected recipients. If sending/completed, show logs.
         if ($campaign->status === 'draft') {
-            $recentLogs = $campaign->emailList->emails()
+            $logs = $campaign->emailList->emails()
                 ->valid()
                 ->subscribed()
                 ->latest()
-                ->take(20)
-                ->get()
-                ->map(function($email) {
-                    // Map Email model to look like an EmailLog for the view
+                ->paginate(50)
+                ->through(function($email) {
                     return (object) [
                         'email' => $email,
                         'email_address' => $email->email,
                         'status' => 'pending',
                         'error_message' => 'Waiting for launch...',
+                        'message_id' => null,
                         'sent_at' => null,
                         'created_at' => null
                     ];
                 });
         } else {
-            $recentLogs = $campaign->logs()
+            $logs = $campaign->logs()
                 ->latest()
-                ->take(20)
-                ->get();
+                ->paginate(50);
         }
 
-        return view('campaigns.show', compact('campaign', 'stats', 'estimatedCost', 'recentLogs'));
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('campaigns.partials.logs_table', compact('logs'))->render(),
+                'pagination' => (string) $logs->links()
+            ]);
+        }
+
+        return view('campaigns.show', compact('campaign', 'stats', 'estimatedCost', 'logs', 'topLinks', 'topIps', 'desktopPercent', 'mobilePercent'));
     }
 
     public function send(Campaign $campaign, CampaignService $campaignService)
@@ -200,10 +245,10 @@ class CampaignController extends Controller
             'sent'          => $campaign->sent_count,
             'delivered'     => $campaign->logs()->whereIn('status', ['delivered', 'sent'])->count(),
             'failed'        => $campaign->failed_count,
-            'opens'         => $campaign->activities()->where('type', 'open')->count(),
-            'unique_opens'  => $campaign->activities()->where('type', 'open')->distinct('email_log_id')->count(),
-            'clicks'        => $campaign->activities()->where('type', 'click')->count(),
-            'unique_clicks' => $campaign->activities()->where('type', 'click')->distinct('email_log_id')->count(),
+            'opens'         => $campaign->logs()->sum('open_count'),
+            'unique_opens'  => $campaign->logs()->where('open_count', '>', 0)->count(),
+            'clicks'        => $campaign->logs()->sum('click_count'),
+            'unique_clicks' => $campaign->logs()->where('click_count', '>', 0)->count(),
             'unsubscribes'  => $campaign->unsubscribes()->count(),
             'bounces'       => $campaign->logs()->where('status', 'bounced')->count(),
             'spam_reports'  => $campaign->logs()->whereIn('status', ['complaint', 'spamreport'])->count(),
@@ -226,8 +271,11 @@ class CampaignController extends Controller
             ->get();
 
         // Top clicked links
-        $topLinks = $campaign->activities()
-            ->where('type', 'clicked')
+        $topLinks = \App\Models\EmailEvent::whereHas('emailLog', function($q) use ($campaign) {
+                $q->where('campaign_id', $campaign->id);
+            })
+            ->where('type', 'click')
+            ->whereNotNull('url')
             ->select('url')
             ->selectRaw('count(*) as count')
             ->groupBy('url')
@@ -275,8 +323,10 @@ class CampaignController extends Controller
 
     public function checkStatus(Campaign $campaign)
     {
-        $openCount = $campaign->logs()->where('open_count', '>', 0)->count();
-        $clickCount = $campaign->logs()->where('click_count', '>', 0)->count();
+        $uniqueOpens = $campaign->logs()->where('open_count', '>', 0)->count();
+        $uniqueClicks = $campaign->logs()->where('click_count', '>', 0)->count();
+        $totalOpens = $campaign->logs()->sum('open_count');
+        $totalClicks = $campaign->logs()->sum('click_count');
         $delivered = max(1, $campaign->sent_count);
 
         return response()->json([
@@ -285,10 +335,10 @@ class CampaignController extends Controller
             'failed_count' => $campaign->failed_count,
             'bounce_count' => $campaign->bounce_count,
             'unsubscribe_count' => $campaign->unsubscribes()->count(),
-            'open_count'   => $openCount,
-            'click_count'  => $clickCount,
-            'open_rate'    => round(($openCount / $delivered) * 100, 1),
-            'click_rate'   => round(($clickCount / $delivered) * 100, 1),
+            'open_count'   => $totalOpens,
+            'click_count'  => $totalClicks,
+            'open_rate'    => round(($uniqueOpens / $delivered) * 100, 1),
+            'click_rate'   => round(($uniqueClicks / $delivered) * 100, 1),
             'total'        => $campaign->total_recipients,
             'progress'     => $campaign->progress(),
             'speed'        => $campaign->currentSpeed(),
