@@ -2,7 +2,10 @@
 @section('title', 'Create Template')
 
 @section('heading')
-    <input type="text" id="template-name" value="Template - {{ now()->format('M d, Y h:i A') }}" class="bg-transparent border-0 text-lg font-black uppercase p-0 m-0 focus:ring-0 w-full min-w-[400px] text-surface-900" placeholder="TEMPLATE NAME">
+    <div class="flex items-center gap-2 group cursor-pointer">
+        <input type="text" id="template-name" value="Template - {{ now()->format('M d, Y h:i A') }}" class="bg-transparent border-0 text-lg font-black uppercase p-0 m-0 focus:ring-0 w-full min-w-[400px] text-surface-900 group-hover:text-brand transition-colors" placeholder="TEMPLATE NAME">
+        <svg class="w-4 h-4 text-surface-300 group-hover:text-brand opacity-0 group-hover:opacity-100 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+    </div>
 @endsection
 
 @section('header-actions')
@@ -37,105 +40,107 @@
 </div>
 
 <script>
-    unlayer.registerPropertyEditor({
-      name: 'my_file_uploader',
-      Widget: unlayer.createWidget({
-        render(value, updateValue, data) {
-          return `
-            <div style="text-align:center;">
-              <button type="button" onclick="document.getElementById('my_file_input').click()" style="background:#10b981; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Upload File (PDF/Docs)</button>
-              <input type="file" id="my_file_input" style="display:none;" onchange="window.uploadPdfForUnlayer(this)">
-              <div style="font-size:11px; margin-top:8px; word-break:break-all; color:#4b5563;" id="my_file_url">${value ? 'Link: ' + value : 'No file uploaded yet.'}</div>
-            </div>
-          `;
-        },
-        mount(node, value, updateValue, data) {
-          window.unlayerUpdateValue = updateValue;
-        }
-      })
-    });
-
     window.uploadPdfForUnlayer = function(input) {
         let file = input.files[0];
         if (!file) return;
-        document.getElementById('my_file_url').innerText = 'Uploading...';
+        let infoDiv = document.getElementById('my_file_url');
+        if(infoDiv) infoDiv.innerText = 'Uploading...';
+
         let formData = new FormData();
         formData.append('file', file);
         formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+        
         fetch('{{ route("admin.media.upload") }}', { method: 'POST', body: formData })
         .then(r => r.json()).then(res => {
             if(res.success) {
-                window.unlayerUpdateValue(res.url);
-                document.getElementById('my_file_url').innerText = 'Link: ' + res.url;
+                if(window.unlayerUpdateValue) window.unlayerUpdateValue(res.url);
+                if(infoDiv) infoDiv.innerText = 'Link: ' + res.url;
             } else {
                 alert('Upload failed: ' + res.message);
-                document.getElementById('my_file_url').innerText = 'Upload failed';
+                if(infoDiv) infoDiv.innerText = 'Upload failed';
             }
         }).catch(e => {
             console.error(e);
             alert('Upload error.');
-            document.getElementById('my_file_url').innerText = 'Upload error';
+            if(infoDiv) infoDiv.innerText = 'Upload error';
         });
     };
 
-    unlayer.registerTool({
-      name: 'custom_file',
-      label: 'File / PDF',
-      icon: 'fa-paperclip',
-      supportedDisplayModes: ['web', 'email'],
-      options: {
-        buttonColors: {
-          title: "Button Style",
-          position: 1,
-          options: {
-            backgroundColor: {
-              label: "Background Color",
-              defaultValue: "#10b981",
-              widget: "color_picker"
-            },
-            textColor: {
-              label: "Text Color",
-              defaultValue: "#ffffff",
-              widget: "color_picker"
-            }
-          }
-        },
-        fileData: {
-          title: "File Attachment",
-          position: 2,
-          options: {
-            buttonText: {
-              label: "Button Text",
-              defaultValue: "Download File",
-              widget: "text"
-            },
-            fileUrl: {
-              label: "Upload your file",
-              defaultValue: "",
-              widget: "my_file_uploader"
-            }
-          }
-        }
-      },
-      values: {},
-      renderer: {
-        Viewer: unlayer.createViewer({
-          render(values) {
-            return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`;
-          }
-        }),
-        exporters: {
-          web: function(values) { return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`; },
-          email: function(values) { return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`; }
-        },
-        head: { css: function() {}, js: function() {} }
-      }
-    });
-
     document.addEventListener('DOMContentLoaded', () => {
+        unlayer.registerPropertyEditor({
+          name: 'my_file_uploader',
+          Widget: unlayer.createWidget({
+            render(value, updateValue, data) {
+              return `
+                <div style="text-align:center;">
+                  <button type="button" onclick="document.getElementById('my_file_input').click()" style="background:#10b981; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Upload File (PDF/Docs)</button>
+                  <input type="file" id="my_file_input" style="display:none;" onchange="window.uploadPdfForUnlayer(this)">
+                  <div style="font-size:11px; margin-top:8px; word-break:break-all; color:#4b5563;" id="my_file_url">${value ? 'Link: ' + value : 'No file uploaded yet.'}</div>
+                </div>
+              `;
+            },
+            mount(node, value, updateValue, data) {
+              window.unlayerUpdateValue = updateValue;
+            }
+          })
+        });
+
+        unlayer.registerTool({
+          name: 'custom_file',
+          label: 'File / PDF',
+          icon: 'fa-paperclip',
+          supportedDisplayModes: ['web', 'email'],
+          options: {
+            buttonColors: {
+              title: "Button Style",
+              position: 1,
+              options: {
+                backgroundColor: {
+                  label: "Background Color",
+                  defaultValue: "#10b981",
+                  widget: "color_picker"
+                },
+                textColor: {
+                  label: "Text Color",
+                  defaultValue: "#ffffff",
+                  widget: "color_picker"
+                }
+              }
+            },
+            fileData: {
+              title: "File Attachment",
+              position: 2,
+              options: {
+                buttonText: {
+                  label: "Button Text",
+                  defaultValue: "Download File",
+                  widget: "text"
+                },
+                fileUrl: {
+                  label: "Upload your file",
+                  defaultValue: "",
+                  widget: "my_file_uploader"
+                }
+              }
+            }
+          },
+          values: {},
+          renderer: {
+            Viewer: unlayer.createViewer({
+              render(values) {
+                return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`;
+              }
+            }),
+            exporters: {
+              web: function(values) { return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`; },
+              email: function(values) { return `<div style="text-align: center; padding: 10px;"><a href="${values.fileUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${values.backgroundColor}; color: ${values.textColor}; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-weight: bold;">📎 ${values.buttonText}</a></div>`; }
+            },
+            head: { css: function() {}, js: function() {} }
+          }
+        });
+
         unlayer.init({
             id: 'unlayer-editor',
-            projectId: 1,
             displayMode: 'email',
             appearance: { 
                 theme: 'light',

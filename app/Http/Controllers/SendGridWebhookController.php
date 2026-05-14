@@ -44,11 +44,15 @@ class SendGridWebhookController extends Controller
 
             switch ($type) {
                 case 'processed':
-                    $log->update(['status' => 'processed']);
+                    if (in_array($log->status, ['pending', 'sent'])) {
+                        $log->update(['status' => 'processed']);
+                    }
                     break;
 
                 case 'delivered':
-                    $log->update(['status' => 'delivered', 'delivered_at' => now(), 'error_message' => null]);
+                    if (in_array($log->status, ['pending', 'sent', 'processed'])) {
+                        $log->update(['status' => 'delivered', 'delivered_at' => now(), 'error_message' => null]);
+                    }
                     break;
 
                 case 'open':
