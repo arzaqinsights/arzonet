@@ -199,31 +199,20 @@
 
             unlayer.addEventListener('editor:ready', () => {
                 console.log('Editor is ready!');
-                @if($template->json_design)
-                    try {
-                        const designData = {!! json_encode($template->json_design) !!};
-                        let design = null;
-                        
-                        if (typeof designData === 'string' && designData.trim() !== '') {
-                            design = JSON.parse(designData);
-                        } else if (designData && typeof designData === 'object') {
-                            design = designData;
-                        }
-                        
+                try {
+                    @if($template->json_design)
+                        // Safely pass the JSON from PHP to a JS object
+                        const design = {!! json_encode(json_decode($template->json_design) ?: []) !!};
                         if (design && Object.keys(design).length > 0) {
-                            console.log('Attempting to load design...');
-                            // Small delay ensures the internal editor state is fully ready
-                            setTimeout(() => {
-                                unlayer.loadDesign(design);
-                                console.log('Design loaded into Unlayer');
-                            }, 300);
+                            unlayer.loadDesign(design);
+                            console.log('Design loaded successfully');
                         } else {
-                            console.log('No valid design data found to load');
+                            console.log('Design data was empty or invalid');
                         }
-                    } catch(e) {
-                        console.error('Error in editor:ready design loading:', e);
-                    }
-                @endif
+                    @endif
+                } catch(e) {
+                    console.error('Critical error loading design:', e);
+                }
                 
                 hideLoader();
             });
