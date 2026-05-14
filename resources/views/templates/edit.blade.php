@@ -230,23 +230,27 @@
         try {
             console.log('Starting Save Process...');
             
-            // GrapesJS MJML to HTML
-            let html = '';
-            let mjml = '';
-            
             try {
-                const code = editor.runCommand('mjml-get-code');
-                if (code) {
-                    html = code.html || '';
-                    mjml = code.mjml || editor.getHtml();
+                // GrapesJS MJML to HTML compilation
+                const result = editor.runCommand('mjml-get-code');
+                if (result && result.html) {
+                    html = result.html;
+                    mjml = result.mjml || editor.getHtml();
                 } else {
+                    // Alternative way to get code if the command result is different
                     mjml = editor.getHtml();
-                    html = mjml; 
+                    // If we can't compile to HTML, we try to at least get what's in the canvas
+                    html = editor.getHtml(); 
+                    console.warn('MJML compilation returned no HTML, using canvas HTML.');
                 }
             } catch (cmdErr) {
                 console.error('MJML Command Error:', cmdErr);
                 mjml = editor.getHtml();
                 html = mjml;
+            }
+
+            if (!html || html === mjml) {
+                console.error('Failed to generate valid HTML from MJML.');
             }
 
             console.log('Data captured, submitting form...');

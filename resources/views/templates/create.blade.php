@@ -191,18 +191,19 @@
         try {
             console.log('Starting Save Process...');
             
-            // GrapesJS MJML to HTML
             let html = '';
             let mjml = '';
-            
+
             try {
-                const code = editor.runCommand('mjml-get-code');
-                if (code) {
-                    html = code.html || '';
-                    mjml = code.mjml || editor.getHtml();
+                // GrapesJS MJML to HTML compilation
+                const result = editor.runCommand('mjml-get-code');
+                if (result && result.html) {
+                    html = result.html;
+                    mjml = result.mjml || editor.getHtml();
                 } else {
                     mjml = editor.getHtml();
-                    html = mjml; // Fallback to MJML if compilation fails
+                    html = mjml; 
+                    console.warn('MJML compilation returned no HTML');
                 }
             } catch (cmdErr) {
                 console.error('MJML Command Error:', cmdErr);
