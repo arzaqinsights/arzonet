@@ -129,10 +129,21 @@ class WhatsAppConversationController extends Controller
                 throw new \Exception($response['error']['message'] ?? 'Meta did not return a message ID.');
             }
 
+            // Find or create a default "WhatsApp Contacts" list for this user
+            $list = \App\Models\EmailList::firstOrCreate(
+                ['user_id' => Auth::id(), 'name' => 'WhatsApp Contacts'],
+                ['description' => 'Automatically created list for WhatsApp conversations']
+            );
+
             // Find or create contact
             $contact = Contact::firstOrCreate(
                 ['user_id' => Auth::id(), 'whatsapp_number' => $to],
-                ['email' => $to . '@whatsapp.com', 'name' => $to, 'subscription_status' => 'subscribed']
+                [
+                    'email_list_id' => $list->id,
+                    'email' => $to . '@whatsapp.com', 
+                    'name' => $to, 
+                    'subscription_status' => 'subscribed'
+                ]
             );
 
             DB::transaction(function () use ($account, $contact, $waId, $template) {
