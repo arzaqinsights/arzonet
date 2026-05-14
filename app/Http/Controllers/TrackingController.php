@@ -73,9 +73,21 @@ class TrackingController extends Controller
                 'unsubscribed_at' => now()
             ]);
 
-            ProcessTrackingEventJob::dispatch($log->id, 'unsubscribe', [
-                'ip' => $request->ip(),
-                'ua' => $request->userAgent(),
+            // Record unsubscribe for campaign analytics
+            \App\Models\Unsubscribe::firstOrCreate([
+                'email' => $log->email->email,
+                'campaign_id' => $log->campaign_id,
+            ], [
+                'unsubscribed_at' => now()
+            ]);
+
+            // Log event for granular analytics
+            \App\Models\EmailEvent::create([
+                'email_log_id' => $log->id,
+                'type' => 'unsubscribe',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now()
             ]);
 
             return view('auth.unsubscribe-success');

@@ -158,7 +158,7 @@
                 @forelse($topLinks as $link)
                 <div class="space-y-2">
                     <div class="flex items-center justify-between text-xs font-bold">
-                        <span class="text-surface-600 truncate max-w-[250px]">{{ $link->url }}</span>
+                        <span class="text-surface-600 truncate max-w-[250px]" title="{{ $link->url }}">{{ str_starts_with($link->url, 'http') ? $link->url : 'https://' . $link->url }}</span>
                         <span class="text-primary-600">{{ $link->count }} clicks</span>
                     </div>
                     <div class="w-full h-2 bg-surface-50 rounded-md overflow-hidden border border-surface-100">
