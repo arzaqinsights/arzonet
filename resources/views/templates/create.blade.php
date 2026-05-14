@@ -188,15 +188,14 @@
         saveBtn.disabled = true;
         saveBtn.innerHTML = 'Creating...';
 
-        const html = editor.runCommand('mjml-get-code').html;
-        const json = {
-            components: editor.getComponents(),
-            styles: editor.getStyle()
-        };
+        // GrapesJS MJML to HTML
+        const code = editor.runCommand('mjml-get-code');
+        const html = code.html;
+        const mjml = code.mjml;
 
         document.getElementById('hidden-name').value = name;
         document.getElementById('html-content').value = html;
-        document.getElementById('json-design').value = JSON.stringify(json);
+        document.getElementById('json-design').value = mjml; // Store raw MJML string
 
         document.getElementById('template-form').submit();
     }

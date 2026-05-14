@@ -145,13 +145,12 @@
         // Load existing design if available
         @if($template->json_design)
             try {
-                const design = {!! $template->json_design !!};
-                if (design && design.components) {
-                    editor.setComponents(design.components);
-                    if (design.styles) editor.setStyle(design.styles);
+                const mjmlCode = {!! json_encode($template->json_design) !!};
+                if (mjmlCode) {
+                    editor.setComponents(mjmlCode);
                 }
             } catch (e) {
-                console.warn('Could not load legacy design format. Starting fresh.', e);
+                console.error('Error loading design:', e);
             }
         @else
             // Set a default MJML starting point
@@ -226,18 +225,16 @@
 
         const saveBtn = document.getElementById('save-btn');
         saveBtn.disabled = true;
-        saveBtn.innerHTML = 'Synchronizing...';
+        saveBtn.innerHTML = 'Saving...';
 
         // GrapesJS MJML to HTML
-        const html = editor.runCommand('mjml-get-code').html;
-        const json = {
-            components: editor.getComponents(),
-            styles: editor.getStyle()
-        };
+        const code = editor.runCommand('mjml-get-code');
+        const html = code.html;
+        const mjml = code.mjml;
 
         document.getElementById('hidden-name').value = name;
         document.getElementById('html-content').value = html;
-        document.getElementById('json-design').value = JSON.stringify(json);
+        document.getElementById('json-design').value = mjml; // Store raw MJML string
 
         document.getElementById('template-form').submit();
     }
