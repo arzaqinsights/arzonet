@@ -88,11 +88,22 @@
 
 @section('content')
 <div class="space-y-6 animate-fade-in">
-    <div id="gjs" style="height: 800px; width:100%;">
+    {{-- Variables Helper Bar --}}
+    <div class="bg-surface-50 border-b border-surface-200 p-2 flex items-center gap-3 overflow-x-auto no-scrollbar">
+        <span class="text-[10px] font-black uppercase text-surface-400 whitespace-nowrap border-r border-surface-200 pr-3">Merge Tags</span>
+        @foreach(['full_name', 'first_name', 'last_name', 'email', 'company', 'job_title', 'city', 'unsubscribe_url'] as $tag)
+            <button type="button" onclick="navigator.clipboard.writeText('{{ '{{ ' . $tag . ' }}' }}'); alert('Copied: {{ '{{ ' . $tag . ' }}' }}')" 
+                class="px-2 py-1 bg-white border border-surface-200 rounded text-[10px] font-bold text-surface-600 hover:border-brand hover:text-brand transition-all whitespace-nowrap">
+                {{ '{{ ' . $tag . ' }}' }}
+            </button>
+        @endforeach
+    </div>
+
+    <div id="gjs" style="height: 750px; width:100%;">
         {{-- Skeleton Loader --}}
         <div id="editor-loader" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4 transition-opacity duration-500">
             <div class="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-xs font-black uppercase tracking-widest text-surface-900">Arzonet Pro Editor</p>
+            <p class="text-[10px] font-bold text-surface-400 uppercase tracking-widest mt-1">Synchronizing Pro Editor Assets...</p>
         </div>
     </div>
 
@@ -160,6 +171,41 @@
                 </mj-body>
             </mjml>`);
         @endif
+
+        // Add Merge Tags Blocks
+        editor.BlockManager.add('var-fullname', {
+            label: 'Full Name',
+            category: 'Personalization',
+            content: '<span>@{{ full_name }}</span>',
+            attributes: { class: 'fa fa-user' }
+        });
+        editor.BlockManager.add('var-firstname', {
+            label: 'First Name',
+            category: 'Personalization',
+            content: '<span>@{{ first_name }}</span>',
+        });
+        editor.BlockManager.add('var-company', {
+            label: 'Company',
+            category: 'Personalization',
+            content: '<span>@{{ company }}</span>',
+            attributes: { class: 'fa fa-building' }
+        });
+        editor.BlockManager.add('var-job', {
+            label: 'Job Title',
+            category: 'Personalization',
+            content: '<span>@{{ job_title }}</span>',
+        });
+        editor.BlockManager.add('var-email', {
+            label: 'Email Address',
+            category: 'Personalization',
+            content: '<span>@{{ email }}</span>',
+        });
+        editor.BlockManager.add('var-unsubscribe', {
+            label: 'Unsubscribe Link',
+            category: 'Personalization',
+            content: '<a href="@{{ unsubscribe_url }}">Unsubscribe here</a>',
+            attributes: { class: 'fa fa-sign-out' }
+        });
 
         editor.on('load', () => {
             const loader = document.getElementById('editor-loader');
