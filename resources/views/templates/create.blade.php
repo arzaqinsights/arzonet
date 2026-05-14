@@ -120,34 +120,34 @@
         editor.BlockManager.add('var-fullname', {
             label: 'Full Name',
             category: 'Personalization',
-            content: '<span>{{ '{{ full_name }}' }}</span>',
+            content: '<span>@{{ full_name }}</span>',
             attributes: { class: 'fa fa-user' }
         });
         editor.BlockManager.add('var-firstname', {
             label: 'First Name',
             category: 'Personalization',
-            content: '<span>{{ '{{ first_name }}' }}</span>',
+            content: '<span>@{{ first_name }}</span>',
         });
         editor.BlockManager.add('var-company', {
             label: 'Company',
             category: 'Personalization',
-            content: '<span>{{ '{{ company }}' }}</span>',
+            content: '<span>@{{ company }}</span>',
             attributes: { class: 'fa fa-building' }
         });
         editor.BlockManager.add('var-job', {
             label: 'Job Title',
             category: 'Personalization',
-            content: '<span>{{ '{{ job_title }}' }}</span>',
+            content: '<span>@{{ job_title }}</span>',
         });
         editor.BlockManager.add('var-email', {
             label: 'Email Address',
             category: 'Personalization',
-            content: '<span>{{ '{{ email }}' }}</span>',
+            content: '<span>@{{ email }}</span>',
         });
         editor.BlockManager.add('var-unsubscribe', {
             label: 'Unsubscribe Link',
             category: 'Personalization',
-            content: '<a href="{{ '{{ unsubscribe_url }}' }}">Unsubscribe here</a>',
+            content: '<a href="@{{ unsubscribe_url }}">Unsubscribe here</a>',
             attributes: { class: 'fa fa-sign-out' }
         });
 
