@@ -70,14 +70,18 @@ class SendEmailBatchJob implements ShouldQueue
             ->get()
             ->keyBy('email_id');
 
-        $safeRate = $quotaManager->getSafeRate();
-        $campaignRate = (float) ($campaign->emails_per_minute / 60.0);
-        $effectiveRate = min($safeRate, $campaignRate);
-
         $senders = $campaign->sender ? collect([$campaign->sender]) : \App\Models\Sender::where('status', 'verified')->get();
         if ($senders->isEmpty()) {
             $campaign->update(['status' => 'cancelled', 'error_message' => "No verified senders available."]);
             return;
+        }
+
+        $providerType = $senders->first()->type ?? 'ses';
+
+        if ($providerType === 'ses') {
+            $safeRate = $quotaManager->getSafeRate();
+            $campaignRate = (float) ($campaign->emails_per_minute / 60.0);
+            $effectiveRate = min($safeRate, $campaignRate);
         }
 
         $senderIndex = 0;
@@ -95,8 +99,8 @@ class SendEmailBatchJob implements ShouldQueue
 
             if (!$email || !$log || $log->status === 'sent') continue;
 
-            // ── 3. Distributed Throttling ──
-            if (!$quotaManager->throttle('ses_global_limit', $effectiveRate)) {
+            // ── 3. Distributed Throttling (SES ONLY) ──
+            if ($providerType === 'ses' && !$quotaManager->throttle('ses_global_limit', $effectiveRate)) {
                 $this->saveBatchResults($results, $campaign, $usageTracker);
                 
                 // Re-dispatch remaining emails instead of releasing the whole job
@@ -147,7 +151,7 @@ class SendEmailBatchJob implements ShouldQueue
 
                 // ── CENTRALIZED GLOBAL RATE LIMITER (Non-Blocking) ──
                 $limitKey = "sender_rate_limit:{$currentSender->id}";
-                $maxPerMinute = $currentSender->emails_per_minute ?: 60;
+                $maxPerMinute = $currentSender->emails_per_minute ?: ($providerType === 'sendgrid' ? 3000 : 60);
                 
                 if (!\Illuminate\Support\Facades\RateLimiter::attempt($limitKey, $maxPerMinute, function() {}, 60)) {
                     $this->saveBatchResults($results, $campaign, $usageTracker);
