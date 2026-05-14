@@ -48,7 +48,7 @@ class MailService
 
         // 2. SendGrid (API Based)
         if ($sender->type === 'sendgrid') {
-            return $this->sendViaSendGrid($sender, $to, $subject, $html, $headers);
+            return $this->sendViaSendGrid($sender, $to, $subject, $html, $headers, $logId);
         }
 
         // 3. SMTP (Standard)
@@ -77,7 +77,7 @@ class MailService
         }
     }
 
-    protected function sendViaSendGrid(Sender $sender, string $to, string $subject, string $html, array $headers): ?string
+    protected function sendViaSendGrid(Sender $sender, string $to, string $subject, string $html, array $headers, ?int $logId = null): ?string
     {
         $apiKey = $sender->sendgrid_api_key ?: config('services.sendgrid.key');
         
