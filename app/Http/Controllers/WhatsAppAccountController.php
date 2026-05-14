@@ -8,8 +8,12 @@ use App\Services\WhatsApp\MetaEmbeddedSignupService;
 use Illuminate\Support\Facades\Auth;
 use Exception;
 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
 class WhatsAppAccountController extends Controller
 {
+    use AuthorizesRequests;
+
     protected MetaEmbeddedSignupService $signupService;
 
     public function __construct(MetaEmbeddedSignupService $signupService)
