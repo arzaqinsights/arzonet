@@ -12,9 +12,11 @@ use App\Services\WhatsApp\MetaApiService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class WhatsAppConversationController extends Controller
 {
+    use AuthorizesRequests;
     public function index()
     {
         $conversations = WhatsAppConversation::with(['contact', 'whatsappAccount', 'agent'])
