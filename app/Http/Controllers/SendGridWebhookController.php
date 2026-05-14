@@ -59,11 +59,19 @@ class SendGridWebhookController extends Controller
                     }
 
                     $log->increment('open_count');
+                    
+                    $updateData = ['last_open_at' => now()];
                     if (!$log->first_open_at) {
-                        $log->update(['first_open_at' => now(), 'last_open_at' => now()]);
-                    } else {
-                        $log->update(['last_open_at' => now()]);
+                        $updateData['first_open_at'] = now();
                     }
+                    
+                    // Auto-promote to delivered if it's currently processed/sent
+                    if (in_array($log->status, ['sent', 'processed', 'pending'])) {
+                        $updateData['status'] = 'delivered';
+                        $updateData['delivered_at'] = $log->delivered_at ?? now();
+                    }
+                    
+                    $log->update($updateData);
 
                     // Log event for activity feed
                     EmailEvent::create([
@@ -86,8 +94,20 @@ class SendGridWebhookController extends Controller
                     }
 
                     $log->increment('click_count');
+                    
+                    $updateData = [];
                     if (!$log->clicked_at) {
-                        $log->update(['clicked_at' => now()]);
+                        $updateData['clicked_at'] = now();
+                    }
+
+                    // Auto-promote to delivered if it's currently processed/sent
+                    if (in_array($log->status, ['sent', 'processed', 'pending'])) {
+                        $updateData['status'] = 'delivered';
+                        $updateData['delivered_at'] = $log->delivered_at ?? now();
+                    }
+
+                    if (!empty($updateData)) {
+                        $log->update($updateData);
                     }
 
                     EmailEvent::create([
