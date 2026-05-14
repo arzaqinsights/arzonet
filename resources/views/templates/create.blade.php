@@ -195,18 +195,33 @@
             let mjml = '';
 
             try {
-                // GrapesJS MJML to HTML compilation
+                console.log('Attempting MJML compilation (Method 1)...');
                 const result = editor.runCommand('mjml-get-code');
                 if (result && result.html) {
                     html = result.html;
                     mjml = result.mjml || editor.getHtml();
+                    console.log('Method 1 Success');
                 } else {
+                    console.log('Attempting MJML compilation (Method 2)...');
+                    html = editor.runCommand('gjs-get-inlined-html');
                     mjml = editor.getHtml();
-                    html = mjml; 
-                    console.warn('MJML compilation returned no HTML');
+                    if (html && html.includes('<table')) {
+                        console.log('Method 2 Success');
+                    } else {
+                        console.log('Attempting MJML compilation (Method 3)...');
+                        const res3 = editor.runCommand('mjml-code-to-html');
+                        html = res3 ? res3.html : '';
+                        if (html) console.log('Method 3 Success');
+                    }
                 }
             } catch (cmdErr) {
-                console.error('MJML Command Error:', cmdErr);
+                console.error('MJML Compilation Failed:', cmdErr);
+                mjml = editor.getHtml();
+                html = mjml;
+            }
+
+            // Final fallback
+            if (!html || html === mjml) {
                 mjml = editor.getHtml();
                 html = mjml;
             }

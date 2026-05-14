@@ -231,26 +231,38 @@
             console.log('Starting Save Process...');
             
             try {
-                // GrapesJS MJML to HTML compilation
+                console.log('Attempting MJML compilation (Method 1)...');
                 const result = editor.runCommand('mjml-get-code');
                 if (result && result.html) {
                     html = result.html;
                     mjml = result.mjml || editor.getHtml();
+                    console.log('Method 1 Success');
                 } else {
-                    // Alternative way to get code if the command result is different
+                    console.log('Attempting MJML compilation (Method 2)...');
+                    // Fallback to inlined HTML command
+                    html = editor.runCommand('gjs-get-inlined-html');
                     mjml = editor.getHtml();
-                    // If we can't compile to HTML, we try to at least get what's in the canvas
-                    html = editor.getHtml(); 
-                    console.warn('MJML compilation returned no HTML, using canvas HTML.');
+                    if (html && html.includes('<table')) {
+                        console.log('Method 2 Success');
+                    } else {
+                        console.log('Attempting MJML compilation (Method 3)...');
+                        // Some versions use mjml-code-to-html
+                        const res3 = editor.runCommand('mjml-code-to-html');
+                        html = res3 ? res3.html : '';
+                        if (html) console.log('Method 3 Success');
+                    }
                 }
             } catch (cmdErr) {
-                console.error('MJML Command Error:', cmdErr);
+                console.error('MJML Compilation Failed:', cmdErr);
                 mjml = editor.getHtml();
                 html = mjml;
             }
 
+            // Final fallback if all else fails but we have MJML
             if (!html || html === mjml) {
-                console.error('Failed to generate valid HTML from MJML.');
+                mjml = editor.getHtml();
+                html = mjml;
+                console.error('All compilation methods failed. Saving MJML as HTML fallback.');
             }
 
             console.log('Data captured, submitting form...');
