@@ -227,16 +227,40 @@
         saveBtn.disabled = true;
         saveBtn.innerHTML = 'Saving...';
 
-        // GrapesJS MJML to HTML
-        const code = editor.runCommand('mjml-get-code');
-        const html = code.html;
-        const mjml = code.mjml;
+        try {
+            console.log('Starting Save Process...');
+            
+            // GrapesJS MJML to HTML
+            let html = '';
+            let mjml = '';
+            
+            try {
+                const code = editor.runCommand('mjml-get-code');
+                if (code) {
+                    html = code.html || '';
+                    mjml = code.mjml || editor.getHtml();
+                } else {
+                    mjml = editor.getHtml();
+                    html = mjml; 
+                }
+            } catch (cmdErr) {
+                console.error('MJML Command Error:', cmdErr);
+                mjml = editor.getHtml();
+                html = mjml;
+            }
 
-        document.getElementById('hidden-name').value = name;
-        document.getElementById('html-content').value = html;
-        document.getElementById('json-design').value = mjml; // Store raw MJML string
+            console.log('Data captured, submitting form...');
+            document.getElementById('hidden-name').value = name;
+            document.getElementById('html-content').value = html;
+            document.getElementById('json-design').value = mjml;
 
-        document.getElementById('template-form').submit();
+            document.getElementById('template-form').submit();
+        } catch (globalErr) {
+            console.error('Global Save Error:', globalErr);
+            alert('Error during save: ' + globalErr.message);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Update Master Design';
+        }
     }
 
     document.addEventListener('DOMContentLoaded', initGrapesJS);
