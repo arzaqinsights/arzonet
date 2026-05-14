@@ -22,15 +22,9 @@ class CampaignService
             throw new \Exception("Campaign dispatch blocked: Email sending limit exceeded. Please upgrade your plan.");
         }
 
-        // Get valid emails excluding unsubscribed (Global Check)
-        $unsubscribedEmails = Unsubscribe::pluck('email')->toArray();
-        $suppressedEmails = \App\Models\EmailStatus::whereIn('status', ['bounced', 'complaint'])->pluck('email')->toArray();
-        $allExclusions = array_merge($unsubscribedEmails, $suppressedEmails);
-
         $query = $campaign->emailList->emails()
             ->valid()
-            ->subscribed()
-            ->whereNotIn('email', $allExclusions);
+            ->subscribed();
 
         // Apply Advanced Audience Config (Segments/Tags/Health)
         if ($campaign->audience_config) {

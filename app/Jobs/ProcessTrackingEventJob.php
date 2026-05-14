@@ -30,7 +30,7 @@ class ProcessTrackingEventJob implements ShouldQueue
         $metadata = $tracker->parseMetadata($this->data['ua'] ?? '');
         
         // 1. Log Granular Event
-        EmailEvent::create([
+        $eventRecord = EmailEvent::create([
             'email_log_id' => $log->id,
             'type'         => $this->type,
             'url'          => $this->data['url'] ?? null,
@@ -39,15 +39,23 @@ class ProcessTrackingEventJob implements ShouldQueue
             'metadata'     => $metadata,
         ]);
 
-        // 2. Update Log Stats
+        // 2. Update Log Stats (Deduplicated)
         $updates = [];
-        if ($this->type === 'open') {
-            $updates['open_count'] = $log->open_count + 1;
-            if (!$log->first_open_at) $updates['first_open_at'] = now();
-            $updates['last_open_at'] = now();
-        } elseif ($this->type === 'click') {
-            $updates['click_count'] = $log->click_count + 1;
-            if (!$log->clicked_at) $updates['clicked_at'] = now();
+        $recentEvent = EmailEvent::where('email_log_id', $log->id)
+            ->where('type', $this->type)
+            ->where('created_at', '>=', now()->subSeconds(5))
+            ->where('id', '!=', $eventRecord->id) // Exclude the one we just created
+            ->exists();
+
+        if (!$recentEvent) {
+            if ($this->type === 'open') {
+                $updates['open_count'] = $log->open_count + 1;
+                if (!$log->first_open_at) $updates['first_open_at'] = now();
+                $updates['last_open_at'] = now();
+            } elseif ($this->type === 'click') {
+                $updates['click_count'] = $log->click_count + 1;
+                if (!$log->clicked_at) $updates['clicked_at'] = now();
+            }
         }
 
         if (!empty($updates)) {

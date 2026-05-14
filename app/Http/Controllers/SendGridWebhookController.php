@@ -39,6 +39,12 @@ class SendGridWebhookController extends Controller
                     break;
 
                 case 'open':
+                    // Prevent duplicate counting from SendGrid (idempotency)
+                    $eventId = $event['sg_event_id'] ?? null;
+                    if ($eventId && EmailEvent::where('metadata->sg_event_id', $eventId)->exists()) {
+                        break;
+                    }
+
                     $log->increment('open_count');
                     if (!$log->first_open_at) {
                         $log->update(['first_open_at' => now(), 'last_open_at' => now()]);
@@ -53,13 +59,19 @@ class SendGridWebhookController extends Controller
                         'ip_address' => $event['ip'] ?? null,
                         'user_agent' => $event['useragent'] ?? null,
                         'metadata' => [
-                            'sg_event_id' => $event['sg_event_id'] ?? null,
+                            'sg_event_id' => $eventId,
                             'sg_machine_open' => $event['sg_machine_open'] ?? false,
                         ],
                     ]);
                     break;
 
                 case 'click':
+                    // Prevent duplicate counting
+                    $eventId = $event['sg_event_id'] ?? null;
+                    if ($eventId && EmailEvent::where('metadata->sg_event_id', $eventId)->exists()) {
+                        break;
+                    }
+
                     $log->increment('click_count');
                     if (!$log->clicked_at) {
                         $log->update(['clicked_at' => now()]);
@@ -72,7 +84,7 @@ class SendGridWebhookController extends Controller
                         'ip_address' => $event['ip'] ?? null,
                         'user_agent' => $event['useragent'] ?? null,
                         'metadata' => [
-                            'sg_event_id' => $event['sg_event_id'] ?? null,
+                            'sg_event_id' => $eventId,
                         ],
                     ]);
                     break;
@@ -80,35 +92,41 @@ class SendGridWebhookController extends Controller
                 case 'bounce':
                     if ($log->status !== 'bounced') {
                         $log->update(['status' => 'bounced', 'error_message' => $event['reason'] ?? 'Bounced']);
-                        if ($campaign) {
-                            $campaign->decrement('sent_count');
-                            $campaign->increment('bounce_count');
+                        
+                        // Update list-specific email status
+                        if ($log->email) {
+                            $log->email->update(['status' => 'invalid', 'reason' => 'Bounced: ' . ($event['reason'] ?? 'Hard Bounce')]);
                         }
                     }
                     break;
 
-                case 'dropped':
-                    $log->update(['status' => 'dropped', 'error_message' => $event['reason'] ?? 'Dropped by SendGrid']);
-                    break;
-
-                case 'blocked':
-                    $log->update(['status' => 'blocked', 'error_message' => $event['reason'] ?? 'Blocked by Receiving MTA']);
-                    break;
-
                 case 'spamreport':
                     $log->update(['status' => 'spamreport', 'error_message' => 'Spam Complaint']);
+                    
+                    // Record unsubscribe for analytics
                     Unsubscribe::firstOrCreate([
-                        'email_id' => $log->email_id,
+                        'email' => $log->email_address,
                         'campaign_id' => $log->campaign_id,
-                    ], ['reason' => 'Spam Complaint (SendGrid)']);
+                    ], ['unsubscribed_at' => now()]);
+
+                    // Update list-specific email status
+                    if ($log->email) {
+                        $log->email->update(['subscription_status' => 'unsubscribed']);
+                    }
                     break;
 
                 case 'unsubscribe':
                     $log->update(['status' => 'unsubscribed']);
+                    
                     Unsubscribe::firstOrCreate([
-                        'email_id' => $log->email_id,
+                        'email' => $log->email_address,
                         'campaign_id' => $log->campaign_id,
-                    ], ['reason' => 'Unsubscribed via SendGrid']);
+                    ], ['unsubscribed_at' => now()]);
+
+                    // Update list-specific email status
+                    if ($log->email) {
+                        $log->email->update(['subscription_status' => 'unsubscribed', 'unsubscribed_at' => now()]);
+                    }
                     break;
 
                 case 'deferred':
