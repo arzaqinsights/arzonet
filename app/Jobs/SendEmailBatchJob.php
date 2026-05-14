@@ -97,7 +97,12 @@ class SendEmailBatchJob implements ShouldQueue
             $email = $emails->get($emailId);
             $log = $logs->get($emailId);
 
-            if (!$email || !$log || $log->status === 'sent') continue;
+            if (!$email || !$log) continue;
+            
+            // Skip if already processed (sent, delivered, failed, etc.)
+            if (in_array($log->status, ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])) {
+                continue;
+            }
 
             // ── 3. Distributed Throttling (SES ONLY) ──
             if ($providerType === 'ses' && !$quotaManager->throttle('ses_global_limit', $effectiveRate)) {
