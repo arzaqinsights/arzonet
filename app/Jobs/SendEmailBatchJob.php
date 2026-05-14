@@ -99,8 +99,8 @@ class SendEmailBatchJob implements ShouldQueue
 
             if (!$email || !$log) continue;
             
-            // Skip if already processed (sent, delivered, failed, etc.)
-            if (in_array($log->status, ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])) {
+            // Skip if already processed successfully or permanently failed
+            if (in_array($log->status, ['sent', 'delivered', 'bounced', 'complaint', 'spamreport', 'dropped'])) {
                 continue;
             }
 

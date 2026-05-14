@@ -131,7 +131,7 @@ class CampaignService
         $campaign->update(['status' => 'sending']);
 
         $pendingLogIds = $campaign->logs()
-            ->whereNotIn('status', ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])
+            ->whereNotIn('status', ['sent', 'delivered', 'bounced', 'complaint', 'spamreport', 'dropped'])
             ->pluck('email_id')
             ->toArray();
 
