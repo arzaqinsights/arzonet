@@ -92,9 +92,10 @@
     <div class="bg-surface-50 border-b border-surface-200 p-2 flex items-center gap-3 overflow-x-auto no-scrollbar">
         <span class="text-[10px] font-black uppercase text-surface-400 whitespace-nowrap border-r border-surface-200 pr-3">Merge Tags</span>
         @foreach(['full_name', 'first_name', 'last_name', 'email', 'company', 'job_title', 'city', 'unsubscribe_url'] as $tag)
-            <button type="button" onclick="navigator.clipboard.writeText('{{ '{{ ' . $tag . ' }}' }}'); alert('Copied: {{ '{{ ' . $tag . ' }}' }}')" 
+            @php $tagName = '{{ ' . $tag . ' }}'; @endphp
+            <button type="button" onclick="navigator.clipboard.writeText('{{ $tagName }}'); alert('Copied: {{ $tagName }}')" 
                 class="px-2 py-1 bg-white border border-surface-200 rounded text-[10px] font-bold text-surface-600 hover:border-brand hover:text-brand transition-all whitespace-nowrap">
-                {{ '{{ ' . $tag . ' }}' }}
+                {{ $tagName }}
             </button>
         @endforeach
     </div>
