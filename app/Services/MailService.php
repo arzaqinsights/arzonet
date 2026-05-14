@@ -58,7 +58,8 @@ class MailService
             Mail::mailer('dynamic_smtp')->html($html, function ($message) use ($to, $subject, $sender, $headers) {
                 $message->to($to)
                         ->subject($subject)
-                        ->from($sender->email, $sender->from_name);
+                        ->from($sender->email, $sender->from_name)
+                        ->replyTo($sender->email, $sender->from_name);
                 
                 if (!empty($headers)) {
                     $msgHeaders = $message->getHeaders();
@@ -90,6 +91,10 @@ class MailService
                     'subject' => $subject,
                 ]],
                 'from' => [
+                    'email' => $sender->email,
+                    'name' => $sender->from_name
+                ],
+                'reply_to' => [
                     'email' => $sender->email,
                     'name' => $sender->from_name
                 ],

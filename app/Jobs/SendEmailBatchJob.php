@@ -245,7 +245,8 @@ class SendEmailBatchJob implements ShouldQueue
     protected function shouldAutoPause(Campaign $campaign): bool
     {
         if ($campaign->sent_count < 50) return false;
-        return ($campaign->bounceRate() > 3.0) || ($campaign->complaintRate() > 0.1);
+        // Increased threshold to 15% to allow campaign completion with higher bounce rates
+        return ($campaign->bounceRate() > 15.0) || ($campaign->complaintRate() > 0.1);
     }
 
     protected function trackSendingSpeed(Campaign $campaign)

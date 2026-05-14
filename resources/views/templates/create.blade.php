@@ -46,14 +46,14 @@
                 }
             },
             mergeTags: {
-                first_name: { name: "First Name", value: "{{ '{{' }} first_name {{ '}}' }}" },
-                last_name: { name: "Last Name", value: "{{ '{{' }} last_name {{ '}}' }}" },
-                full_name: { name: "Full Name", value: "{{ '{{' }} full_name {{ '}}' }}" },
-                email: { name: "Email Address", value: "{{ '{{' }} email {{ '}}' }}" },
-                company: { name: "Company Name", value: "{{ '{{' }} company {{ '}}' }}" },
-                job_title: { name: "Job Title", value: "{{ '{{' }} job_title {{ '}}' }}" },
-                city: { name: "City", value: "{{ '{{' }} city {{ '}}' }}" },
-                unsubscribe_url: { name: "Unsubscribe Link", value: "{{ '{{' }} unsubscribe_url {{ '}}' }}" }
+                first_name: { name: "First Name", value: "@{{ first_name }}" },
+                last_name: { name: "Last Name", value: "@{{ last_name }}" },
+                full_name: { name: "Full Name", value: "@{{ full_name }}" },
+                email: { name: "Email Address", value: "@{{ email }}" },
+                company: { name: "Company Name", value: "@{{ company }}" },
+                job_title: { name: "Job Title", value: "@{{ job_title }}" },
+                city: { name: "City", value: "@{{ city }}" },
+                unsubscribe_url: { name: "Unsubscribe Link", value: "@{{ unsubscribe_url }}" }
             }
         });
     }
