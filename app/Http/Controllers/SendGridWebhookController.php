@@ -43,6 +43,10 @@ class SendGridWebhookController extends Controller
             $campaign = $log->campaign;
 
             switch ($type) {
+                case 'processed':
+                    $log->update(['status' => 'processed']);
+                    break;
+
                 case 'delivered':
                     $log->update(['status' => 'delivered', 'delivered_at' => now(), 'error_message' => null]);
                     break;
@@ -107,6 +111,14 @@ class SendGridWebhookController extends Controller
                             $log->email->update(['status' => 'invalid', 'reason' => 'Bounced: ' . ($event['reason'] ?? 'Hard Bounce')]);
                         }
                     }
+                    break;
+
+                case 'dropped':
+                    $log->update(['status' => 'dropped', 'error_message' => $event['reason'] ?? 'Dropped by SendGrid']);
+                    break;
+
+                case 'blocked':
+                    $log->update(['status' => 'blocked', 'error_message' => $event['reason'] ?? 'Blocked by Receiving MTA']);
                     break;
 
                 case 'spamreport':
