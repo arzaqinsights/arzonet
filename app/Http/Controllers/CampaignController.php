@@ -404,7 +404,7 @@ class CampaignController extends Controller
     public function update(Request $request, Campaign $campaign)
     {
         // For partial updates (like renaming via AJAX)
-        if ($request->has('name') && count($request->all()) <= 2) { // name + maybe _token/method
+        if ($request->has('name') && !$request->has('email_list_id')) {
             $request->validate(['name' => 'required|string|max:255']);
             $campaign->update(['name' => $request->name]);
         } else {
