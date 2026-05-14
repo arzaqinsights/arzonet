@@ -99,6 +99,11 @@ class MailService
                 ]],
                 'custom_args' => [
                     'log_id' => (string) $logId,
+                ],
+                'mail_settings' => [
+                    'bypass_list_management' => [
+                        'enable' => true
+                    ]
                 ]
             ]);
 

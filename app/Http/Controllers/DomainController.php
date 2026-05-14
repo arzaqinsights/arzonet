@@ -80,7 +80,24 @@ class DomainController extends Controller
     public function show(VerifiedDomain $domain)
     {
         $this->authorizeOwner($domain);
-        return view('domains.show', compact('domain'));
+        
+        // Check for existing DMARC record
+        $dmarcRecord = null;
+        try {
+            $records = @dns_get_record("_dmarc.{$domain->domain}", DNS_TXT);
+            if (!empty($records)) {
+                foreach ($records as $record) {
+                    if (isset($record['txt']) && str_starts_with($record['txt'], 'v=DMARC1')) {
+                        $dmarcRecord = $record['txt'];
+                        break;
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fail if DNS check fails
+        }
+
+        return view('domains.show', compact('domain', 'dmarcRecord'));
     }
 
     public function verify(VerifiedDomain $domain)

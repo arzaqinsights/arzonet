@@ -114,7 +114,16 @@ class SendGridWebhookController extends Controller
                     break;
 
                 case 'dropped':
-                    $log->update(['status' => 'dropped', 'error_message' => $event['reason'] ?? 'Dropped by SendGrid']);
+                    $reason = $event['reason'] ?? 'Dropped by SendGrid';
+                    $log->update(['status' => 'dropped', 'error_message' => $reason]);
+                    
+                    if ($log->email) {
+                        if (stripos($reason, 'Unsubscribed') !== false) {
+                            $log->email->update(['subscription_status' => 'unsubscribed', 'unsubscribed_at' => now()]);
+                        } elseif (stripos($reason, 'Bounced') !== false || stripos($reason, 'Invalid') !== false) {
+                            $log->email->update(['status' => 'invalid', 'reason' => $reason]);
+                        }
+                    }
                     break;
 
                 case 'blocked':
