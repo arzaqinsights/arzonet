@@ -80,6 +80,7 @@ Route::name('admin.')->group(function () {
         Route::get('/{campaign}/status', [CampaignController::class, 'checkStatus'])->name('status');
         Route::post('/{campaign}/clone', [CampaignController::class, 'clone'])->name('clone');
         Route::post('/{campaign}/send-test', [CampaignController::class, 'sendTest'])->name('send-test');
+        Route::get('/{campaign}/export-logs', [CampaignController::class, 'exportLogs'])->name('export-logs');
         Route::get('/preview', [CampaignController::class, 'preview'])->name('preview');
         Route::get('/{campaign}/edit', [CampaignController::class, 'edit'])->name('edit');
         Route::put('/{campaign}', [CampaignController::class, 'update'])->name('update');

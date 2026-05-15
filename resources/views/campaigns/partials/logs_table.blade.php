@@ -1,10 +1,25 @@
 <table class="data-table">
     <thead>
-        <tr>
-            <th class="!pl-6">Recipient</th>
-            <th>Status</th>
+        <tr class="bg-surface-50">
+            <th class="!pl-6 cursor-pointer hover:text-primary-600 transition-colors group" data-sort="email_address">
+                <div class="flex items-center gap-1">
+                    Recipient
+                    <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                </div>
+            </th>
+            <th class="cursor-pointer hover:text-primary-600 transition-colors group" data-sort="status">
+                <div class="flex items-center gap-1">
+                    Status
+                    <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                </div>
+            </th>
             <th>Message ID</th>
-            <th class="text-right !pr-6">Sent At</th>
+            <th class="text-right !pr-6 cursor-pointer hover:text-primary-600 transition-colors group" data-sort="created_at">
+                <div class="flex items-center justify-end gap-1">
+                    Sent At
+                    <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                </div>
+            </th>
         </tr>
     </thead>
     <tbody id="logs-body">

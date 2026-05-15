@@ -156,10 +156,13 @@ class CampaignController extends Controller
 
         // If draft, show expected recipients. If sending/completed, show logs.
         if ($campaign->status === 'draft') {
-            $logs = $campaign->emailList->emails()
-                ->valid()
-                ->subscribed()
-                ->latest()
+            $query = $campaign->emailList->emails()->valid()->subscribed();
+            
+            if ($request->search) {
+                $query->where('email', 'LIKE', "%{$request->search}%");
+            }
+
+            $logs = $query->latest()
                 ->paginate(50)
                 ->through(function($email) {
                     return (object) [
@@ -173,9 +176,37 @@ class CampaignController extends Controller
                     ];
                 });
         } else {
-            $logs = $campaign->logs()
-                ->latest()
-                ->paginate(50);
+            $query = $campaign->logs()->with('email');
+
+            // --- Filtering ---
+            if ($request->status) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->engagement === 'opened') {
+                $query->where(function($q) {
+                    $q->where('open_count', '>', 0)->orWhere('click_count', '>', 0);
+                });
+            } elseif ($request->engagement === 'clicked') {
+                $query->where('click_count', '>', 0);
+            }
+
+            if ($request->search) {
+                $query->where('email_address', 'LIKE', "%{$request->search}%");
+            }
+
+            // --- Sorting ---
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortDir = $request->get('sort_dir', 'desc');
+            $allowedSorts = ['status', 'created_at', 'open_count', 'click_count', 'email_address'];
+            
+            if (in_array($sortBy, $allowedSorts)) {
+                $query->orderBy($sortBy, $sortDir);
+            } else {
+                $query->latest();
+            }
+
+            $logs = $query->paginate(50)->withQueryString();
         }
 
         if ($request->ajax()) {
@@ -186,6 +217,69 @@ class CampaignController extends Controller
         }
 
         return view('campaigns.show', compact('campaign', 'stats', 'estimatedCost', 'logs', 'topLinks', 'topIps', 'desktopPercent', 'mobilePercent'));
+    }
+
+    public function exportLogs(Campaign $campaign, Request $request)
+    {
+        $query = $campaign->logs()->with('email');
+
+        // Apply same filters as show method
+        if ($request->status) $query->where('status', $request->status);
+        if ($request->engagement === 'opened') {
+            $query->where(function($q) {
+                $q->where('open_count', '>', 0)->orWhere('click_count', '>', 0);
+            });
+        } elseif ($request->engagement === 'clicked') {
+            $query->where('click_count', '>', 0);
+        }
+        if ($request->search) $query->where('email_address', 'LIKE', "%{$request->search}%");
+
+        $filename = "campaign_{$campaign->id}_logs_" . now()->format('Y-m-d_H-i-s') . ".csv";
+        
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use($query) {
+            $file = fopen('php://output', 'w');
+            
+            // Get first log to determine meta headers
+            $firstLog = (clone $query)->first();
+            $metaKeys = [];
+            if ($firstLog && $firstLog->email && $firstLog->email->meta) {
+                $metaKeys = array_keys($firstLog->email->meta);
+            }
+
+            $columns = array_merge(['Email', 'Status', 'Opens', 'Clicks', 'Sent At'], $metaKeys);
+            fputcsv($file, $columns);
+
+            $query->chunk(1000, function($logs) use($file, $metaKeys) {
+                foreach ($logs as $log) {
+                    $row = [
+                        $log->email_address,
+                        $log->status,
+                        $log->open_count,
+                        $log->click_count,
+                        $log->created_at,
+                    ];
+                    
+                    // Add meta values
+                    foreach ($metaKeys as $key) {
+                        $row[] = $log->email->meta[$key] ?? '';
+                    }
+
+                    fputcsv($file, $row);
+                }
+            });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function send(Campaign $campaign, CampaignService $campaignService)

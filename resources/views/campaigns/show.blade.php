@@ -91,7 +91,10 @@
         <div class="glass-card p-5 rounded-md border-b-4 border-primary-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivery</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($stats['sent'] ?? 0) }}</h3>
-            <p class="text-[10px] text-primary-600 mt-1 font-bold">{{ $campaign->progress() }}% Complete</p>
+            <div class="flex items-center justify-between mt-1">
+                <p class="text-[10px] text-primary-600 font-bold">{{ $campaign->progress() }}% Complete</p>
+                <p class="text-[10px] text-surface-400 font-bold">{{ number_format($campaign->total_recipients) }} Total Target</p>
+            </div>
         </div>
 
         <div class="glass-card p-5 rounded-md border-b-4 border-indigo-500">
@@ -282,7 +285,38 @@
 
         {{-- Logs Tab --}}
         <div x-show="tab === 'logs'" class="glass-card rounded-md overflow-hidden" x-transition id="logs-container">
-            @include('campaigns.partials.logs_table', ['logs' => $logs])
+            <div class="p-4 border-b border-surface-100 flex flex-wrap items-center justify-between gap-4 bg-surface-50/50">
+                <div class="flex items-center gap-2">
+                    <input type="text" id="log-search" placeholder="Search email..." class="text-xs px-3 py-2 rounded-md border-surface-200 focus:border-primary-500 focus:ring-0 w-48 md:w-64 bg-white shadow-sm" value="{{ request('search') }}">
+                    
+                    <select id="log-status-filter" class="text-xs px-3 py-2 rounded-md border-surface-200 focus:border-primary-500 focus:ring-0 bg-white shadow-sm">
+                        <option value="">All Statuses</option>
+                        <option value="sent">Sent</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="bounced">Bounced</option>
+                        <option value="failed">Failed</option>
+                        <option value="dropped">Dropped</option>
+                        <option value="spamreport">Spam Report</option>
+                    </select>
+
+                    <select id="log-engagement-filter" class="text-xs px-3 py-2 rounded-md border-surface-200 focus:border-primary-500 focus:ring-0 bg-white shadow-sm">
+                        <option value="">All Engagement</option>
+                        <option value="opened">Opened</option>
+                        <option value="clicked">Clicked</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <a href="{{ route('admin.campaigns.export-logs', $campaign) }}" id="export-logs-link" class="flex items-center gap-2 px-4 py-2 bg-surface-900 text-white text-xs font-black uppercase tracking-widest rounded-md hover:bg-black transition-all shadow-md">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Export CSV
+                    </a>
+                </div>
+            </div>
+
+            <div id="logs-table-wrapper">
+                @include('campaigns.partials.logs_table', ['logs' => $logs])
+            </div>
         </div>
 
         {{-- Configuration Tab --}}
@@ -457,24 +491,94 @@
         }
     });
 
+    // Enhanced Filtering and Pagination for Logs
+    let logFilters = {
+        status: '',
+        engagement: '',
+        search: '',
+        page: 1
+    };
+
+    function refreshLogs() {
+        const container = document.getElementById('logs-table-wrapper');
+        const url = new URL(window.location.href);
+        url.searchParams.set('status', logFilters.status || '');
+        url.searchParams.set('engagement', logFilters.engagement || '');
+        url.searchParams.set('search', logFilters.search || '');
+        url.searchParams.set('sort_by', logFilters.sort_by || 'created_at');
+        url.searchParams.set('sort_dir', logFilters.sort_dir || 'desc');
+        url.searchParams.set('page', logFilters.page || 1);
+
+        // Update Export Link
+        const exportLink = document.getElementById('export-logs-link');
+        if (exportLink) {
+            const exportUrl = new URL('{{ route("admin.campaigns.export-logs", $campaign) }}');
+            exportUrl.searchParams.set('status', logFilters.status || '');
+            exportUrl.searchParams.set('engagement', logFilters.engagement || '');
+            exportUrl.searchParams.set('search', logFilters.search || '');
+            exportUrl.searchParams.set('sort_by', logFilters.sort_by || 'created_at');
+            exportUrl.searchParams.set('sort_dir', logFilters.sort_dir || 'desc');
+            exportLink.href = exportUrl.toString();
+        }
+
+        container.style.opacity = '0.5';
+        
+        fetch(url.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            container.innerHTML = data.html;
+            container.style.opacity = '1';
+        })
+        .catch(() => container.style.opacity = '1');
+    }
+
+    // Filter Listeners
+    document.getElementById('log-status-filter')?.addEventListener('change', (e) => {
+        logFilters.status = e.target.value;
+        logFilters.page = 1;
+        refreshLogs();
+    });
+
+    document.getElementById('log-engagement-filter')?.addEventListener('change', (e) => {
+        logFilters.engagement = e.target.value;
+        logFilters.page = 1;
+        refreshLogs();
+    });
+
+    let searchTimeout;
+    document.getElementById('log-search')?.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            logFilters.search = e.target.value;
+            logFilters.page = 1;
+            refreshLogs();
+        }, 500);
+    });
+
     // AJAX Pagination for Logs Tab
     document.addEventListener('click', function(e) {
-        const link = e.target.closest('.logs-pagination a');
+        const link = e.target.closest('#logs-table-wrapper .pagination a');
         if (link) {
             e.preventDefault();
-            const url = link.href;
-            const container = document.getElementById('logs-container');
-            container.style.opacity = '0.5';
-            
-            fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                container.innerHTML = data.html;
-                container.style.opacity = '1';
-            })
-            .catch(() => container.style.opacity = '1');
+            const url = new URL(link.href);
+            logFilters.page = url.searchParams.get('page') || 1;
+            refreshLogs();
+        }
+
+        // Sort Header Listener
+        const header = e.target.closest('th[data-sort]');
+        if (header) {
+            const field = header.getAttribute('data-sort');
+            if (logFilters.sort_by === field) {
+                logFilters.sort_dir = logFilters.sort_dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                logFilters.sort_by = field;
+                logFilters.sort_dir = 'asc';
+            }
+            logFilters.page = 1;
+            refreshLogs();
         }
     });
 
@@ -482,6 +586,10 @@
     // Auto-refresh stats: 5s for sending, 30s for completed (catches late open/click events)
     const pollMs = {{ $campaign->status === 'sending' ? 5000 : 30000 }};
     const pollInterval = setInterval(() => {
+        // Disable polling if filtering/searching to prevent UI jumps
+        if (logFilters.status || logFilters.engagement || logFilters.search || logFilters.page > 1) {
+            return;
+        }
         fetch('{{ route("admin.campaigns.status", $campaign) }}')
         .then(response => response.json())
         .then(data => {
