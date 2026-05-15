@@ -255,7 +255,7 @@ class CampaignController extends Controller
                 $metaKeys = array_keys($firstLog->email->meta);
             }
 
-            $columns = array_merge(['Email', 'Name', 'WhatsApp', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At'], $metaKeys);
+            $columns = array_merge(['Email', 'Name', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At'], $metaKeys);
             fputcsv($file, $columns);
 
             $query->chunk(1000, function($logs) use($file, $metaKeys) {
