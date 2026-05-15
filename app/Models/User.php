@@ -90,7 +90,8 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getEmailsUsage()
     {
         $limit = optional($this->subscription)->emails_limit ?? 0;
-        $total = $this->logs()->whereIn('status', ['sent', 'delivered'])->count();
+        // Count all logs (sent, delivered, failed, bounced, invalid, etc.)
+        $total = $this->logs()->count();
         return (object) [
             'total' => $total,
             'limit' => $limit,
