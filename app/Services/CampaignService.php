@@ -238,26 +238,57 @@ class CampaignService
     {
         $campaign->update(['status' => 'sending']);
 
-        $failedEmailIds = $campaign->logs()
+        // 1. Audit and Recreate MISSING logs (The reason for 90% stall)
+        $allValidEmailIds = $campaign->emailList->emails()
+            ->valid()
+            ->subscribed()
+            ->pluck('id')
+            ->toArray();
+        
+        $existingLogEmailIds = $campaign->logs()->pluck('email_id')->toArray();
+        $missingEmailIds = array_diff($allValidEmailIds, $existingLogEmailIds);
+
+        if (!empty($missingEmailIds)) {
+            $missingEmails = \App\Models\Email::whereIn('id', $missingEmailIds)->get();
+            $newLogs = $missingEmails->map(fn($email) => [
+                'user_id'        => $campaign->user_id,
+                'campaign_id'    => $campaign->id,
+                'email_id'       => $email->id,
+                'email_address'  => $email->email,
+                'tracking_token' => \Illuminate\Support\Str::random(32),
+                'status'         => 'pending',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ])->toArray();
+
+            foreach (array_chunk($newLogs, 500) as $chunk) {
+                \App\Models\EmailLog::insert($chunk);
+            }
+        }
+
+        // 2. Identify emails to actually SEND (Pending ones)
+        // We only retry 'pending' because failed/bounced already count towards progress.
+        $emailsToDispatch = $campaign->logs()
             ->where('status', 'pending')
             ->whereNotNull('email_id')
             ->pluck('email_id')
             ->toArray();
 
-        \Illuminate\Support\Facades\Log::info("Retry Failed triggered for Campaign {$campaign->id}. Emails found: " . count($failedEmailIds));
+        \Illuminate\Support\Facades\Log::info("Ultimate Retry for Campaign {$campaign->id}. Dispatching " . count($emailsToDispatch) . " emails.");
 
-        if (empty($failedEmailIds)) {
-            \Illuminate\Support\Facades\Log::warning("Retry Failed: No failed/bounced/pending emails found for Campaign {$campaign->id}. Current statuses in DB: " . json_encode($campaign->logs()->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))->groupBy('status')->pluck('count', 'status')));
+        if (empty($emailsToDispatch)) {
+            // If no pending emails, but still not 100%, check if we should mark it complete
+            $campaign->refresh();
+            if ($campaign->progress() >= 100) {
+                $campaign->update(['status' => 'completed', 'completed_at' => now()]);
+            }
             return;
         }
 
-        // Reset logs to pending
+        // 3. Clear errors for the ones we are about to retry
         $campaign->logs()
-            ->where('status', 'pending')
-            ->update([
-                'status'        => 'pending',
-                'error_message' => null,
-            ]);
+            ->whereIn('email_id', $emailsToDispatch)
+            ->update(['error_message' => null]);
         
         $sender = $campaign->sender;
         $providerType = $sender ? strtolower($sender->type) : 'ses';
@@ -269,7 +300,7 @@ class CampaignService
             default => 25
         };
 
-        $chunks = array_chunk($failedEmailIds, $batchSize);
+        $chunks = array_chunk($emailsToDispatch, $batchSize);
         $totalJobs = count($chunks);
 
         // Track jobs in Redis
