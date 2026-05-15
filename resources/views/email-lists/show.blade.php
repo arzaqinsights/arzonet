@@ -509,8 +509,7 @@
                                     </div>
                                 </th>
                                 <th class="px-8 py-4">Email Address</th>
-                                <th class="px-8 py-4">WhatsApp</th>
-                                <th class="px-8 py-4">WA Status</th>
+                                <th class="px-8 py-4">WhatsApp Number</th>
 
                                 <th class="px-8 py-4">Full Name</th>
                                 @foreach($displayedFields as $field)
@@ -519,7 +518,8 @@
                                 <th class="px-8 py-4 text-center">Segment</th>
                                 <th class="px-8 py-4 text-center">Tag</th>
                                 <th class="px-8 py-4 text-center">Health</th>
-                                <th class="px-8 py-4 text-center">Status</th>
+                                <th class="px-8 py-4 text-center">Email</th>
+                                <th class="px-8 py-4 text-center">WhatsApp</th>
                                 <th class="px-8 py-4 text-right">Action</th>
                             </tr>
                         </thead>

@@ -77,25 +77,6 @@
         </template>
     </td>
 
-    {{-- WA Status Column --}}
-    <td class="px-8 py-4 whitespace-nowrap">
-        <template x-if="row.whatsapp_subscription_status === 'subscribed'">
-            <div class="flex items-center gap-1.5">
-                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Subscribed</span>
-            </div>
-        </template>
-        <template x-if="row.whatsapp_subscription_status === 'unsubscribed'">
-            <div class="flex items-center gap-1.5">
-                <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-                <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">Opt-out</span>
-            </div>
-        </template>
-        <template x-if="!row.whatsapp_subscription_status">
-            <span class="text-[10px] font-black text-surface-300 uppercase tracking-widest">—</span>
-        </template>
-    </td>
-
     {{-- Name Column --}}
     <td class="px-8 py-4 whitespace-nowrap">
         <template x-if="!editing">
@@ -193,6 +174,25 @@
                 <option value="unsubscribed">Unsubscribed</option>
                 <option value="bounced">Bounced</option>
             </select>
+        </template>
+    </td>
+
+    {{-- WA Status Column --}}
+    <td class="px-8 py-4 whitespace-nowrap text-center">
+        <template x-if="row.whatsapp_subscription_status === 'subscribed'">
+            <div class="flex items-center justify-center gap-1.5">
+                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Subscribed</span>
+            </div>
+        </template>
+        <template x-if="row.whatsapp_subscription_status === 'unsubscribed'">
+            <div class="flex items-center justify-center gap-1.5">
+                <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">Opt-out</span>
+            </div>
+        </template>
+        <template x-if="!row.whatsapp_subscription_status">
+            <span class="text-[10px] font-black text-surface-300 uppercase tracking-widest">—</span>
         </template>
     </td>
 
