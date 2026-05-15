@@ -325,24 +325,51 @@ class FileParserService
         }
 
         $emails = !empty($emailRaw) ? preg_split($sep, $emailRaw, -1, PREG_SPLIT_NO_EMPTY) : [];
-        $phones = !empty($phoneRaw) ? preg_split($sep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY) : [];
+        $phonesRawList = !empty($phoneRaw) ? preg_split($sep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY) : [];
 
-        // If both are empty, skip this row
-        if (empty($emails) && empty($phones)) return [];
+        // --- WhatsApp Pre-Validation ---
+        $waValidator = new \App\Services\WhatsAppValidationService();
+        $validPhones = [];
+        $invalidPhones = [];
+
+        foreach ($phonesRawList as $p) {
+            $res = $waValidator->validate($p);
+            if ($res['is_valid']) {
+                $validPhones[] = $res['formatted'];
+            } else {
+                $invalidPhones[] = $p;
+            }
+        }
+
+        $phones = $validPhones;
+        $invalidPhonesStr = !empty($invalidPhones) ? implode(', ', $invalidPhones) : null;
+
+        // If both are empty, and no invalid phones to store, skip
+        if (empty($emails) && empty($phones) && empty($invalidPhonesStr)) return [];
 
         // Total rows = max of both (Sparse Pairing)
-        $total   = max(count($emails), count($phones));
+        $total = max(count($emails), count($phones));
+        if ($total === 0 && !empty($invalidPhonesStr)) $total = 1; // Create at least one row to store the record
+
         $results = [];
 
         for ($i = 0; $i < $total; $i++) {
             $email = $emails[$i] ?? null;
             $phone = $phones[$i]  ?? null;
 
-            if ($email === null && $phone === null) continue;
+            if ($email === null && $phone === null && $i > 0) continue;
 
             $data = $this->buildBaseRow($row, $mapping, null, null);
             $data['email'] = $email ? strtolower($email) : null;
             $data['whatsapp_number'] = $phone ?? null;
+
+            // Attach invalid phones to the first created row's metadata
+            if ($i === 0 && !empty($invalidPhonesStr)) {
+                $data['meta'] = array_merge((array)($data['meta'] ?? []), [
+                    'phone' => $invalidPhonesStr,
+                    'validation_note' => 'Invalid WhatsApp numbers stored in meta'
+                ]);
+            }
 
             $results[] = $data;
         }

@@ -39,6 +39,7 @@ class EmailValidationService
         $seen = [];
         
         $blacklisted = array_flip($this->getBlacklistedEmails());
+        $waValidator = new WhatsAppValidationService();
         
         $batchEmails = collect($emailData)->pluck('email')->filter()->map(fn($e) => $this->normalizeEmail($e))->unique();
         $batchPhones = collect($emailData)->pluck('whatsapp_number')->filter()->unique();
@@ -66,6 +67,20 @@ class EmailValidationService
             $rawEmail = preg_replace('/[\x00-\x1F\x7F\xA0\x{FEFF}\x{200B}-\x{200D}]/u', '', $entry['email'] ?? '');
             $rawEmail = trim($rawEmail);
             $whatsappNumber = $entry['whatsapp_number'] ?? null;
+
+            // --- WhatsApp Validation ---
+            if (!empty($whatsappNumber)) {
+                $waResult = $waValidator->validate($whatsappNumber);
+                if ($waResult['is_valid']) {
+                    $whatsappNumber = $waResult['formatted'];
+                } else {
+                    // Move to meta instead of removing
+                    $entry['meta'] = array_merge($entry['meta'] ?? [], ['phone' => $whatsappNumber, 'invalid_wa_reason' => $waResult['reason']]);
+                    $whatsappNumber = null;
+                    $entry['whatsapp_opt_in'] = false;
+                    $entry['whatsapp_subscription_status'] = 'unsubscribed';
+                }
+            }
 
             // Must have at least one communication channel
             if (empty($rawEmail) && empty($whatsappNumber)) continue;

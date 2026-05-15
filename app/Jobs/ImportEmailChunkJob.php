@@ -73,6 +73,9 @@ class ImportEmailChunkJob implements ShouldQueue
                         'status'              => 'valid',
                         'subscription_status' => 'subscribed',
                         'whatsapp_number'     => DB::raw("COALESCE(NULLIF(whatsapp_number,''), " . DB::getPdo()->quote($entry['whatsapp_number'] ?? '') . ")"),
+                        'whatsapp_opt_in'     => $entry['whatsapp_opt_in'] ?? true,
+                        'whatsapp_subscription_status' => $entry['whatsapp_subscription_status'] ?? 'subscribed',
+                        'meta'                => isset($entry['meta']) ? json_encode($entry['meta']) : DB::raw('meta'),
                         // New health columns
                         'email_status'        => $entry['email_status'] ?? 'valid',
                         'email_score'         => $entry['email_score'] ?? 5,
