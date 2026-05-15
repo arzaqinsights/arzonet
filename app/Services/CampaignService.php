@@ -234,7 +234,7 @@ class CampaignService
         $campaign->update(['status' => 'sending']);
 
         $failedEmailIds = $campaign->logs()
-            ->whereIn('status', ['failed', 'bounced'])
+            ->whereIn('status', ['failed', 'bounced', 'pending'])
             ->pluck('email_id')
             ->toArray();
 
@@ -242,13 +242,21 @@ class CampaignService
 
         // Reset logs to pending
         $campaign->logs()
-            ->whereIn('status', ['failed', 'bounced'])
+            ->whereIn('status', ['failed', 'bounced', 'pending'])
             ->update([
                 'status'        => 'pending',
                 'error_message' => null,
             ]);
-
-        $batchSize = $campaign->batch_size ?: config('emailplatform.batch_size', 50);
+        
+        $sender = $campaign->sender;
+        $providerType = $sender ? strtolower($sender->type) : 'ses';
+        
+        $batchSize = match($providerType) {
+            'smtp' => 5,
+            'sendgrid' => 50,
+            'ses' => 200,
+            default => 25
+        };
         $chunks = array_chunk($failedEmailIds, $batchSize);
 
         foreach ($chunks as $index => $chunk) {

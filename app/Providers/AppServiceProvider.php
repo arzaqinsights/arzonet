@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        \Illuminate\Support\Facades\RateLimiter::for('sendgrid', function (object $job) {
+            // High Performance: Allow 100 batches (5,000 emails) per minute globally
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(100);
+        });
     }
 }

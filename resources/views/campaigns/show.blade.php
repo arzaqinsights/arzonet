@@ -62,10 +62,18 @@
                     @csrf
                     <button type="submit" class="btn btn-warning rounded-md">Pause</button>
                 </form>
+                <form action="{{ route('admin.campaigns.retry-failed', $campaign) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-danger rounded-md">Retry Failed</button>
+                </form>
             @elseif($campaign->status === 'paused')
                 <form action="{{ route('admin.campaigns.resume', $campaign) }}" method="POST">
                     @csrf
                     <button type="submit" class="btn btn-success rounded-md">Resume</button>
+                </form>
+                <form action="{{ route('admin.campaigns.retry-failed', $campaign) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-danger rounded-md">Retry Failed</button>
                 </form>
             @endif
 

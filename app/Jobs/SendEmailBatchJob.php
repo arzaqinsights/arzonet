@@ -38,7 +38,21 @@ class SendEmailBatchJob implements ShouldQueue
         public int $campaignId,
         public array $emailIds
     ) {
-        $this->tries = config('email.retry_attempts', 3);
+        $this->tries = config('email.retry_attempts', 10); // Increased tries for smarter recovery
+    }
+
+    /**
+     * Get the middleware the job should pass through.
+     */
+    public function middleware(): array
+    {
+        return [
+            // Circuit Breaker: If 10 failures occur in 5 mins, pause for 5 mins
+            (new \Illuminate\Queue\Middleware\ThrottlesExceptions(10, 5)),
+            
+            // Rate Limiter: Prevent sending too fast globally
+            new \Illuminate\Queue\Middleware\RateLimited('sendgrid'),
+        ];
     }
 
     public function handle(MailService $mailService, UsageTrackingService $usageTracker, TrackingService $analyticsTracker, \App\Services\QuotaManager $quotaManager): void
