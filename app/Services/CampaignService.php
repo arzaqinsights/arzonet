@@ -102,6 +102,11 @@ class CampaignService
         $queueName = "bulk-{$providerType}";
         $emailIds = $validEmails->pluck('id')->toArray();
         $chunks = array_chunk($emailIds, $batchSize);
+        $totalJobs = count($chunks);
+
+        // Track how many jobs are dispatched in Redis
+        \Illuminate\Support\Facades\Redis::set("campaign_{$campaign->id}_jobs_count", $totalJobs);
+        \Illuminate\Support\Facades\Redis::expire("campaign_{$campaign->id}_jobs_count", 86400); // 24 hours safety
 
         foreach ($chunks as $index => $chunk) {
             // Adaptive delay for SMTP, zero delay for API providers
@@ -257,13 +262,21 @@ class CampaignService
             'ses' => 200,
             default => 25
         };
+
         $chunks = array_chunk($failedEmailIds, $batchSize);
+        $totalJobs = count($chunks);
+
+        // Track jobs in Redis
+        \Illuminate\Support\Facades\Redis::set("campaign_{$campaign->id}_jobs_count", $totalJobs);
+        \Illuminate\Support\Facades\Redis::expire("campaign_{$campaign->id}_jobs_count", 86400);
+
+        $queueName = "bulk-{$providerType}";
 
         foreach ($chunks as $index => $chunk) {
             $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
-                ->onQueue('bulk')
+                ->onQueue($queueName)
                 ->delay(now()->addSeconds($delay));
         }
     }

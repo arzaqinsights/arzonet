@@ -278,10 +278,28 @@ class SendEmailBatchJob implements ShouldQueue
     protected function checkCompletion(Campaign $campaign)
     {
         $campaign->refresh();
-        if (($campaign->sent_count + $campaign->failed_count) >= $campaign->total_recipients) {
+        
+        // Decrement the Redis counter for this campaign
+        $key = "campaign_{$campaign->id}_jobs_count";
+        $remainingJobs = (int) Redis::decr($key);
+
+        $isActuallyFinished = ($campaign->sent_count + $campaign->failed_count) >= $campaign->total_recipients;
+
+        if ($isActuallyFinished) {
             $campaign->update([
                 'status'       => 'completed',
                 'completed_at' => now(),
+            ]);
+            Redis::del($key); // Cleanup
+            return;
+        }
+
+        // SMART CHECK: If NO MORE JOBS are in the queue (Redis count <= 0) 
+        // but campaign is NOT finished, it means it's STALLED.
+        if ($remainingJobs <= 0) {
+            $campaign->update([
+                'status' => 'paused',
+                'error_message' => 'Campaign stalled: All dispatched jobs finished but some emails remain unsent. Please click "Retry Failed".'
             ]);
         }
     }
