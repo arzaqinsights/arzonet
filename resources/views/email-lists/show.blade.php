@@ -207,14 +207,24 @@
                         </select>
                     </div>
 
-                    {{-- Source Filter --}}
+                    {{-- WA Status Filter --}}
                     <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-sm border border-gray-100 hover:border-gray-200 transition-all">
+                        <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest">WA Status:</span>
+                        <select x-model="wa_status" @change="fetchEmails()" class="bg-transparent border-none text-[10px] font-black text-surface-700 focus:ring-0 focus:outline-none cursor-pointer p-0">
+                            <option value="all">All Status</option>
+                            <option value="subscribed">Subscribed</option>
+                            <option value="unsubscribed">Opt-out</option>
+                        </select>
+                    </div>
+
+                    {{-- Source Filter --}}
+                    <!-- <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-sm border border-gray-100 hover:border-gray-200 transition-all">
                         <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Source:</span>
                         <select x-model="source" @change="fetchEmails()" class="bg-transparent border-none text-[10px] font-black text-surface-700 focus:ring-0 focus:outline-none cursor-pointer p-0">
                             <option value="all">All Sources</option>
                             @foreach($sources as $src) <option value="{{ $src }}">{{ $src }}</option> @endforeach
                         </select>
-                    </div>
+                    </div> -->
 
                     {{-- Scrub Button removed from here --}}
 
@@ -500,6 +510,7 @@
                                 </th>
                                 <th class="px-8 py-4">Email Address</th>
                                 <th class="px-8 py-4">WhatsApp</th>
+                                <th class="px-8 py-4">WA Status</th>
 
                                 <th class="px-8 py-4">Full Name</th>
                                 @foreach($displayedFields as $field)
@@ -859,7 +870,7 @@
     <script>
     function emailListView() {
         return {
-            filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all',
+            filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all', wa_status: 'all',
             search: '', searchField: 'all', selectedIds: [], activeTab: 'contacts', globalSelect: false,
             showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false,
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
@@ -899,7 +910,7 @@
             },
 
             resetFilters() {
-                this.filter = 'all'; this.segment = 'all'; this.tag = 'all'; this.source = 'all'; this.archived = 'no'; this.subscription = 'all'; this.channel = 'all';
+                this.filter = 'all'; this.segment = 'all'; this.tag = 'all'; this.source = 'all'; this.archived = 'no'; this.subscription = 'all'; this.channel = 'all'; this.wa_status = 'all';
                 this.search = ''; this.searchField = 'all'; this.selectedIds = []; this.fetchEmails();
             },
 
@@ -952,7 +963,7 @@
                             status: this.filter, search: this.search, search_field: this.searchField, 
                             segment: this.segment, tag: this.tag, source: this.source, 
                             archived: this.archived, subscription: this.subscription,
-                            channel: this.channel 
+                            channel: this.channel, wa_status: this.wa_status 
                         }
                     })
                 }).then(() => { 
@@ -971,7 +982,7 @@
                         status: this.filter, search: this.search, search_field: this.searchField, 
                         segment: this.segment, tag: this.tag, source: this.source, 
                         archived: this.archived, subscription: this.subscription,
-                        channel: this.channel 
+                        channel: this.channel, wa_status: this.wa_status 
                     })
                 }).then(r => r.json()).then(data => {
                     document.getElementById('email-table-body').innerHTML = data.html;

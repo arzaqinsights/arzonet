@@ -290,6 +290,11 @@ class EmailListController extends Controller
             $query->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '');
         }
 
+        // WhatsApp Subscription Status filter
+        if ($request->wa_status && $request->wa_status !== 'all') {
+            $query->where('whatsapp_subscription_status', $request->wa_status);
+        }
+
         // Targeted or Global Search
         if ($request->search) {
             $search = $request->search;
