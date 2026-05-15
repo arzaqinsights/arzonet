@@ -8,6 +8,7 @@ use App\Models\Email;
 use App\Services\FileParserService;
 use App\Jobs\ProcessEmailListJob;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Bus;
