@@ -9,9 +9,14 @@ class EmailList extends Model
 {
     use \App\Traits\BelongsToUser;
 
+    const TYPE_EMAIL     = 'email';
+    const TYPE_WHATSAPP  = 'whatsapp';
+    const TYPE_DUAL      = 'dual';
+
     protected $fillable = [
         'user_id',
         'name',
+        'list_type',
         'file_path',
         'original_filename',
         'signup_source',
@@ -24,6 +29,15 @@ class EmailList extends Model
         'duplicate_count',
         'status',
     ];
+
+    // --- Helper Methods ---
+    public function isEmailList(): bool    { return in_array($this->list_type, [self::TYPE_EMAIL, self::TYPE_DUAL]); }
+    public function isWhatsAppList(): bool { return in_array($this->list_type, [self::TYPE_WHATSAPP, self::TYPE_DUAL]); }
+    public function isDualList(): bool     { return $this->list_type === self::TYPE_DUAL; }
+
+    // --- Scopes for Campaign Dropdowns ---
+    public function scopeForEmail($query)    { return $query->whereIn('list_type', [self::TYPE_EMAIL, self::TYPE_DUAL]); }
+    public function scopeForWhatsApp($query) { return $query->whereIn('list_type', [self::TYPE_WHATSAPP, self::TYPE_DUAL]); }
 
     protected function casts(): array
     {

@@ -57,6 +57,7 @@ class EmailListController extends Controller
 
         $emailList = EmailList::create([
             'name' => $listName,
+            'list_type' => $request->list_type ?? EmailList::TYPE_EMAIL,
             'signup_source' => $request->signup_source ?? 'Direct Import',
             'status' => 'pending',
         ]);
@@ -111,6 +112,7 @@ class EmailListController extends Controller
 
             $emailList->update([
                 'status' => 'completed',
+                'list_type' => $request->list_type ?? EmailList::TYPE_EMAIL,
             ]);
 
             Email::create([

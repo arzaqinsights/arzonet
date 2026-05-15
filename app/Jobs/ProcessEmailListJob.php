@@ -49,13 +49,14 @@ class ProcessEmailListJob implements ShouldQueue
 
             $mapping = $emailList->column_mapping;
             $emailListId = $this->emailListId;
+            $listType = $emailList->list_type;
             
             $jobs = [];
             $chunkSize = 50; 
             $currentChunk = [];
             $totalInFile = 0;
 
-            foreach ($parser->streamStoredFile($emailList->file_path, $mapping) as $row) {
+            foreach ($parser->streamStoredFile($emailList->file_path, $mapping, $listType) as $row) {
                 $currentChunk[] = $row;
                 $totalInFile++;
 

@@ -147,7 +147,7 @@ class FileParserService
     /**
      * STREAMING PARSER: Yields mapped data row by row to prevent OOM errors.
      */
-    public function streamStoredFile(string $filePath, array $mapping): \Generator
+    public function streamStoredFile(string $filePath, array $mapping, string $listType = 'email'): \Generator
     {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         $fullPath = Storage::disk('local')->path($filePath);
@@ -157,13 +157,13 @@ class FileParserService
         }
 
         if ($extension === 'csv') {
-            yield from $this->streamCsv($fullPath, $mapping);
+            yield from $this->streamCsv($fullPath, $mapping, $listType);
         } else {
-            yield from $this->streamXlsx($fullPath, $mapping);
+            yield from $this->streamXlsx($fullPath, $mapping, $listType);
         }
     }
 
-    protected function streamCsv(string $path, array $mapping): \Generator
+    protected function streamCsv(string $path, array $mapping, string $listType = 'email'): \Generator
     {
         $handle = fopen($path, 'r');
         
@@ -215,7 +215,7 @@ class FileParserService
 
             try {
                 $combined = array_combine($headers, $row);
-                $mapped = $this->mapSingleRow($combined, $mapping);
+                $mapped = $this->mapSingleRow($combined, $mapping, $listType);
                 foreach ($mapped as $item) yield $item;
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("Failed to map CSV row {$rowNumber}: " . $e->getMessage());
@@ -225,7 +225,7 @@ class FileParserService
         fclose($handle);
     }
 
-    protected function streamXlsx(string $path, array $mapping): \Generator
+    protected function streamXlsx(string $path, array $mapping, string $listType = 'email'): \Generator
     {
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
         $reader->setReadDataOnly(true);
@@ -305,50 +305,131 @@ class FileParserService
                 $rowData = array_pad($rowData, count($headers), '');
             }
 
-            $mapped = $this->mapSingleRow(array_combine($headers, $rowData), $mapping);
+            $mapped = $this->mapSingleRow(array_combine($headers, $rowData), $mapping, $listType);
             foreach ($mapped as $item) yield $item;
         }
     }
 
-    protected function mapSingleRow(array $row, array $mapping): array
+    protected function mapSingleRow(array $row, array $mapping, string $listType = 'email'): array
     {
+        // --- Separator Regex (same for email and phone) ---
+        // Supports: comma, semicolon, pipe (|), slash (/), space, newlines
+        $sep = '/[,\s;|\/]+/';
+
+        // ── EMAIL ONLY ────────────────────────────────────────────────────────
+        if ($listType === 'email') {
+            $emailColumn = $mapping['email'] ?? null;
+            if (!$emailColumn) return [];
+            $emailRaw = trim($row[$emailColumn] ?? '');
+            if (empty($emailRaw)) return [];
+
+            $emails   = preg_split($sep, $emailRaw, -1, PREG_SPLIT_NO_EMPTY);
+            $results  = [];
+
+            foreach ($emails as $email) {
+                $data = $this->buildBaseRow($row, $mapping, 'email', $email);
+                $results[] = $data;
+            }
+            return $results;
+        }
+
+        // ── WHATSAPP ONLY ────────────────────────────────────────────────────
+        if ($listType === 'whatsapp') {
+            $phoneColumn = $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
+            if (!$phoneColumn) return [];
+            $phoneRaw = trim($row[$phoneColumn] ?? '');
+            if (empty($phoneRaw)) return [];
+
+            $phones  = preg_split($sep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY);
+            $results = [];
+
+            foreach ($phones as $phone) {
+                $data = $this->buildBaseRow($row, $mapping, 'phone', $phone);
+                $results[] = $data;
+            }
+            return $results;
+        }
+
+        // ── DUAL MODE: Sparse Pairing ────────────────────────────────────────
+        // Rules:
+        //   • Column with MORE values drives the row count.
+        //   • The shorter column fills only the FIRST row; remaining rows get NULL.
+        //   • If both equal, they're paired 1-to-1.
+
         $emailColumn = $mapping['email'] ?? null;
-        if (!$emailColumn) return [];
+        $phoneColumn  = $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
 
-        $emailRaw = trim($row[$emailColumn] ?? '');
-        if (empty($emailRaw)) return [];
+        $emailRaw = $emailColumn ? trim($row[$emailColumn] ?? '') : '';
+        $phoneRaw = $phoneColumn ? trim($row[$phoneColumn]  ?? '') : '';
 
-        // Smart Split: Support comma, semicolon, pipe, slash (/), and whitespace/newlines
-        $emails = preg_split('/[,\s;|\/]+/', $emailRaw, -1, PREG_SPLIT_NO_EMPTY);
+        $emails = !empty($emailRaw) ? preg_split($sep, $emailRaw, -1, PREG_SPLIT_NO_EMPTY) : [];
+        $phones = !empty($phoneRaw) ? preg_split($sep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY) : [];
+
+        // If both are empty, skip this row
+        if (empty($emails) && empty($phones)) return [];
+
+        // Total rows = max of both
+        $total   = max(count($emails), count($phones));
         $results = [];
 
-        foreach ($emails as $email) {
-            if (empty($email)) continue;
+        for ($i = 0; $i < $total; $i++) {
+            // Sparse rule: only put value if this index exists, else NULL
+            $email = $emails[$i] ?? null;
+            $phone = $phones[$i]  ?? null;
 
-            $data = [
-                'email' => strtolower($email),
-                'name'  => null,
-                'meta'  => []
-            ];
+            // Skip if the "driving" column's value is empty at this index
+            if ($email === null && $phone === null) continue;
 
-            foreach ($mapping as $systemField => $excelColumn) {
-                if ($excelColumn === $emailColumn || str_starts_with($systemField, '_')) continue;
-                if (is_array($excelColumn)) continue;
+            $data = $this->buildBaseRow($row, $mapping, null, null);
+            $data['email'] = $email ? strtolower($email) : null;
+            $data['phone'] = $phone ?? null;
 
-                $value = trim($row[$excelColumn] ?? '');
-                
-                if ($systemField === 'name') {
-                    $data['name'] = $value;
-                } else {
-                    $data['meta'][$systemField] = $value;
-                }
-            }
-
-            if (empty($data['meta'])) $data['meta'] = null;
             $results[] = $data;
         }
 
         return $results;
+    }
+
+    /**
+     * Build the common base row (name, meta) for a single record.
+     * Optionally sets email or phone from a split value.
+     */
+    protected function buildBaseRow(array $row, array $mapping, ?string $primaryField, ?string $primaryValue): array
+    {
+        $data = [
+            'email' => null,
+            'phone' => null,
+            'name'  => null,
+            'meta'  => [],
+        ];
+
+        if ($primaryField === 'email' && $primaryValue) {
+            $data['email'] = strtolower($primaryValue);
+        } elseif ($primaryField === 'phone' && $primaryValue) {
+            $data['phone'] = $primaryValue;
+        }
+
+        $emailColumn = $mapping['email'] ?? null;
+        $phoneColumn  = $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
+
+        foreach ($mapping as $systemField => $excelColumn) {
+            if (is_array($excelColumn) || str_starts_with($systemField, '_')) continue;
+            // Skip the primary split column (already handled)
+            if ($excelColumn === $emailColumn && $systemField === 'email') continue;
+            if ($excelColumn === $phoneColumn && in_array($systemField, ['phone', 'whatsapp'])) continue;
+
+            $value = trim($row[$excelColumn] ?? '');
+
+            if ($systemField === 'name') {
+                $data['name'] = $value ?: null;
+            } else {
+                $data['meta'][$systemField] = $value;
+            }
+        }
+
+        if (empty($data['meta'])) $data['meta'] = null;
+
+        return $data;
     }
 
     protected function detectHeaderIndex(array $rows): int

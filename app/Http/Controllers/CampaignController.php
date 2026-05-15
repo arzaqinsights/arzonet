@@ -46,7 +46,8 @@ class CampaignController extends Controller
             return redirect()->route('admin.campaigns.show', $campaign);
         }
 
-        $emailLists = EmailList::where('status', 'completed')
+        $emailLists = EmailList::forEmail()
+            ->where('status', 'completed')
             ->withCount(['emails as emails_count' => function ($query) {
                 $query->valid()->subscribed();
             }])
@@ -254,22 +255,27 @@ class CampaignController extends Controller
                 $metaKeys = array_keys($firstLog->email->meta);
             }
 
-            $columns = array_merge(['Email', 'Status', 'Opens', 'Clicks', 'Sent At'], $metaKeys);
+            $columns = array_merge(['Email', 'Name', 'WhatsApp', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At'], $metaKeys);
             fputcsv($file, $columns);
 
             $query->chunk(1000, function($logs) use($file, $metaKeys) {
                 foreach ($logs as $log) {
+                    $email = $log->email;
                     $row = [
                         $log->email_address,
+                        $email->name ?? '—',
+                        $email->whatsapp_number ?? '—',
                         $log->status,
                         $log->open_count,
                         $log->click_count,
-                        $log->created_at,
+                        $email->segment_name ?? '—',
+                        is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '—'),
+                        $log->created_at->toDateTimeString(),
                     ];
                     
                     // Add meta values
                     foreach ($metaKeys as $key) {
-                        $row[] = $log->email->meta[$key] ?? '';
+                        $row[] = ($email->meta[$key] ?? '') ?: '—';
                     }
 
                     fputcsv($file, $row);

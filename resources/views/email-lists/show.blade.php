@@ -294,6 +294,7 @@
                                     <span class="text-surface-600 font-medium">suspicious emails.</span>
                                 </span>
                             </template>
+                            @if($emailList->isEmailList() || $emailList->isDualList())
                             <template x-if="subscription === 'hard_bounce'">
                                 <span>
                                     <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
@@ -310,6 +311,7 @@
                                     <span class="text-surface-600 font-medium">soft bounce emails.</span>
                                 </span>
                             </template>
+                            @endif
                             <template x-if="subscription === 'complaint'">
                                 <span>
                                     <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
@@ -359,6 +361,7 @@
                                     <span class="text-surface-600 font-medium">Bounce (Any)</span>
                                 </span>
                             </template>
+                            @if($emailList->isEmailList() || $emailList->isDualList())
                             <template x-if="stats.hard_bounce > 0">
                                 <span>
                                     <span class="text-red-500 font-black" x-text="stats.hard_bounce.toLocaleString()"></span>
@@ -371,6 +374,7 @@
                                     <span class="text-surface-600 font-medium">Soft Bounce</span>
                                 </span>
                             </template>
+                            @endif
                             <template x-if="stats.complaints > 0">
                                 <span>
                                     <span class="text-surface-900 font-black" x-text="stats.complaints.toLocaleString()"></span>
@@ -469,7 +473,9 @@
                                     </div>
                                 </th>
                                 <th class="px-8 py-4">Email Address</th>
-                                <th class="px-8 py-4">WhatsApp</th>
+                                @if($emailList->isWhatsAppList() || $emailList->isDualList())
+                                    <th class="px-8 py-4">WhatsApp</th>
+                                @endif
 
                                 <th class="px-8 py-4">Full Name</th>
                                 @foreach($displayedFields as $field)
