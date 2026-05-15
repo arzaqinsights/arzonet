@@ -64,11 +64,14 @@ class EmailValidationService
         foreach ($emailData as $entry) {
             $rawEmail = preg_replace('/[\x00-\x1F\x7F\xA0\x{FEFF}\x{200B}-\x{200D}]/u', '', $entry['email'] ?? '');
             $rawEmail = trim($rawEmail);
-            if (empty($rawEmail)) continue;
+            $whatsappNumber = $entry['whatsapp_number'] ?? null;
 
-            $email = $this->normalizeEmail($rawEmail);
-            $entry['email'] = $rawEmail;
-            $entry['whatsapp_number'] = $entry['whatsapp_number'] ?? null;
+            // Must have at least one communication channel
+            if (empty($rawEmail) && empty($whatsappNumber)) continue;
+
+            $email = !empty($rawEmail) ? $this->normalizeEmail($rawEmail) : null;
+            $entry['email'] = !empty($rawEmail) ? $rawEmail : null;
+            $entry['whatsapp_number'] = $whatsappNumber;
             
             // ── Health Tracking Initialization ──
             $entry['email_status'] = 'valid';
@@ -81,19 +84,19 @@ class EmailValidationService
             $entry['has_typo'] = false;
             $entry['last_validation_at'] = now();
 
-            // 1. Basic format check
-            if (!filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
+            // 1. Basic format check (Only if email is provided)
+            if (!empty($rawEmail) && !filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
                 $entry['status'] = 'invalid';
                 $entry['email_status'] = 'invalid';
                 $entry['email_score'] = 1;
-                $entry['validation_reason'][] = 'Invalid syntax / hidden characters';
+                $entry['validation_reason'][] = 'Invalid email syntax';
                 $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
                 $invalid[] = $entry;
                 continue;
             }
 
             // 2. Blacklist check
-            if (isset($blacklisted[$email])) {
+            if (!empty($email) && isset($blacklisted[$email])) {
                 $entry['status'] = 'invalid';
                 $entry['email_status'] = 'blocked';
                 $entry['email_score'] = 1;
@@ -115,8 +118,8 @@ class EmailValidationService
             }
             $domain = $parts[1];
 
-            // 4. Duplicate check (Already in THIS list)
-            if (isset($existingRecords[$email])) {
+            // 4. Duplicate check (Already in THIS list - only if email exists)
+            if (!empty($email) && isset($existingRecords[$email])) {
                 $record = $existingRecords[$email];
                 if ($record->status === 'permanent_delete') {
                     $entry['status'] = 'invalid';
@@ -129,13 +132,13 @@ class EmailValidationService
                 }
                 if ($record->is_archived) {
                     $entry['status'] = 'to_restore';
-                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
+                    $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
                     $toRestore[] = $entry;
                     continue;
                 }
                 if ($record->status === 'duplicate') {
                     $entry['status'] = 'to_valid';
-                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
+                    $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
                     $toValid[] = $entry;
                     continue;
                 }
@@ -145,15 +148,23 @@ class EmailValidationService
             }
 
             // 5. Local Duplicate check
-            if (isset($seen[$email])) {
+            if (!empty($email) && isset($seen[$email])) {
                 $entry['status'] = 'duplicate';
-                $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
+                $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
                 $duplicates[] = $entry;
                 continue;
             }
-            $seen[$email] = true;
+            if (!empty($email)) $seen[$email] = true;
 
-            // ── Advanced Validations ──
+            // ── Advanced Validations (Only if email exists) ──
+            if (empty($email)) {
+                $entry['status'] = 'valid';
+                $entry['email_status'] = 'valid';
+                $entry['email_score'] = 5;
+                $entry['validation_reason'] = '';
+                $valid[] = $entry;
+                continue;
+            }
 
             // A. Disposable detection
             if (in_array($domain, $this->disposableDomains)) {

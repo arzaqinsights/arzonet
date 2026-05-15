@@ -51,7 +51,7 @@
                         }
                         elseif (str_contains($h, 'company') || str_contains($h, 'firm') || str_contains($h, 'organization')) $target = 'company';
                         elseif (str_contains($h, 'whatsapp') || str_contains($h, 'wa number')) $target = 'whatsapp_number';
-                        elseif (str_contains($h, 'phone') || str_contains($h, 'mobile') || str_contains($h, 'contact')) $target = 'phone';
+                        elseif (str_contains($h, 'phone') || str_contains($h, 'mobile') || str_contains($h, 'contact') || str_contains($h, 'number')) $target = 'whatsapp_number';
                         elseif (str_contains($h, 'city')) $target = 'city';
                         elseif (str_contains($h, 'state')) $target = 'state';
                         elseif (str_contains($h, 'country')) $target = 'country';

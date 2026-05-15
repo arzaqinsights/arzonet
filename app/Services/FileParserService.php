@@ -453,7 +453,7 @@ class FileParserService
             'name'      => ['name', 'full_name', 'fullname', 'contact_name', 'customer_name'],
             'first_name'=> ['first_name', 'firstname', 'fname', 'given_name'],
             'last_name' => ['last_name', 'lastname', 'lname', 'surname'],
-            'phone'     => ['phone', 'mobile', 'cell', 'telephone', 'contact_no', 'ph_no'],
+            'whatsapp_number'=> ['whatsapp', 'wa_number', 'phone', 'mobile', 'cell', 'telephone', 'contact_no', 'ph_no', 'number', 'contact'],
             'company'   => ['company', 'organization', 'business', 'firm', 'employer'],
             'job_title' => ['job_title', 'designation', 'position', 'role', 'title'],
             'city'      => ['city', 'town', 'location'],
@@ -482,7 +482,7 @@ class FileParserService
                 if (str_contains($sampleValue, '@') && str_contains($sampleValue, '.')) {
                     $suggestions[$header] = 'email';
                 } elseif (preg_match('/^\+?[0-9\s\-]{8,15}$/', $sampleValue)) {
-                    $suggestions[$header] = 'phone';
+                    $suggestions[$header] = 'whatsapp_number';
                 }
             }
         }
