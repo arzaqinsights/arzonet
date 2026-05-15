@@ -318,7 +318,8 @@ class FileParserService
         $emailRaw = trim($row[$emailColumn] ?? '');
         if (empty($emailRaw)) return [];
 
-        $emails = array_map('trim', explode(',', $emailRaw));
+        // Smart Split: Support comma, semicolon, pipe, slash (/), and whitespace/newlines
+        $emails = preg_split('/[,\s;|\/]+/', $emailRaw, -1, PREG_SPLIT_NO_EMPTY);
         $results = [];
 
         foreach ($emails as $email) {
