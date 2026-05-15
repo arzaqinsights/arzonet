@@ -508,19 +508,19 @@
                                         </div>
                                     </div>
                                 </th>
-                                <th class="px-8 py-4">Email Address</th>
-                                <th class="px-8 py-4">WhatsApp Number</th>
+                                <th class="px-8 py-4 whitespace-nowrap">Email Address</th>
+                                <th class="px-8 py-4 whitespace-nowrap">WhatsApp Number</th>
 
-                                <th class="px-8 py-4">Full Name</th>
+                                <th class="px-8 py-4 whitespace-nowrap">Full Name</th>
                                 @foreach($displayedFields as $field)
-                                    <th class="px-8 py-4">{{ str_replace(['_', 'custom_'], [' ', ''], $field) }}</th>
+                                    <th class="px-8 py-4 whitespace-nowrap">{{ str_replace(['_', 'custom_'], [' ', ''], $field) }}</th>
                                 @endforeach
-                                <th class="px-8 py-4 text-center">Segment</th>
-                                <th class="px-8 py-4 text-center">Tag</th>
-                                <th class="px-8 py-4 text-center">Health</th>
-                                <th class="px-8 py-4 text-center">Email</th>
-                                <th class="px-8 py-4 text-center">WhatsApp</th>
-                                <th class="px-8 py-4 text-right">Action</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">Segment</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">Tag</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">Health</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">Email</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">WhatsApp</th>
+                                <th class="px-8 py-4 text-right whitespace-nowrap">Action</th>
                             </tr>
                         </thead>
                         <tbody id="email-table-body" class="divide-y divide-gray-50">
