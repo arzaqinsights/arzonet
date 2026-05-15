@@ -128,18 +128,35 @@ class SendGridWebhookController extends Controller
 
                 case 'bounce':
                     if ($log->status !== 'bounced') {
-                        $log->update(['status' => 'bounced', 'error_message' => $event['reason'] ?? 'Bounced']);
+                        $reason = $event['reason'] ?? 'Bounced';
+                        $log->update(['status' => 'bounced', 'error_message' => $reason]);
                         
-                        // Update list-specific email status
+                        // Smart Bounce Handling: Distinguish Soft vs Hard
                         if ($log->email) {
-                            $log->email->update([
-                                'status' => 'invalid', 
-                                'email_status' => 'hard_bounce',
-                                'subscription_status' => 'unsubscribed',
-                                'unsubscribed_at' => now(),
-                                'email_score' => 1,
-                                'validation_reason' => 'Bounced: ' . ($event['reason'] ?? 'Hard Bounce')
-                            ]);
+                            $isSoftBounce = stripos($reason, 'full') !== false || 
+                                            stripos($reason, 'quota') !== false || 
+                                            stripos($reason, 'temporary') !== false ||
+                                            stripos($reason, 'limit') !== false ||
+                                            stripos($reason, 'over') !== false;
+
+                            if ($isSoftBounce) {
+                                // Soft Bounce: Keep subscribed, just lower score
+                                $log->email->update([
+                                    'email_status'      => 'soft_bounce',
+                                    'email_score'       => max(1, $log->email->email_score - 1), // Lower score by 1
+                                    'validation_reason' => 'Soft Bounce: ' . $reason
+                                ]);
+                            } else {
+                                // Hard Bounce: Invalid and Unsubscribe
+                                $log->email->update([
+                                    'status'              => 'invalid', 
+                                    'email_status'        => 'hard_bounce',
+                                    'subscription_status' => 'unsubscribed',
+                                    'unsubscribed_at'     => now(),
+                                    'email_score'         => 1,
+                                    'validation_reason'   => 'Hard Bounce: ' . $reason
+                                ]);
+                            }
                         }
                     }
                     break;
