@@ -28,6 +28,8 @@ class EmailLog extends Model
         'first_open_at',
         'last_open_at',
         'clicked_at',
+        'is_exported',
+        'exported_at',
     ];
 
     protected function casts(): array
@@ -38,8 +40,10 @@ class EmailLog extends Model
             'first_open_at' => 'datetime',
             'last_open_at'  => 'datetime',
             'clicked_at'    => 'datetime',
+            'exported_at'   => 'datetime',
             'open_count'    => 'integer',
             'click_count'   => 'integer',
+            'is_exported'   => 'boolean',
         ];
     }
 

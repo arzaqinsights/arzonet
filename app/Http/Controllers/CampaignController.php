@@ -224,7 +224,7 @@ class CampaignController extends Controller
     {
         $query = $campaign->logs()->with('email');
 
-        // Apply same filters as show method
+        // Apply filters
         if ($request->status) $query->where('status', $request->status);
         if ($request->engagement === 'opened') {
             $query->where(function($q) {
@@ -234,6 +234,13 @@ class CampaignController extends Controller
             $query->where('click_count', '>', 0);
         }
         if ($request->search) $query->where('email_address', 'LIKE', "%{$request->search}%");
+
+        // New: Export status filter
+        if ($request->exported_filter === 'not_exported') {
+            $query->where('is_exported', false);
+        } elseif ($request->exported_filter === 'exported') {
+            $query->where('is_exported', true);
+        }
 
         $filename = "campaign_{$campaign->id}_logs_" . now()->format('Y-m-d_H-i-s') . ".csv";
         
@@ -255,30 +262,39 @@ class CampaignController extends Controller
                 $metaKeys = array_keys($firstLog->email->meta);
             }
 
-            $columns = array_merge(['Email', 'Name', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At'], $metaKeys);
+            $columns = array_merge(['Email', 'Name', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At', 'Exported'], $metaKeys);
             fputcsv($file, $columns);
 
             $query->chunk(1000, function($logs) use($file, $metaKeys) {
+                $idsToMark = [];
                 foreach ($logs as $log) {
                     $email = $log->email;
                     $row = [
                         $log->email_address,
                         $email->name ?? '—',
-                        $email->whatsapp_number ?? '—',
                         $log->status,
                         $log->open_count,
                         $log->click_count,
                         $email->segment_name ?? '—',
                         is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '—'),
                         $log->created_at->toDateTimeString(),
+                        $log->is_exported ? 'YES' : 'NO',
                     ];
                     
-                    // Add meta values
                     foreach ($metaKeys as $key) {
                         $row[] = ($email->meta[$key] ?? '') ?: '—';
                     }
 
                     fputcsv($file, $row);
+                    $idsToMark[] = $log->id;
+                }
+
+                // Mark as exported
+                if (!empty($idsToMark)) {
+                    \App\Models\EmailLog::whereIn('id', $idsToMark)->update([
+                        'is_exported' => true,
+                        'exported_at' => now()
+                    ]);
                 }
             });
 
@@ -338,7 +354,7 @@ class CampaignController extends Controller
         return back()->with('success', 'Retrying failed emails...');
     }
 
-    public function report(Campaign $campaign)
+    public function report(Request $request, Campaign $campaign)
     {
         $campaign->load(['emailList', 'template', 'sender']);
         
@@ -390,7 +406,15 @@ class CampaignController extends Controller
             ->take(5)
             ->get();
 
-        $logs = $campaign->logs()->with('email')->latest()->paginate(50);
+        $logsQuery = $campaign->logs()->with('email')->latest();
+
+        if ($request->exported_filter === 'not_exported') {
+            $logsQuery->where('is_exported', false);
+        } elseif ($request->exported_filter === 'exported') {
+            $logsQuery->where('is_exported', true);
+        }
+
+        $logs = $logsQuery->paginate(50)->withQueryString();
 
         return view('campaigns.report', compact('campaign', 'stats', 'logs', 'topLinks', 'providerStats'));
     }
