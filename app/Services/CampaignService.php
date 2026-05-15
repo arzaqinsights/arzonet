@@ -239,15 +239,21 @@ class CampaignService
         $campaign->update(['status' => 'sending']);
 
         $failedEmailIds = $campaign->logs()
-            ->whereIn('status', ['failed', 'bounced', 'pending'])
+            ->whereNotIn('status', ['sent', 'delivered'])
+            ->whereNotNull('email_id')
             ->pluck('email_id')
             ->toArray();
 
-        if (empty($failedEmailIds)) return;
+        \Illuminate\Support\Facades\Log::info("Retry Failed triggered for Campaign {$campaign->id}. Emails found: " . count($failedEmailIds));
+
+        if (empty($failedEmailIds)) {
+            \Illuminate\Support\Facades\Log::warning("Retry Failed: No failed/bounced/pending emails found for Campaign {$campaign->id}. Current statuses in DB: " . json_encode($campaign->logs()->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))->groupBy('status')->pluck('count', 'status')));
+            return;
+        }
 
         // Reset logs to pending
         $campaign->logs()
-            ->whereIn('status', ['failed', 'bounced', 'pending'])
+            ->whereNotIn('status', ['sent', 'delivered'])
             ->update([
                 'status'        => 'pending',
                 'error_message' => null,
