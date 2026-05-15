@@ -112,16 +112,31 @@ class Campaign extends Model
 
     public function openRate(): float
     {
-        if ($this->sent_count === 0) return 0;
-        $uniqueOpens = $this->logs()->where('open_count', '>', 0)->count();
-        return round(($uniqueOpens / max(1, $this->sent_count)) * 100, 1);
+        // Get actual delivered count from logs for accuracy
+        $deliveredCount = $this->logs()->whereIn('status', ['sent', 'delivered'])->count();
+        if ($deliveredCount === 0) return 0;
+
+        // Smart Open: Count unique logs where either open_count > 0 OR click_count > 0
+        // (If they clicked, they definitely opened, even if the pixel was blocked)
+        $uniqueOpens = $this->logs()
+            ->where(function($q) {
+                $q->where('open_count', '>', 0)
+                  ->orWhere('click_count', '>', 0);
+            })
+            ->count();
+
+        return round(($uniqueOpens / $deliveredCount) * 100, 1);
     }
 
     public function clickRate(): float
     {
-        if ($this->sent_count === 0) return 0;
+        $deliveredCount = $this->logs()->whereIn('status', ['sent', 'delivered'])->count();
+        if ($deliveredCount === 0) return 0;
+
+        // Unique Clicks
         $uniqueClicks = $this->logs()->where('click_count', '>', 0)->count();
-        return round(($uniqueClicks / max(1, $this->sent_count)) * 100, 1);
+
+        return round(($uniqueClicks / $deliveredCount) * 100, 1);
     }
 
     public function bounceRate(): float

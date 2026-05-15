@@ -239,7 +239,7 @@ class CampaignService
         $campaign->update(['status' => 'sending']);
 
         $failedEmailIds = $campaign->logs()
-            ->whereNotIn('status', ['sent', 'delivered'])
+            ->where('status', 'pending')
             ->whereNotNull('email_id')
             ->pluck('email_id')
             ->toArray();
@@ -253,7 +253,7 @@ class CampaignService
 
         // Reset logs to pending
         $campaign->logs()
-            ->whereNotIn('status', ['sent', 'delivered'])
+            ->where('status', 'pending')
             ->update([
                 'status'        => 'pending',
                 'error_message' => null,
