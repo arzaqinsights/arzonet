@@ -64,7 +64,6 @@
     </td>
 
     {{-- WhatsApp Column --}}
-    @if($emailList->isWhatsAppList() || $emailList->isDualList())
     <td class="px-8 py-4 whitespace-nowrap">
         <template x-if="!editing">
             <div class="text-xs text-surface-600 font-bold flex items-center gap-1.5">
@@ -76,7 +75,6 @@
             <input type="text" x-model="row.whatsapp_number" placeholder="WhatsApp" class="w-full px-2 py-1 bg-white border border-gray-100 rounded-sm text-xs font-bold focus:ring-0 focus:outline-none">
         </template>
     </td>
-    @endif
 
     {{-- Name Column --}}
     <td class="px-8 py-4 whitespace-nowrap">

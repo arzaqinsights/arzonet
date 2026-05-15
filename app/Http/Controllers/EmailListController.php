@@ -57,7 +57,7 @@ class EmailListController extends Controller
 
         $emailList = EmailList::create([
             'name' => $listName,
-            'list_type' => $request->list_type ?? EmailList::TYPE_EMAIL,
+            'list_type' => EmailList::TYPE_DUAL,
             'signup_source' => $request->signup_source ?? 'Direct Import',
             'status' => 'pending',
         ]);
@@ -87,17 +87,18 @@ class EmailListController extends Controller
             $filename = 'paste_' . Str::random(10) . '.csv';
             $path = 'email-lists/' . $filename;
 
-            // Create CSV content with a header
-            $content = "email\n" . $request->emails_text;
-            Storage::disk('local')->put($path, $content);
+            // Since we don't know the format, we'll try to treat it as a headerless CSV
+            // and use auto-mapping in the next step.
+            Storage::disk('local')->put($path, $request->emails_text);
 
             $emailList->update([
                 'file_path' => $path,
                 'original_filename' => 'bulk_paste.csv',
                 'signup_source' => $request->signup_source ?? 'Bulk Paste',
-                'column_mapping' => ['email' => 'email', '_settings' => ['skip_dns' => false]],
-                'status' => 'processing'
+                'status' => 'pending'
             ]);
+
+            return $this->showMappingView($emailList, $parser, new UploadedFile(Storage::disk('local')->path($path), 'bulk_paste.csv'));
 
             ProcessEmailListJob::dispatch($emailList->id);
 
@@ -112,7 +113,7 @@ class EmailListController extends Controller
 
             $emailList->update([
                 'status' => 'completed',
-                'list_type' => $request->list_type ?? EmailList::TYPE_EMAIL,
+                'list_type' => EmailList::TYPE_DUAL,
             ]);
 
             Email::create([

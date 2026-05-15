@@ -310,51 +310,10 @@ class FileParserService
         }
     }
 
-    protected function mapSingleRow(array $row, array $mapping, string $listType = 'email'): array
+    protected function mapSingleRow(array $row, array $mapping, string $listType = 'dual'): array
     {
-        // --- Separator Regex (same for email and phone) ---
-        // Supports: comma, semicolon, pipe (|), slash (/), space, newlines
+        // --- Separator Regex (comma, semicolon, pipe, slash, space, newlines) ---
         $sep = '/[,\s;|\/]+/';
-
-        // ── EMAIL ONLY ────────────────────────────────────────────────────────
-        if ($listType === 'email') {
-            $emailColumn = $mapping['email'] ?? null;
-            if (!$emailColumn) return [];
-            $emailRaw = trim($row[$emailColumn] ?? '');
-            if (empty($emailRaw)) return [];
-
-            $emails   = preg_split($sep, $emailRaw, -1, PREG_SPLIT_NO_EMPTY);
-            $results  = [];
-
-            foreach ($emails as $email) {
-                $data = $this->buildBaseRow($row, $mapping, 'email', $email);
-                $results[] = $data;
-            }
-            return $results;
-        }
-
-        // ── WHATSAPP ONLY ────────────────────────────────────────────────────
-        if ($listType === 'whatsapp') {
-            $phoneColumn = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
-            if (!$phoneColumn) return [];
-            $phoneRaw = trim($row[$phoneColumn] ?? '');
-            if (empty($phoneRaw)) return [];
-
-            $phones  = preg_split($sep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY);
-            $results = [];
-
-            foreach ($phones as $phone) {
-                $data = $this->buildBaseRow($row, $mapping, 'whatsapp_number', $phone);
-                $results[] = $data;
-            }
-            return $results;
-        }
-
-        // ── DUAL MODE: Sparse Pairing ────────────────────────────────────────
-        // Rules:
-        //   • Column with MORE values drives the row count.
-        //   • The shorter column fills only the FIRST row; remaining rows get NULL.
-        //   • If both equal, they're paired 1-to-1.
 
         $emailColumn = $mapping['email'] ?? null;
         $phoneColumn  = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
@@ -368,16 +327,14 @@ class FileParserService
         // If both are empty, skip this row
         if (empty($emails) && empty($phones)) return [];
 
-        // Total rows = max of both
+        // Total rows = max of both (Sparse Pairing)
         $total   = max(count($emails), count($phones));
         $results = [];
 
         for ($i = 0; $i < $total; $i++) {
-            // Sparse rule: only put value if this index exists, else NULL
             $email = $emails[$i] ?? null;
             $phone = $phones[$i]  ?? null;
 
-            // Skip if the "driving" column's value is empty at this index
             if ($email === null && $phone === null) continue;
 
             $data = $this->buildBaseRow($row, $mapping, null, null);

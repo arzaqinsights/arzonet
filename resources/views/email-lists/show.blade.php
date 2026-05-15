@@ -236,6 +236,24 @@
                 <div class="w-full bg-blue-200 h-1 rounded-full overflow-hidden">
                     <div class="bg-blue-600 h-full transition-all duration-500" :style="'width: ' + stats.import_progress + '%'"></div>
                 </div>
+                <div class="mt-4">
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-brand"></div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-surface-400">Channel Integrity</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 border border-gray-100 rounded-sm">
+                                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Email Coverage</p>
+                                <p class="text-xl font-black text-surface-900" x-text="Math.round((stats.global_valid / stats.full_total) * 100) + '%'"></p>
+                            </div>
+                            <div class="p-4 border border-gray-100 rounded-sm">
+                                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">WhatsApp Coverage</p>
+                                <p class="text-xl font-black text-emerald-500" x-text="Math.round((stats.whatsapp_count / stats.full_total) * 100) + '%'"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="mt-2 flex justify-between text-[8px] font-black text-blue-400 uppercase tracking-widest">
                     <span x-text="`Processed: ${stats.import_details?.processed || 0} rows`"></span>
                     <span x-text="`Valid: ${stats.import_details?.valid || 0} • Dup: ${stats.import_details?.duplicate || 0} • Invalid: ${stats.import_details?.invalid || 0}`"></span>
@@ -294,7 +312,6 @@
                                     <span class="text-surface-600 font-medium">suspicious emails.</span>
                                 </span>
                             </template>
-                            @if($emailList->isEmailList() || $emailList->isDualList())
                             <template x-if="subscription === 'hard_bounce'">
                                 <span>
                                     <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
@@ -311,7 +328,6 @@
                                     <span class="text-surface-600 font-medium">soft bounce emails.</span>
                                 </span>
                             </template>
-                            @endif
                             <template x-if="subscription === 'complaint'">
                                 <span>
                                     <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
@@ -473,9 +489,7 @@
                                     </div>
                                 </th>
                                 <th class="px-8 py-4">Email Address</th>
-                                @if($emailList->isWhatsAppList() || $emailList->isDualList())
-                                    <th class="px-8 py-4">WhatsApp</th>
-                                @endif
+                                <th class="px-8 py-4">WhatsApp</th>
 
                                 <th class="px-8 py-4">Full Name</th>
                                 @foreach($displayedFields as $field)

@@ -172,14 +172,6 @@
 
                         {{-- Manual Entry Section --}}
                         <div x-show="method === 'manual'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-8" x-transition:enter-end="opacity-100 translate-y-0" x-cloak class="max-w-md mx-auto py-9.5 w-full">
-                            <!-- <div class="text-center mb-8">
-                                <div class="w-16 h-16 bg-surface-50 rounded-sm flex items-center justify-center mx-auto mb-4 text-brand border border-gray-100">
-                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                                </div>
-                                <h3 class="text-xl font-black text-surface-900 uppercase">Single Contact</h3>
-                                <p class="text-[11px] text-surface-400 font-bold mt-2 uppercase tracking-widest">Add directly to a new list</p>
-                            </div> -->
-
                             <div class="space-y-10">
                                 <div>
                                     <label class="block text-xs font-black text-surface-900 uppercase tracking-[0.2em] mb-2">Email Address *</label>
@@ -221,11 +213,11 @@
 function importWizard() {
     return {
         method: 'upload',
-        listType: 'email',
         fileName: '',
         pasteData: '',
         manualEmail: '',
         manualName: '',
+        manualWhatsApp: '',
 
         handleFile(e) {
             if (e.target.files.length) {
