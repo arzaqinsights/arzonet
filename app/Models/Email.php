@@ -39,6 +39,8 @@ class Email extends Model
         'last_engaged_at',
         'whatsapp_number',
         'whatsapp_opt_in',
+        'whatsapp_subscription_status',
+        'whatsapp_unsubscribed_at',
         'whatsapp_last_message_at',
         'last_campaign_status',
         'bounce_count',

@@ -32,11 +32,20 @@ class ProcessWhatsAppCampaign implements ShouldQueue
         $template = $campaign->template;
         $account = $template->whatsappAccount;
         
-        // Get audience (assuming we use Email model as Contacts)
-        // In a real app, you'd filter by campaign's audience settings
-        $contacts = \App\Models\Email::where('user_id', $campaign->user_id)
+        // Get audience from the selected list
+        if (!$campaign->email_list_id) {
+            Log::warning("WhatsApp Campaign #{$this->campaignId} has no list assigned.");
+            $campaign->update(['status' => 'failed']);
+            return;
+        }
+
+        $contacts = \App\Models\Email::where('email_list_id', $campaign->email_list_id)
             ->whereNotNull('whatsapp_number')
+            ->where('whatsapp_number', '!=', '')
+            ->where('whatsapp_subscription_status', 'subscribed')
             ->where('whatsapp_opt_in', true)
+            ->where('status', 'valid')
+            ->where('is_archived', false)
             ->get();
 
         $campaign->update(['total_recipients' => $contacts->count()]);

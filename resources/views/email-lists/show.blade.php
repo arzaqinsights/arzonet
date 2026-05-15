@@ -197,6 +197,16 @@
                         </select>
                     </div>
 
+                    {{-- Channel Filter --}}
+                    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-sm border border-gray-100 hover:border-gray-200 transition-all">
+                        <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Channel:</span>
+                        <select x-model="channel" @change="fetchEmails()" class="bg-transparent border-none text-[10px] font-black text-surface-700 focus:ring-0 focus:outline-none cursor-pointer p-0">
+                            <option value="all">All Channels</option>
+                            <option value="only_email">Only Email</option>
+                            <option value="only_whatsapp">Only WhatsApp</option>
+                        </select>
+                    </div>
+
                     {{-- Source Filter --}}
                     <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-sm border border-gray-100 hover:border-gray-200 transition-all">
                         <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Source:</span>
@@ -849,7 +859,7 @@
     <script>
     function emailListView() {
         return {
-            filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all',
+            filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all',
             search: '', searchField: 'all', selectedIds: [], activeTab: 'contacts', globalSelect: false,
             showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false,
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
@@ -889,7 +899,7 @@
             },
 
             resetFilters() {
-                this.filter = 'all'; this.segment = 'all'; this.tag = 'all'; this.source = 'all'; this.archived = 'no'; this.subscription = 'all';
+                this.filter = 'all'; this.segment = 'all'; this.tag = 'all'; this.source = 'all'; this.archived = 'no'; this.subscription = 'all'; this.channel = 'all';
                 this.search = ''; this.searchField = 'all'; this.selectedIds = []; this.fetchEmails();
             },
 
@@ -941,7 +951,8 @@
                         filters: {
                             status: this.filter, search: this.search, search_field: this.searchField, 
                             segment: this.segment, tag: this.tag, source: this.source, 
-                            archived: this.archived, subscription: this.subscription 
+                            archived: this.archived, subscription: this.subscription,
+                            channel: this.channel 
                         }
                     })
                 }).then(() => { 
@@ -959,7 +970,8 @@
                     body: JSON.stringify({ 
                         status: this.filter, search: this.search, search_field: this.searchField, 
                         segment: this.segment, tag: this.tag, source: this.source, 
-                        archived: this.archived, subscription: this.subscription 
+                        archived: this.archived, subscription: this.subscription,
+                        channel: this.channel 
                     })
                 }).then(r => r.json()).then(data => {
                     document.getElementById('email-table-body').innerHTML = data.html;

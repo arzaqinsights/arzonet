@@ -137,8 +137,21 @@ class WebhookProcessor
                     ]
                 );
 
-                // 3. Update Contact Timestamp
-                $contact->update(['whatsapp_last_message_at' => now()]);
+                // 3. Update Contact Timestamp & Check for Opt-out Keywords
+                $updateData = ['whatsapp_last_message_at' => now()];
+
+                $optOutKeywords = ['STOP', 'UNSUBSCRIBE', 'REMOVE', 'CANCEL'];
+                $cleanBody = strtoupper(trim($body));
+                
+                if (in_array($cleanBody, $optOutKeywords)) {
+                    $updateData['whatsapp_opt_in'] = false;
+                    $updateData['whatsapp_subscription_status'] = 'unsubscribed';
+                    $updateData['whatsapp_unsubscribed_at'] = now();
+                    
+                    Log::info("WhatsApp Opt-out Triggered: Contact #{$contact->id} ({$contact->whatsapp_number}) unsubscribed via keyword '{$cleanBody}'");
+                }
+
+                $contact->update($updateData);
             });
         }
     }

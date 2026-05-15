@@ -283,6 +283,13 @@ class EmailListController extends Controller
             $query->where('tags', 'like', "%{$request->tag}%");
         }
 
+        // Channel filter (Presence)
+        if ($request->channel === 'only_email') {
+            $query->whereNotNull('email')->where('email', '!=', '');
+        } elseif ($request->channel === 'only_whatsapp') {
+            $query->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '');
+        }
+
         // Targeted or Global Search
         if ($request->search) {
             $search = $request->search;
@@ -332,6 +339,7 @@ class EmailListController extends Controller
             'duplicate' => (clone $statsQuery)->where('status', 'duplicate')->count(),
             'subscribed' => (clone $statsQuery)->where('subscription_status', 'subscribed')->count(),
             'unsubscribed' => (clone $statsQuery)->where('subscription_status', 'unsubscribed')->count(),
+            'whatsapp_unsubscribed' => (clone $statsQuery)->where('whatsapp_subscription_status', 'unsubscribed')->count(),
             'bounced' => (clone $statsQuery)->where('subscription_status', 'bounced')->count(),
         ];
 

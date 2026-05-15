@@ -19,7 +19,8 @@ class WhatsAppCampaignController extends Controller
     public function create()
     {
         $templates = WhatsAppTemplate::where('user_id', Auth::id())->where('status', 'approved')->get();
-        return view('admin.whatsapp.campaigns.create', compact('templates'));
+        $emailLists = \App\Models\EmailList::forWhatsApp()->where('status', 'completed')->get();
+        return view('admin.whatsapp.campaigns.create', compact('templates', 'emailLists'));
     }
 
     public function store(Request $request)
@@ -27,11 +28,13 @@ class WhatsAppCampaignController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'whatsapp_template_id' => 'required|exists:whatsapp_templates,id',
+            'email_list_id' => 'required|exists:email_lists,id',
         ]);
 
         $campaign = WhatsAppCampaign::create([
             'user_id' => Auth::id(),
             'whatsapp_template_id' => $request->whatsapp_template_id,
+            'email_list_id' => $request->email_list_id,
             'name' => $request->name,
             'status' => 'draft',
         ]);

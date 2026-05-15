@@ -30,6 +30,18 @@
             <p class="mt-2 text-xs text-gray-400">Only "approved" templates from Meta can be used for campaigns.</p>
         </div>
 
+        <div>
+            <label for="email_list_id" class="block text-sm font-medium text-gray-700">Select Audience List</label>
+            <select name="email_list_id" id="email_list_id" required
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm">
+                <option value="">Select a list</option>
+                @foreach($emailLists as $list)
+                <option value="{{ $list->id }}">{{ $list->name }} ({{ $list->emails()->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->count() }} contacts with WhatsApp)</option>
+                @endforeach
+            </select>
+            <p class="mt-2 text-xs text-gray-400">The campaign will only be sent to contacts in this list who have a WhatsApp number.</p>
+        </div>
+
         <div class="pt-4 flex justify-end space-x-3">
             <a href="{{ route('admin.whatsapp.campaigns.index') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>
             <button type="submit" class="btn btn-primary">Create Campaign</button>

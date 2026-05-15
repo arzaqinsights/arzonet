@@ -49,7 +49,7 @@ class CampaignController extends Controller
         $emailLists = EmailList::forEmail()
             ->where('status', 'completed')
             ->withCount(['emails as emails_count' => function ($query) {
-                $query->valid()->subscribed();
+                $query->valid()->subscribed()->whereNotNull('email')->where('email', '!=', '');
             }])
             ->get();
         

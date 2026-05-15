@@ -20,6 +20,7 @@
             segment_name: '{{ $email->segment_name ?? '' }}',
             tags: '{{ $email->tags ?? '' }}',
             subscription_status: '{{ $email->subscription_status ?? 'subscribed' }}',
+            whatsapp_subscription_status: '{{ $email->whatsapp_subscription_status ?? 'subscribed' }}',
             is_archived: {{ $email->is_archived ? 'true' : 'false' }},
             meta: @js($email->meta ?? [])
         },
@@ -69,6 +70,9 @@
             <div class="text-xs text-surface-600 font-bold flex items-center gap-1.5">
                 <i class="fa-brands fa-whatsapp text-emerald-500"></i>
                 <span x-text="row.whatsapp_number || '—'"></span>
+                <template x-if="row.whatsapp_subscription_status === 'unsubscribed'">
+                    <span class="px-1.5 py-0.5 bg-red-50 text-red-600 text-[8px] font-black uppercase tracking-widest rounded-sm border border-red-100">Opt-out</span>
+                </template>
             </div>
         </template>
         <template x-if="editing">
