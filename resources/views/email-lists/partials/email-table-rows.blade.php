@@ -179,20 +179,30 @@
 
     {{-- WA Status Column --}}
     <td class="px-8 py-4 whitespace-nowrap text-center">
-        <template x-if="row.whatsapp_subscription_status === 'subscribed'">
-            <div class="flex items-center justify-center gap-1.5">
-                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Subscribed</span>
+        <template x-if="!editing">
+            <div>
+                <template x-if="row.whatsapp_subscription_status === 'subscribed'">
+                    <div class="flex items-center justify-center gap-1.5">
+                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Subscribed</span>
+                    </div>
+                </template>
+                <template x-if="row.whatsapp_subscription_status === 'unsubscribed'">
+                    <div class="flex items-center justify-center gap-1.5">
+                        <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                        <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">Opt-out</span>
+                    </div>
+                </template>
+                <template x-if="!row.whatsapp_subscription_status">
+                    <span class="text-[10px] font-black text-surface-300 uppercase tracking-widest">—</span>
+                </template>
             </div>
         </template>
-        <template x-if="row.whatsapp_subscription_status === 'unsubscribed'">
-            <div class="flex items-center justify-center gap-1.5">
-                <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-                <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">Opt-out</span>
-            </div>
-        </template>
-        <template x-if="!row.whatsapp_subscription_status">
-            <span class="text-[10px] font-black text-surface-300 uppercase tracking-widest">—</span>
+        <template x-if="editing">
+            <select x-model="row.whatsapp_subscription_status" class="bg-white border border-gray-100 text-[10px] font-black uppercase rounded-sm focus:ring-0 focus:outline-none p-1">
+                <option value="subscribed">Subscribed</option>
+                <option value="unsubscribed">Opt-out</option>
+            </select>
         </template>
     </td>
 

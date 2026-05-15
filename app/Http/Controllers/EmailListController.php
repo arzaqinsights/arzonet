@@ -538,10 +538,31 @@ class EmailListController extends Controller
     public function updateEmail(Request $request, EmailList $emailList, int $emailId)
     {
         $email = $emailList->emails()->findOrFail($emailId);
-        $request->validate(['email' => 'required|email', 'name' => 'nullable|string|max:255']);
-        $data = $request->only('email', 'name', 'segment_name', 'signup_source', 'subscription_status');
-        if ($request->has('meta'))
+        $request->validate([
+            'email' => 'required|email', 
+            'name' => 'nullable|string|max:255',
+            'whatsapp_number' => 'nullable|string'
+        ]);
+
+        $data = $request->only([
+            'email', 'name', 'whatsapp_number', 'segment_name', 
+            'signup_source', 'subscription_status', 'whatsapp_subscription_status', 'tags'
+        ]);
+
+        // Sync WhatsApp Opt-in based on status
+        if (isset($data['whatsapp_subscription_status'])) {
+            $data['whatsapp_opt_in'] = ($data['whatsapp_subscription_status'] === 'subscribed');
+            if (!$data['whatsapp_opt_in'] && $email->whatsapp_subscription_status === 'subscribed') {
+                $data['whatsapp_unsubscribed_at'] = now();
+            } elseif ($data['whatsapp_opt_in']) {
+                $data['whatsapp_unsubscribed_at'] = null;
+            }
+        }
+
+        if ($request->has('meta')) {
             $data['meta'] = array_merge($email->meta ?? [], $request->meta);
+        }
+
         $email->update($data);
         return response()->json(['success' => true]);
     }
