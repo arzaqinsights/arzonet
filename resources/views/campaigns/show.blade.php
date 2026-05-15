@@ -91,9 +91,8 @@
         <div class="glass-card p-5 rounded-md border-b-4 border-primary-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivery</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($stats['sent'] ?? 0) }}</h3>
-            <div class="flex items-center justify-between mt-1">
-                <p class="text-[10px] text-primary-600 font-bold">{{ $campaign->progress() }}% Complete</p>
-                <p class="text-[10px] text-surface-400 font-bold">{{ number_format($campaign->total_recipients) }} Total Target</p>
+            <div class="flex items-center gap-1 mt-1">
+                <p class="text-[10px] text-primary-600 font-bold">{{ $campaign->progress() }}% of {{ number_format($campaign->total_recipients) }}</p>
             </div>
         </div>
 
