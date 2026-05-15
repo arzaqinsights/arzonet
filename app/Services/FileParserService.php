@@ -335,7 +335,7 @@ class FileParserService
 
         // ── WHATSAPP ONLY ────────────────────────────────────────────────────
         if ($listType === 'whatsapp') {
-            $phoneColumn = $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
+            $phoneColumn = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
             if (!$phoneColumn) return [];
             $phoneRaw = trim($row[$phoneColumn] ?? '');
             if (empty($phoneRaw)) return [];
@@ -344,7 +344,7 @@ class FileParserService
             $results = [];
 
             foreach ($phones as $phone) {
-                $data = $this->buildBaseRow($row, $mapping, 'phone', $phone);
+                $data = $this->buildBaseRow($row, $mapping, 'whatsapp_number', $phone);
                 $results[] = $data;
             }
             return $results;
@@ -357,7 +357,7 @@ class FileParserService
         //   • If both equal, they're paired 1-to-1.
 
         $emailColumn = $mapping['email'] ?? null;
-        $phoneColumn  = $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
+        $phoneColumn  = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
 
         $emailRaw = $emailColumn ? trim($row[$emailColumn] ?? '') : '';
         $phoneRaw = $phoneColumn ? trim($row[$phoneColumn]  ?? '') : '';
@@ -382,7 +382,7 @@ class FileParserService
 
             $data = $this->buildBaseRow($row, $mapping, null, null);
             $data['email'] = $email ? strtolower($email) : null;
-            $data['phone'] = $phone ?? null;
+            $data['whatsapp_number'] = $phone ?? null;
 
             $results[] = $data;
         }
@@ -398,25 +398,25 @@ class FileParserService
     {
         $data = [
             'email' => null,
-            'phone' => null,
+            'whatsapp_number' => null,
             'name'  => null,
             'meta'  => [],
         ];
 
         if ($primaryField === 'email' && $primaryValue) {
             $data['email'] = strtolower($primaryValue);
-        } elseif ($primaryField === 'phone' && $primaryValue) {
-            $data['phone'] = $primaryValue;
+        } elseif ($primaryField === 'whatsapp_number' && $primaryValue) {
+            $data['whatsapp_number'] = $primaryValue;
         }
 
         $emailColumn = $mapping['email'] ?? null;
-        $phoneColumn  = $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
+        $phoneColumn  = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
 
         foreach ($mapping as $systemField => $excelColumn) {
             if (is_array($excelColumn) || str_starts_with($systemField, '_')) continue;
             // Skip the primary split column (already handled)
             if ($excelColumn === $emailColumn && $systemField === 'email') continue;
-            if ($excelColumn === $phoneColumn && in_array($systemField, ['phone', 'whatsapp'])) continue;
+            if ($excelColumn === $phoneColumn && in_array($systemField, ['whatsapp_number', 'phone', 'whatsapp'])) continue;
 
             $value = trim($row[$excelColumn] ?? '');
 

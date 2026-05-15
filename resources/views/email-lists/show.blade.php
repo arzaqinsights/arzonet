@@ -815,6 +815,7 @@
                                     <div class="space-y-4">
                                         <input type="email" x-model="newContact.email" placeholder="Email Address" class="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-sm text-sm font-bold" required>
                                         <input type="text" x-model="newContact.name" placeholder="Full Name" class="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-sm text-sm font-bold">
+                                        <input type="text" x-model="newContact.whatsapp_number" placeholder="WhatsApp Number (e.g. 919876543210)" class="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-sm text-sm font-bold">
                                     </div>
                                     <button type="submit" class="w-full bg-surface-900 text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-sm cursor-pointer" :disabled="adding">
                                         <span x-show="!adding">Register Contact</span>
@@ -839,7 +840,7 @@
             showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false,
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
             adding: false, saving: false, scrubbing: false, importJustCompleted: false,
-            newContact: { email: '', name: '', segment_name: '', tags: '', signup_source: 'Manual Entry' },
+            newContact: { email: '', name: '', whatsapp_number: '', segment_name: '', tags: '', signup_source: 'Manual Entry' },
             editingContact: { id: null, email: '', name: '', subscription_status: '', meta: {} },
             stats: { 
                 full_total: {{ $stats['total'] }},

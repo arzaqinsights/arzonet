@@ -159,7 +159,7 @@
                             <div class="relative">
                                 <textarea name="emails_text" x-model="pasteData" 
                                           class="w-full bg-white border-2 border-gray-100 rounded-sm p-6 h-50.5 font-mono text-sm text-surface-900 focus:bg-white focus:border-brand transition-all outline-none resize-none shadow-inner" 
-                                          placeholder="john@example.com, John Doe&#10;jane@agency.com, Jane Smith"></textarea>
+                                          placeholder="email@example.com, Name, WhatsApp&#10;john@doe.com, John Doe, 919876543210"></textarea>
                                 <div class="absolute bottom-4 right-4 flex gap-2">
                                     <span class="text-[10px] font-black text-surface-300 uppercase tracking-widest bg-white px-2 py-1 rounded border border-gray-100" x-text="pasteData ? pasteData.split('\n').filter(l => l.trim().length > 0).length + ' lines' : '0 lines'"></span>
                                 </div>
@@ -188,6 +188,10 @@
                                 <div>
                                     <label class="block text-xs font-black text-surface-900 uppercase tracking-[0.2em] mb-2">Full Name (Optional)</label>
                                     <input type="text" name="manual_name" x-model="manualName" class="w-full bg-white border-2 border-gray-200 rounded-sm px-5 py-4 text-sm font-bold text-surface-900 focus:bg-white focus:border-brand transition-all outline-none" placeholder="e.g. John Doe">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-surface-900 uppercase tracking-[0.2em] mb-2">WhatsApp Number (Optional)</label>
+                                    <input type="text" name="manual_whatsapp" x-model="manualWhatsApp" class="w-full bg-white border-2 border-gray-200 rounded-sm px-5 py-4 text-sm font-bold text-surface-900 focus:bg-white focus:border-brand transition-all outline-none" placeholder="e.g. 919876543210">
                                 </div>
                             </div>
                         </div>

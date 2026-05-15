@@ -116,9 +116,11 @@ class EmailListController extends Controller
             ]);
 
             Email::create([
+                'user_id' => auth()->id(),
                 'email_list_id' => $emailList->id,
                 'email' => $request->manual_email,
                 'name' => $request->manual_name,
+                'whatsapp_number' => $request->manual_whatsapp,
                 'status' => 'valid',
                 'subscription_status' => 'subscribed'
             ]);
@@ -531,7 +533,11 @@ class EmailListController extends Controller
 
     public function addContact(Request $request, EmailList $emailList)
     {
-        $request->validate(['email' => 'required|email', 'name' => 'nullable|string|max:255']);
+        $request->validate([
+            'email' => 'required|email', 
+            'name' => 'nullable|string|max:255',
+            'whatsapp_number' => 'nullable|string|max:20'
+        ]);
 
         // Check for permanent deletion record in THIS list
         $banned = $emailList->emails()->where('email', $request->email)->where('status', 'permanent_delete')->exists();
@@ -547,6 +553,7 @@ class EmailListController extends Controller
                     'is_archived' => false,
                     'archived_at' => null,
                     'name' => $request->name ?? $existing->name,
+                    'whatsapp_number' => $request->whatsapp_number ?? $existing->whatsapp_number,
                     'status' => 'valid',
                     'subscription_status' => 'subscribed',
                     'signup_source' => $request->signup_source ?? $existing->signup_source,
@@ -556,8 +563,10 @@ class EmailListController extends Controller
 
             // If exists and not archived, create a duplicate entry as usual for tracking
             $email = $emailList->emails()->create([
+                'user_id' => auth()->id(),
                 'email' => $request->email,
                 'name' => $request->name,
+                'whatsapp_number' => $request->whatsapp_number,
                 'segment_name' => $request->segment_name,
                 'tags' => $request->tags,
                 'signup_source' => $request->signup_source ?? 'Manual',
@@ -567,8 +576,10 @@ class EmailListController extends Controller
             ]);
         } else {
             $email = $emailList->emails()->create([
+                'user_id' => auth()->id(),
                 'email' => $request->email,
                 'name' => $request->name,
+                'whatsapp_number' => $request->whatsapp_number,
                 'segment_name' => $request->segment_name,
                 'tags' => $request->tags,
                 'signup_source' => $request->signup_source ?? 'Manual',
