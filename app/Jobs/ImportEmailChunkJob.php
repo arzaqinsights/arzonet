@@ -88,7 +88,15 @@ class ImportEmailChunkJob implements ShouldQueue
 
             // ── Step 3: Insert new records ──
             if (!empty($batchEntries)) {
-                Email::insert($batchEntries);
+                try {
+                    Email::insert($batchEntries);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("DATABASE INSERTION FAILED in ImportEmailChunkJob for list #{$this->emailListId}", [
+                        'error' => $e->getMessage(),
+                        'first_entry' => $batchEntries[0] ?? null,
+                    ]);
+                    throw $e;
+                }
             }
 
             // ── Step 4: Atomic increment of session counters on the activity log ──

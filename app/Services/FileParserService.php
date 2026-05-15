@@ -313,13 +313,16 @@ class FileParserService
     protected function mapSingleRow(array $row, array $mapping, string $listType = 'dual'): array
     {
         // --- Separator Regex (comma, semicolon, pipe, slash, space, newlines) ---
-        $sep = '/[,\s;|\/]+/';
+        $sep = '/[,|;\/\s\n\r]+/';
 
-        $emailColumn = $mapping['email'] ?? null;
-        $phoneColumn  = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
+        $emailRaw = $this->resolveValue($row, $mapping, 'email');
+        $phoneRaw = $this->resolveValue($row, $mapping, 'whatsapp_number');
 
-        $emailRaw = $emailColumn ? trim($row[$emailColumn] ?? '') : '';
-        $phoneRaw = $phoneColumn ? trim($row[$phoneColumn]  ?? '') : '';
+        if (empty($phoneRaw)) {
+            $phoneRaw = $this->resolveValue($row, $mapping, 'phone') ?: 
+                        $this->resolveValue($row, $mapping, 'whatsapp') ?: 
+                        $this->resolveValue($row, $mapping, 'contact');
+        }
 
         $emails = !empty($emailRaw) ? preg_split($sep, $emailRaw, -1, PREG_SPLIT_NO_EMPTY) : [];
         $phones = !empty($phoneRaw) ? preg_split($sep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY) : [];
@@ -375,7 +378,7 @@ class FileParserService
             if ($excelColumn === $emailColumn && $systemField === 'email') continue;
             if ($excelColumn === $phoneColumn && in_array($systemField, ['whatsapp_number', 'phone', 'whatsapp'])) continue;
 
-            $value = trim($row[$excelColumn] ?? '');
+            $value = $this->resolveValue($row, $mapping, $systemField);
 
             if ($systemField === 'name') {
                 $data['name'] = $value ?: null;
@@ -387,6 +390,23 @@ class FileParserService
         if (empty($data['meta'])) $data['meta'] = null;
 
         return $data;
+    }
+
+    protected function resolveValue(array $row, array $mapping, string $field): string
+    {
+        $key = $mapping[$field] ?? null;
+        if ($key === null) return '';
+
+        // 1. Try as direct key (associative lookup)
+        if (isset($row[$key])) return trim((string)$row[$key]);
+
+        // 2. Try as numeric index
+        if (is_numeric($key)) {
+            $values = array_values($row);
+            return trim((string)($values[(int)$key] ?? ''));
+        }
+
+        return '';
     }
 
     protected function detectHeaderIndex(array $rows): int

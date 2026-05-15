@@ -52,7 +52,7 @@ class EmailValidationService
                     if ($batchPhones->isNotEmpty()) $q->orWhereIn('whatsapp_number', $batchPhones);
                 })
                 ->get(['id', 'email', 'whatsapp_number', 'status', 'is_archived'])
-                ->keyBy(fn($item) => $item->email ?? ('wa:' . $item->whatsapp_number));
+                ->keyBy(fn($item) => !empty($item->email) ? $item->email : ('wa:' . $item->whatsapp_number));
         }
 
         $trustedDomains = array_flip([
@@ -244,8 +244,9 @@ class EmailValidationService
         ];
     }
 
-    public function normalizeEmail(string $email): string
+    public function normalizeEmail(?string $email): ?string
     {
+        if (empty($email)) return null;
         $email = strtolower(trim($email));
         if (!str_contains($email, '@')) return $email;
 
