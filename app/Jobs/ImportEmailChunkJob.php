@@ -58,10 +58,15 @@ class ImportEmailChunkJob implements ShouldQueue
             // This keeps them out of the undo scope — undo should only delete NEW inserts.
             $repairableEntries = array_merge($results['to_restore'], $results['to_valid']);
             foreach ($repairableEntries as $entry) {
-                Email::where('email_list_id', $this->emailListId)
-                    ->where('email', $entry['email'])
-                    ->update([
-                        'user_id'             => $emailList->user_id, // Fix: Ensure user_id is set
+                $query = Email::where('email_list_id', $this->emailListId);
+                if (!empty($entry['id'])) {
+                    $query->where('id', $entry['id']);
+                } else {
+                    $query->where('email', $entry['email']);
+                }
+
+                $query->update([
+                        'user_id'             => $emailList->user_id,
                         'is_archived'         => false,
                         'archived_at'         => null,
                         'name'                => DB::raw("COALESCE(NULLIF(name,''), " . DB::getPdo()->quote($entry['name'] ?? '') . ")"),

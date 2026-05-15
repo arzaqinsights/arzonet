@@ -40,18 +40,19 @@ class EmailValidationService
         
         $blacklisted = array_flip($this->getBlacklistedEmails());
         
-        $batchEmails = collect($emailData)->pluck('email')
-            ->map(fn($e) => $this->normalizeEmail($e))
-            ->filter()
-            ->toArray();
-        
+        $batchEmails = collect($emailData)->pluck('email')->filter()->map(fn($e) => $this->normalizeEmail($e))->unique();
+        $batchPhones = collect($emailData)->pluck('whatsapp_number')->filter()->unique();
+
         if (!$currentListId) {
             $existingRecords = collect();
         } else {
             $existingRecords = Email::where('email_list_id', $currentListId)
-                ->whereIn('email', $batchEmails)
-                ->get(['email', 'status', 'is_archived'])
-                ->keyBy(fn($item) => $this->normalizeEmail($item->email));
+                ->where(function($q) use ($batchEmails, $batchPhones) {
+                    if ($batchEmails->isNotEmpty()) $q->orWhereIn('email', $batchEmails);
+                    if ($batchPhones->isNotEmpty()) $q->orWhereIn('whatsapp_number', $batchPhones);
+                })
+                ->get(['id', 'email', 'whatsapp_number', 'status', 'is_archived'])
+                ->keyBy(fn($item) => $item->email ?? ('wa:' . $item->whatsapp_number));
         }
 
         $trustedDomains = array_flip([
@@ -106,21 +107,25 @@ class EmailValidationService
                 continue;
             }
 
-            // 3. Domain validation
-            $parts = explode('@', $email);
-            if (count($parts) !== 2) {
-                $entry['status'] = 'invalid';
-                $entry['email_status'] = 'invalid';
-                $entry['validation_reason'][] = 'Incomplete email structure';
-                $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
-                $invalid[] = $entry;
-                continue;
+            // 3. Domain validation (Only if email exists)
+            $domain = null;
+            if ($email) {
+                $parts = explode('@', $email);
+                if (count($parts) !== 2) {
+                    $entry['status'] = 'invalid';
+                    $entry['email_status'] = 'invalid';
+                    $entry['validation_reason'][] = 'Incomplete email structure';
+                    $entry['validation_reason'] = implode(', ', $entry['validation_reason']);
+                    $invalid[] = $entry;
+                    continue;
+                }
+                $domain = $parts[1];
             }
-            $domain = $parts[1];
 
-            // 4. Duplicate check (Already in THIS list - only if email exists)
-            if (!empty($email) && isset($existingRecords[$email])) {
-                $record = $existingRecords[$email];
+            // 4. Duplicate check (Already in THIS list)
+            $lookupKey = $email ?? ('wa:' . $whatsappNumber);
+            if (isset($existingRecords[$lookupKey])) {
+                $record = $existingRecords[$lookupKey];
                 if ($record->status === 'permanent_delete') {
                     $entry['status'] = 'invalid';
                     $entry['email_status'] = 'blocked';
@@ -131,12 +136,14 @@ class EmailValidationService
                     continue;
                 }
                 if ($record->is_archived) {
+                    $entry['id'] = $record->id;
                     $entry['status'] = 'to_restore';
                     $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
                     $toRestore[] = $entry;
                     continue;
                 }
                 if ($record->status === 'duplicate') {
+                    $entry['id'] = $record->id;
                     $entry['status'] = 'to_valid';
                     $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
                     $toValid[] = $entry;
@@ -148,13 +155,13 @@ class EmailValidationService
             }
 
             // 5. Local Duplicate check
-            if (!empty($email) && isset($seen[$email])) {
+            if (isset($seen[$lookupKey])) {
                 $entry['status'] = 'duplicate';
                 $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
                 $duplicates[] = $entry;
                 continue;
             }
-            if (!empty($email)) $seen[$email] = true;
+            $seen[$lookupKey] = true;
 
             // ── Advanced Validations (Only if email exists) ──
             if (empty($email)) {
