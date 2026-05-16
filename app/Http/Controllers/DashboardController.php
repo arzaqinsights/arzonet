@@ -18,7 +18,8 @@ class DashboardController extends Controller
         // ── 1. CORE PERFORMANCE METRICS ──
         $totalContacts = \App\Models\Email::count();
         $totalSent = EmailLog::count();
-        $totalDelivered = EmailLog::where('status', 'sent')->count();
+        // Delivered should include anything successfully dispatched (sent or already delivered/opened/clicked)
+        $totalDelivered = EmailLog::whereIn('status', ['sent', 'delivered', 'processed', 'opened', 'clicked'])->count();
         $totalBounced = EmailLog::where('status', 'bounced')->count();
         
         // Summing counts from EmailLog for accuracy (matches campaign logic)
@@ -30,8 +31,8 @@ class DashboardController extends Controller
         
         $totalUnsubscribed = \App\Models\Email::whereNotNull('unsubscribed_at')->count();
 
-        $globalOpenRate = $totalDelivered > 0 ? round(($totalOpens / $totalDelivered) * 100, 1) : 0;
-        $globalClickRate = $totalOpens > 0 ? round(($totalClicks / $totalOpens) * 100, 1) : 0;
+        $globalOpenRate = $totalDelivered > 0 ? round(($totalOpens / max($totalDelivered, $totalOpens)) * 100, 1) : 0;
+        $globalClickRate = $totalOpens > 0 ? round(($totalClicks / max($totalOpens, $totalClicks)) * 100, 1) : 0;
         $bounceRate = $totalSent > 0 ? round(($totalBounced / $totalSent) * 100, 1) : 0;
 
         // ── 2. HYBRID PERFORMANCE TRENDS (Fall-back to Logs if Stats empty) ──
