@@ -448,7 +448,9 @@ class EmailListController extends Controller
                   ->selectRaw('ANY_VALUE(created_at) as created_at')
                   ->selectRaw('GROUP_CONCAT(DISTINCT email SEPARATOR ", ") as email')
                   ->selectRaw('GROUP_CONCAT(DISTINCT whatsapp_number SEPARATOR ", ") as whatsapp_number')
-                  ->groupBy(\Illuminate\Support\Facades\DB::raw('COALESCE(original_row_id, CAST(id AS CHAR))'));
+                  ->groupBy(\Illuminate\Support\Facades\DB::raw('COALESCE(original_row_id, CAST(id AS CHAR))'))
+                  ->reorder()
+                  ->orderByRaw('ANY_VALUE(created_at) DESC');
         }
 
         return Excel::download(new ContactsExport($query, $extraFields), $filename);

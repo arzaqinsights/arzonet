@@ -41,11 +41,20 @@ class FileParserService
         if (empty($allRows)) throw new \RuntimeException('CSV file is empty.');
 
         $headerIndex = $this->detectHeaderIndex($allRows);
-        $headers = array_map(fn($h) => trim(preg_replace('/[\x{FEFF}]/u', '', $h)), $allRows[$headerIndex]);
+        
+        if ($headerIndex === -1) {
+            $columnCount = count($allRows[0]);
+            $headers = array_map(fn($i) => "Column_" . ($i + 1), range(0, $columnCount - 1));
+            $startIndex = 0;
+        } else {
+            $headers = array_map(fn($h) => $this->normalizeValue($h), $allRows[$headerIndex]);
+            $startIndex = $headerIndex + 1;
+        }
+
         $rows = [];
 
-        for ($i = $headerIndex + 1; $i < count($allRows); $i++) {
-            $row = $allRows[$i];
+        for ($i = $startIndex; $i < count($allRows); $i++) {
+            $row = array_map(fn($v) => $this->normalizeValue($v), $allRows[$i]);
             if (count($row) === count($headers)) {
                 $rows[] = array_combine($headers, $row);
             }
@@ -80,7 +89,7 @@ class FileParserService
                 $cellIterator->setIterateOnlyExistingCells(false);
                 $rowData = [];
                 foreach ($cellIterator as $cell) {
-                    $rowData[] = trim((string) $cell->getValue());
+                    $rowData[] = $this->normalizeValue($cell->getValue());
                 }
 
                 // Trim trailing empty cells
@@ -108,24 +117,31 @@ class FileParserService
         if (empty($bestRows)) throw new \RuntimeException('Excel file is empty or has no valid data.');
 
         $headerIndex = $this->detectHeaderIndex($bestRows);
-        $rawHeaders = $bestRows[$headerIndex];
         
-        $headers = [];
-        foreach ($rawHeaders as $idx => $h) {
-            $h = trim($h);
-            if ($h === '') $h = 'Column_' . ($idx + 1);
-            
-            $original = $h;
-            $c = 1;
-            while (in_array($h, $headers)) {
-                $h = $original . '_' . $c;
-                $c++;
+        if ($headerIndex === -1) {
+            $columnCount = count($bestRows[0]);
+            $headers = array_map(fn($i) => "Column_" . ($i + 1), range(0, $columnCount - 1));
+            $startIndex = 0;
+        } else {
+            $rawHeaders = $bestRows[$headerIndex];
+            $headers = [];
+            foreach ($rawHeaders as $idx => $h) {
+                $h = trim($h);
+                if ($h === '') $h = 'Column_' . ($idx + 1);
+                
+                $original = $h;
+                $c = 1;
+                while (in_array($h, $headers)) {
+                    $h = $original . '_' . $c;
+                    $c++;
+                }
+                $headers[] = $h;
             }
-            $headers[] = $h;
+            $startIndex = $headerIndex + 1;
         }
 
         $rows = [];
-        for ($i = $headerIndex + 1; $i < count($bestRows); $i++) {
+        for ($i = $startIndex; $i < count($bestRows); $i++) {
             $rowData = $bestRows[$i];
             
             if (count($rowData) > count($headers)) {
@@ -178,24 +194,32 @@ class FileParserService
         if (empty($firstRows)) return;
 
         $headerIndex = $this->detectHeaderIndex($firstRows);
-        $rawHeaders = $firstRows[$headerIndex];
-        $headers = [];
-        foreach ($rawHeaders as $idx => $h) {
-            $h = trim(preg_replace('/[\x{FEFF}]/u', '', $h ?? ''));
-            if ($h === '') $h = 'Column_' . ($idx + 1);
-            $original = $h;
-            $c = 1;
-            while (in_array($h, $headers)) {
-                $h = $original . '_' . $c;
-                $c++;
+        
+        if ($headerIndex === -1) {
+            $columnCount = count($firstRows[0]);
+            $headers = array_map(fn($i) => "Column_" . ($i + 1), range(0, $columnCount - 1));
+            $skipRows = 0;
+        } else {
+            $rawHeaders = $firstRows[$headerIndex];
+            $headers = [];
+            foreach ($rawHeaders as $idx => $h) {
+                $h = $this->normalizeValue($h);
+                if ($h === '') $h = 'Column_' . ($idx + 1);
+                $original = $h;
+                $c = 1;
+                while (in_array($h, $headers)) {
+                    $h = $original . '_' . $c;
+                    $c++;
+                }
+                $headers[] = $h;
             }
-            $headers[] = $h;
+            $skipRows = $headerIndex + 1;
         }
         $headerCount = count($headers);
         
         // 2. Reset and skip to data
         rewind($handle);
-        for ($i = 0; $i <= $headerIndex; $i++) {
+        for ($i = 0; $i < $skipRows; $i++) {
             fgetcsv($handle, 0, ',');
         }
 
@@ -245,7 +269,7 @@ class FileParserService
                 $cellIterator->setIterateOnlyExistingCells(false);
                 $rowData = [];
                 foreach ($cellIterator as $cell) {
-                    $rowData[] = trim((string) $cell->getValue());
+                    $rowData[] = $this->normalizeValue($cell->getValue());
                 }
                 while (!empty($rowData) && end($rowData) === '') array_pop($rowData);
                 
@@ -273,7 +297,7 @@ class FileParserService
             $cellIterator->setIterateOnlyExistingCells(false);
             $rowData = [];
             foreach ($cellIterator as $cell) {
-                $rowData[] = trim((string) $cell->getValue());
+                $rowData[] = $this->normalizeValue($cell->getValue());
             }
             while (!empty($rowData) && end($rowData) === '') array_pop($rowData);
 
@@ -282,9 +306,13 @@ class FileParserService
             if ($headerIndex === -1) {
                 $rowString = strtolower(implode(' ', $rowData));
                 $nonEmptyCount = count(array_filter($rowData, fn($c) => $c !== ''));
+                
+                // 1. Explicitly skip Arzonet Branding
+                if (str_contains($rowString, 'arzonet') && str_contains($rowString, 'export')) continue;
+
+                // 2. Detect Header Row
                 if (str_contains($rowString, 'email') || $nonEmptyCount >= 3) {
                     $headerIndex = $index;
-                    
                     foreach ($rowData as $idx => $h) {
                         $h = trim($h);
                         if ($h === '') $h = 'Column_' . ($idx + 1);
@@ -296,8 +324,16 @@ class FileParserService
                         }
                         $headers[] = $h;
                     }
+                    continue; // Skip the header row itself
+                } else if ($index >= 5) {
+                    // 3. Fallback for Headerless: Start processing from this row
+                    $headerIndex = -2; // Marker for headerless
+                    $columnCount = count($rowData);
+                    $headers = array_map(fn($i) => "Column_" . ($i + 1), range(0, $columnCount - 1));
+                    // Proceed to process this row as data
+                } else {
+                    continue; // Still looking
                 }
-                continue;
             }
 
             if (count($rowData) > count($headers)) {
@@ -441,15 +477,60 @@ class FileParserService
 
     protected function detectHeaderIndex(array $rows): int
     {
+        $headerKeywords = ['email', 'phone', 'whatsapp', 'name', 'contact', 'joined', 'company', 'title'];
+        
         foreach ($rows as $index => $row) {
-            $nonEmptyCount = count(array_filter($row, fn($c) => !empty(trim($c))));
             $rowString = strtolower(implode(' ', $row));
+            $nonEmptyCount = count(array_filter($row, fn($c) => !empty(trim($c))));
             
-            if (str_contains($rowString, 'email') || $nonEmptyCount >= 3 || ($index > 0 && $nonEmptyCount > 1)) {
-                return $index;
+            if ($nonEmptyCount === 0) continue;
+
+            // 1. Explicitly skip Arzonet Branding
+            if (str_contains($rowString, 'arzonet') && str_contains($rowString, 'export')) continue;
+
+            // 2. Data Check: If it looks like actual data (contains '@' or many numbers), it's NOT a header
+            $hasEmailPattern = false;
+            foreach ($row as $cell) {
+                if (str_contains($cell, '@') && str_contains($cell, '.')) {
+                    $hasEmailPattern = true;
+                    break;
+                }
             }
+            if ($hasEmailPattern) continue; // This is a data row, keep looking for header
+
+            // 3. Strong Header Match: Contains 'email' word or multiple header keywords
+            $matchCount = 0;
+            $words = explode(' ', preg_replace('/[^a-z ]/', ' ', $rowString));
+            foreach ($headerKeywords as $kw) {
+                if (in_array($kw, $words)) $matchCount++;
+            }
+
+            if ($matchCount >= 1 && in_array('email', $words)) return $index;
+            if ($matchCount >= 2) return $index;
+
+            // 4. Strict density check (only if it doesn't look like data)
+            if ($nonEmptyCount >= 4 && $index < 3 && $matchCount >= 1) return $index;
         }
-        return 0;
+        return -1; // No header found
+    }
+
+    /**
+     * Clean and normalize data values (handles scientific notation, BOMs, etc.)
+     */
+    protected function normalizeValue($val): string
+    {
+        if ($val === null) return '';
+        $val = (string) $val;
+
+        // 1. Remove UTF-8 BOM
+        $val = preg_replace('/[\x{FEFF}]/u', '', $val);
+
+        // 2. Handle Scientific Notation (e.g., 9.123E+11)
+        if (preg_match('/^[0-9\.]+[Ee]\+[0-9]+$/', $val)) {
+            $val = sprintf('%.0f', (float)$val);
+        }
+
+        return trim($val);
     }
 
     public function autoDetectMappings(array $headers, array $sampleRows = []): array
@@ -461,8 +542,8 @@ class FileParserService
             'first_name'=> ['first_name', 'firstname', 'fname', 'given_name'],
             'last_name' => ['last_name', 'lastname', 'lname', 'surname'],
             'whatsapp_number'=> ['whatsapp', 'wa_number', 'phone', 'mobile', 'cell', 'telephone', 'contact_no', 'ph_no', 'number', 'contact'],
-            'company'   => ['company', 'organization', 'business', 'firm', 'employer'],
-            'job_title' => ['job_title', 'designation', 'position', 'role', 'title'],
+            'company'   => ['company', 'company_name', 'organization', 'business', 'firm', 'employer'],
+            'job_title' => ['job_title', 'designation', 'position', 'role', 'title', 'DG'],
             'city'      => ['city', 'town', 'location'],
             'state'     => ['state', 'province', 'region'],
             'country'   => ['country', 'nation'],
@@ -484,12 +565,29 @@ class FileParserService
             }
             if ($matched) continue;
 
+            // Content-based detection if header didn't match
             if (!empty($sampleRows)) {
-                $sampleValue = strtolower(trim($sampleRows[0][$header] ?? ''));
-                if (str_contains($sampleValue, '@') && str_contains($sampleValue, '.')) {
-                    $suggestions[$header] = 'email';
-                } elseif (preg_match('/^\+?[0-9\s\-]{8,15}$/', $sampleValue)) {
-                    $suggestions[$header] = 'whatsapp_number';
+                // Skip content detection for obvious non-phone/non-email columns
+                $blacklist = ['sr no', 'sr_no', 'id', 'sno', 'sl no', 'serial', 'index', 'status', 'joined', 'created_at'];
+                if (in_array($cleanHeader, $blacklist)) continue;
+
+                foreach ($sampleRows as $sampleRow) {
+                    $sampleValue = strtolower(trim($sampleRow[$header] ?? ''));
+                    if (empty($sampleValue)) continue;
+
+                    // 1. Email Check
+                    if (str_contains($sampleValue, '@') && str_contains($sampleValue, '.')) {
+                        $suggestions[$header] = 'email';
+                        break;
+                    } 
+                    
+                    // 2. Phone/WhatsApp Check (Improved: Min 8 digits, handles common separators)
+                    // We remove all non-numeric chars to check the true digit count
+                    $digitsOnly = preg_replace('/[^0-9]/', '', $sampleValue);
+                    if (strlen($digitsOnly) >= 8 && strlen($digitsOnly) <= 15) {
+                        $suggestions[$header] = 'whatsapp_number';
+                        break;
+                    }
                 }
             }
         }
