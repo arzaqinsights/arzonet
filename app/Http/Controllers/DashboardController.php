@@ -20,8 +20,14 @@ class DashboardController extends Controller
         $totalSent = EmailLog::count();
         $totalDelivered = EmailLog::where('status', 'sent')->count();
         $totalBounced = EmailLog::where('status', 'bounced')->count();
-        $totalOpens = ContactActivity::where('type', 'opened')->count();
-        $totalClicks = ContactActivity::where('type', 'clicked')->count();
+        
+        // Summing counts from EmailLog for accuracy (matches campaign logic)
+        $totalOpens = EmailLog::where(function($q) {
+            $q->where('open_count', '>', 0)->orWhere('click_count', '>', 0);
+        })->count();
+        
+        $totalClicks = EmailLog::where('click_count', '>', 0)->count();
+        
         $totalUnsubscribed = \App\Models\Email::whereNotNull('unsubscribed_at')->count();
 
         $globalOpenRate = $totalDelivered > 0 ? round(($totalOpens / $totalDelivered) * 100, 1) : 0;
@@ -74,9 +80,18 @@ class DashboardController extends Controller
             ->where('created_at', '>=', now()->subDays(7))
             ->select(\DB::raw('HOUR(created_at) as hour'), \DB::raw('count(*) as count'))
             ->groupBy('hour')
-            ->orderBy('hour')
             ->get()
             ->pluck('count', 'hour');
+            
+        if ($hourlyStats->isEmpty()) {
+            // Fallback to EmailLog first_open_at for historical engagement timing
+            $hourlyStats = EmailLog::whereNotNull('first_open_at')
+                ->where('first_open_at', '>=', now()->subDays(7))
+                ->select(\DB::raw('HOUR(first_open_at) as hour'), \DB::raw('count(*) as count'))
+                ->groupBy('hour')
+                ->get()
+                ->pluck('count', 'hour');
+        }
 
         // ── 5. RECENT CAMPAIGNS & LISTS ──
         $recentCampaigns = Campaign::with(['emailList', 'template'])

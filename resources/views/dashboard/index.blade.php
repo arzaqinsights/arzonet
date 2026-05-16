@@ -5,22 +5,22 @@
 <div class="space-y-6 animate-slide-up pb-8">
 
     {{-- Top Action Bar --}}
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-900 p-6 rounded-sm shadow-xl border border-white/5 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-64 h-64 bg-brand/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-sm shadow-sm border border-gray-100 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-brand/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
         <div class="relative z-10">
-            <h1 class="text-2xl font-black text-white" style="font-family:'Outfit',sans-serif;">Arzonet Intelligence <span class="text-brand">v2.1</span></h1>
-            <p class="text-xs text-white/50 font-bold uppercase tracking-widest mt-1">Real-time Performance & Audience Analytics</p>
+            <h1 class="text-2xl font-black text-surface-900" style="font-family:'Outfit',sans-serif;">Arzonet Intelligence <span class="text-brand">v2.1</span></h1>
+            <p class="text-xs text-surface-500 font-bold uppercase tracking-widest mt-1">Real-time Performance & Audience Analytics</p>
         </div>
         <div class="flex items-center gap-2 relative z-10">
             <a href="{{ route('admin.campaigns.create') }}" class="flex items-center gap-2 px-4 py-2.5 bg-brand hover:bg-brand-dark text-white text-[10px] font-black uppercase tracking-widest rounded-sm transition-all shadow-lg hover:-translate-y-0.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
                 New Campaign
             </a>
-            <a href="{{ route('admin.email-lists.create') }}" class="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-sm transition-all border border-white/10">
+            <a href="{{ route('admin.email-lists.create') }}" class="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-surface-900 text-[10px] font-black uppercase tracking-widest rounded-sm transition-all border border-gray-200">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Import Contacts
             </a>
-            <button onclick="location.reload()" class="p-2.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-sm border border-white/10 transition-colors">
+            <button onclick="location.reload()" class="p-2.5 bg-white hover:bg-gray-50 text-surface-500 rounded-sm border border-gray-200 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
         </div>
@@ -284,13 +284,13 @@
                     </div>
                 @endforelse
             </div>
-            <div class="p-4 bg-surface-900 rounded-b-sm">
+            <div class="p-4 bg-gray-50 border-t border-gray-100 rounded-b-sm">
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-[10px] font-black text-white/50 uppercase tracking-widest">Global Success Rate</span>
-                    <span class="text-xs font-black text-white">{{ $totalSent > 0 ? round(($totalDelivered / $totalSent) * 100, 1) : 0 }}%</span>
+                    <span class="text-[10px] font-black text-surface-500 uppercase tracking-widest">Global Success Rate</span>
+                    <span class="text-xs font-black text-surface-900">{{ $totalSent > 0 ? round(($totalDelivered / $totalSent) * 100, 1) : 0 }}%</span>
                 </div>
-                <div class="w-full bg-white/10 rounded-full h-1 overflow-hidden">
-                    <div class="bg-emerald-500 h-full" style="width: {{ $totalSent > 0 ? ($totalDelivered / $totalSent) * 100 : 0 }}%"></div>
+                <div class="w-full bg-white border border-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-emerald-500 h-full transition-all duration-700" style="width: {{ $totalSent > 0 ? ($totalDelivered / $totalSent) * 100 : 0 }}%"></div>
                 </div>
             </div>
         </div>
