@@ -743,6 +743,17 @@
                                     </button>
                                 </div>
                             </div>
+
+                            {{-- Consolidate Option --}}
+                            <div class="p-4 bg-amber-50 border border-amber-100 rounded-sm">
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input type="checkbox" x-model="consolidate" class="w-5 h-5 rounded-sm border-amber-300 text-amber-500 focus:ring-amber-500 cursor-pointer">
+                                    <div>
+                                        <p class="text-[11px] font-black text-amber-900 uppercase tracking-tight">Consolidate Split Rows</p>
+                                        <p class="text-[10px] text-amber-700/70 font-bold mt-0.5">Merge multiple emails/numbers back into a single row per person.</p>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
 
                         <div class="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
@@ -874,6 +885,7 @@
             search: '', searchField: 'all', selectedIds: [], activeTab: 'contacts', globalSelect: false,
             showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false,
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
+            consolidate: false,
             adding: false, saving: false, scrubbing: false, importJustCompleted: false,
             newContact: { email: '', name: '', whatsapp_number: '', segment_name: '', tags: '', signup_source: 'Manual Entry' },
             editingContact: { id: null, email: '', name: '', subscription_status: '', meta: {} },
@@ -1015,6 +1027,7 @@
                 url.searchParams.set('status', this.filter); url.searchParams.set('search', this.search);
                 url.searchParams.set('segment', this.segment); url.searchParams.set('tag', this.tag);
                 url.searchParams.set('source', this.source); url.searchParams.set('archived', this.archived);
+                url.searchParams.set('consolidate', this.consolidate ? '1' : '0');
                 window.location.href = url.toString(); this.showExportModal = false;
             },
 

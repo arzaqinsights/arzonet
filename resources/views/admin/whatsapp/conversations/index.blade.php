@@ -66,6 +66,98 @@
     </div>
 </div>
 
+{{-- Edit Contact Modal (Advanced WhatsApp Logic) --}}
+@if(isset($conversation))
+<div x-data="{ 
+        open: false, 
+        saving: false,
+        form: {
+            name: '{{ $conversation->contact->name }}',
+            email: '{{ $conversation->contact->email }}',
+            whatsapp_subscription_status: '{{ $conversation->contact->whatsapp_subscription_status ?: 'subscribed' }}',
+            meta: @js($conversation->contact->meta ?? [])
+        },
+        save() {
+            this.saving = true;
+            fetch('{{ route('admin.email-lists.update-email', [$conversation->contact->email_list_id, $conversation->contact->id]) }}', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').content },
+                body: JSON.stringify(this.form)
+            }).then(() => {
+                this.saving = false;
+                this.open = false;
+                window.location.reload();
+            });
+        }
+     }" 
+     @open-edit-modal.window="open = true"
+     x-show="open" x-cloak
+     class="fixed inset-0 z-[200] flex items-center justify-center bg-surface-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-sm shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up" @click.outside="open = false">
+        <div class="p-8 bg-surface-50 border-b border-gray-100 flex items-center justify-between">
+            <div>
+                <h2 class="text-xs font-black text-surface-900 uppercase tracking-widest">Update Intelligence</h2>
+                <p class="text-[9px] text-surface-400 font-bold uppercase tracking-widest mt-1">Refining profile for {{ $conversation->contact->whatsapp_number }}</p>
+            </div>
+            <button @click="open = false" class="text-surface-400 hover:text-surface-900 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="p-8 space-y-6">
+            <div class="grid grid-cols-2 gap-6">
+                <div class="space-y-1.5">
+                    <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest">Full Name</label>
+                    <input type="text" x-model="form.name" class="w-full bg-surface-50 border border-gray-100 rounded-sm px-4 py-3 text-xs font-bold focus:ring-0 focus:border-brand transition-all">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest">Email Address</label>
+                    <input type="email" x-model="form.email" class="w-full bg-surface-50 border border-gray-100 rounded-sm px-4 py-3 text-xs font-bold focus:ring-0 focus:border-brand transition-all">
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest">WhatsApp Subscription</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button @click="form.whatsapp_subscription_status = 'subscribed'" 
+                            :class="form.whatsapp_subscription_status === 'subscribed' ? 'bg-emerald-500 text-white' : 'bg-surface-50 text-surface-400'"
+                            class="px-4 py-3 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all">
+                        Subscribed
+                    </button>
+                    <button @click="form.whatsapp_subscription_status = 'unsubscribed'" 
+                            :class="form.whatsapp_subscription_status === 'unsubscribed' ? 'bg-red-500 text-white' : 'bg-surface-50 text-surface-400'"
+                            class="px-4 py-3 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all">
+                        Opt-out
+                    </button>
+                </div>
+            </div>
+            
+            @if(!empty($conversation->contact->meta))
+            <div class="pt-4 border-t border-gray-50">
+                <h4 class="text-[8px] font-black text-surface-300 uppercase tracking-[0.2em] mb-4">Extended CRM Attributes</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    @foreach($conversation->contact->meta as $key => $val)
+                        @if(!is_array($val))
+                        <div class="space-y-1">
+                            <label class="block text-[8px] font-black text-surface-400 uppercase tracking-widest">{{ strtoupper(str_replace('_', ' ', $key)) }}</label>
+                            <input type="text" x-model="form.meta['{{ $key }}']" class="w-full bg-surface-50 border border-transparent rounded-sm px-3 py-2 text-[10px] font-bold focus:bg-white focus:border-brand transition-all">
+                        </div>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+            @endif
+        </div>
+
+        <div class="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+            <button @click="open = false" class="flex-1 py-4 text-[10px] font-black text-surface-400 uppercase tracking-widest">Discard Changes</button>
+            <button @click="save()" class="flex-1 bg-surface-900 text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-sm hover:bg-black transition-all shadow-xl shadow-surface-900/10" :disabled="saving">
+                <span x-show="!saving">Commit Updates</span>
+                <span x-show="saving">Processing...</span>
+            </button>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="h-[calc(100vh-140px)] flex bg-white border border-color rounded-sm overflow-hidden shadow-2xl shadow-surface-900/5">
     
     {{-- ── PANE 1: CONVERSATIONS LIST ── --}}
@@ -156,26 +248,38 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <button class="w-10 h-10 flex items-center justify-center text-surface-300 hover:text-surface-900 transition-colors border border-gray-50 rounded-sm hover:bg-gray-50"><i class="fa-solid fa-search text-xs"></i></button>
+                    <button @click="$dispatch('open-edit-modal')" class="w-10 h-10 flex items-center justify-center text-surface-300 hover:text-brand transition-colors border border-gray-50 rounded-sm hover:bg-brand/5">
+                        <i class="fa-solid fa-user-pen text-xs"></i>
+                    </button>
                     <button @click="infoOpen = !infoOpen" class="w-10 h-10 flex items-center justify-center text-surface-300 hover:text-brand transition-colors border border-gray-50 rounded-sm" :class="infoOpen ? 'bg-brand/5 border-brand/10 text-brand' : ''">
                         <i class="fa-solid fa-circle-info text-xs"></i>
                     </button>
                 </div>
             </div>
 
-            {{-- Messages Area --}}
-            <div id="chat-scroll" class="flex-grow overflow-y-auto p-10 space-y-8 bg-surface-50/10 no-scrollbar">
-                {{-- Date Separator Example --}}
-                <div class="flex justify-center">
-                    <span class="px-4 py-1 bg-surface-900/5 text-[8px] font-black text-surface-400 uppercase tracking-[0.2em] rounded-full">Conversation History</span>
+            {{-- Messages Area (Enhanced) --}}
+            <div id="chat-scroll" class="flex-grow overflow-y-auto p-10 space-y-4 bg-[#f0f2f5] relative no-scrollbar" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-opacity: 0.05;">
+                <div class="absolute inset-0 bg-white/90 pointer-events-none"></div>
+                
+                {{-- Date Separator --}}
+                <div class="relative z-10 flex justify-center py-4">
+                    <span class="px-4 py-1.5 bg-white/80 backdrop-blur-sm text-[8px] font-black text-surface-400 uppercase tracking-[0.2em] rounded-full shadow-sm border border-gray-100">Conversation Timeline</span>
                 </div>
 
                 @foreach($messages as $msg)
-                    <div class="flex {{ $msg->direction === 'outbound' ? 'justify-end' : 'justify-start' }} animate-fade-in">
-                        <div class="max-w-[75%] lg:max-w-[60%] space-y-1.5 group">
-                            <div class="relative px-6 py-4 rounded-sm text-[13px] leading-relaxed {{ $msg->direction === 'outbound' ? 'bg-surface-900 text-white font-medium shadow-2xl shadow-surface-900/20' : 'bg-white border border-gray-100 text-surface-800 shadow-sm' }}">
+                    <div class="relative z-10 flex {{ $msg->direction === 'outbound' ? 'justify-end' : 'justify-start' }} animate-fade-in mb-2">
+                        <div class="max-w-[85%] lg:max-w-[70%] space-y-1 group">
+                            <div class="relative px-4 py-2.5 shadow-sm {{ $msg->direction === 'outbound' ? 'bg-[#d9fdd3] text-surface-900 rounded-l-md rounded-br-md' : 'bg-white text-surface-800 rounded-r-md rounded-bl-md border border-gray-100' }}">
+                                {{-- Bubble Tail --}}
+                                @if($msg->direction === 'outbound')
+                                    <div class="absolute top-0 -right-2 w-3 h-3 bg-[#d9fdd3]" style="clip-path: polygon(0 0, 0% 100%, 100% 0);"></div>
+                                @else
+                                    <div class="absolute top-0 -left-2 w-3 h-3 bg-white" style="clip-path: polygon(100% 0, 100% 100%, 0 0);"></div>
+                                @endif
+
                                 @if($msg->type !== 'text' && $msg->metadata)
-                                    <div class="mb-3 p-3 bg-black/5 rounded-sm flex items-center gap-3 border border-black/5">
-                                        <div class="w-8 h-8 flex items-center justify-center bg-white rounded-sm text-brand shadow-sm">
+                                    <div class="mb-2 p-2 bg-black/5 rounded-sm flex items-center gap-3 border border-black/5">
+                                        <div class="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-white rounded-sm text-brand shadow-sm">
                                             <i class="fa-solid fa-file-invoice text-xs"></i>
                                         </div>
                                         <div class="flex-grow min-w-0">
@@ -185,19 +289,18 @@
                                     </div>
                                 @endif
                                 
-                                {!! nl2br(e($msg->message_body)) !!}
+                                <div class="text-[13px] leading-relaxed break-words font-medium">
+                                    {!! nl2br(e($msg->message_body)) !!}
+                                </div>
 
-                                {{-- Status Dot for Outbound --}}
-                                @if($msg->direction === 'outbound')
-                                    <div class="absolute -right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all">
-                                        <i class="fa-solid {{ match($msg->status) { 'read' => 'fa-check-double text-brand', 'delivered' => 'fa-check-double text-surface-200', default => 'fa-check text-surface-200' } }} text-[10px]"></i>
-                                    </div>
-                                @endif
-                            </div>
-                            <div class="flex items-center gap-3 px-1 {{ $msg->direction === 'outbound' ? 'justify-end' : 'justify-start' }}">
-                                <span class="text-[8px] font-black text-surface-300 uppercase tracking-widest tracking-[0.1em]">
-                                    {{ $msg->created_at->format('M d • H:i') }}
-                                </span>
+                                <div class="flex items-center justify-end gap-1 mt-1 opacity-60">
+                                    <span class="text-[9px] font-bold text-surface-400">
+                                        {{ $msg->created_at->format('H:i') }}
+                                    </span>
+                                    @if($msg->direction === 'outbound')
+                                        <i class="fa-solid {{ match($msg->status) { 'read' => 'fa-check-double text-sky-500', 'delivered' => 'fa-check-double', default => 'fa-check' } }} text-[10px]"></i>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -296,10 +399,10 @@
             <div class="space-y-6">
                 <h5 class="text-[9px] font-black text-surface-300 uppercase tracking-widest border-b border-gray-50 pb-4">Intelligence Actions</h5>
                 <div class="grid grid-cols-1 gap-2">
-                    <a href="{{ route('admin.email-lists.show', $conversation->contact->email_list_id) }}" class="w-full text-left px-5 py-3 bg-surface-50 hover:bg-brand hover:text-white transition-all text-[9px] font-black uppercase tracking-widest rounded-sm flex items-center justify-between group">
-                        View List Profile
-                        <i class="fa-solid fa-arrow-right opacity-0 group-hover:opacity-100 transition-opacity"></i>
-                    </a>
+                    <button @click="$dispatch('open-edit-modal')" class="w-full text-left px-5 py-3 bg-brand text-white hover:bg-black transition-all text-[9px] font-black uppercase tracking-widest rounded-sm flex items-center justify-between group shadow-lg shadow-brand/10">
+                        Edit Intelligence Profile
+                        <i class="fa-solid fa-user-pen opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                    </button>
                     <button class="w-full text-left px-5 py-3 bg-surface-50 hover:bg-black hover:text-white transition-all text-[9px] font-black uppercase tracking-widest rounded-sm flex items-center justify-between group">
                         Add to Campaign
                         <i class="fa-solid fa-bullseye opacity-0 group-hover:opacity-100 transition-opacity"></i>

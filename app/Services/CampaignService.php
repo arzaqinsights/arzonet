@@ -225,7 +225,9 @@ class CampaignService
             'pending'    => $pendingCount,
             'bounced'    => $bounceCount,
             'opens'        => $campaign->logs()->sum('open_count'),
-            'unique_opens' => $campaign->logs()->where('open_count', '>', 0)->count(),
+            'unique_opens' => $campaign->logs()->where(function($q) {
+                $q->where('open_count', '>', 0)->orWhere('click_count', '>', 0);
+            })->count(),
             'clicks'       => $campaign->logs()->sum('click_count'),
             'unique_clicks'=> $campaign->logs()->where('click_count', '>', 0)->count(),
             'unsubscribed' => $campaign->unsubscribes()->count(),

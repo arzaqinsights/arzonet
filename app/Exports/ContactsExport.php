@@ -8,10 +8,12 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Illuminate\Database\Eloquent\Builder;
 
-class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithStyles
+class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithStyles, WithColumnFormatting
 {
     protected $query;
     protected array $extraFields;
@@ -30,7 +32,7 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     public function headings(): array
     {
         // Removed 'Status', 'Subscription', 'Segment', 'Tag', and 'Source'
-        $base = ['Email Address', 'Phone', 'Full Name'];
+        $base = ['Full Name','Email Address', 'Phone'];
         $extra = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->extraFields);
         $tail = ['Joined'];
         
@@ -45,9 +47,9 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
         $phoneValue = $email->whatsapp_number ?: ($meta['phone'] ?? '');
 
         $base = [
+            $email->name ?? '',
             $email->email,
             $phoneValue,
-            $email->name ?? '',
         ];
         
         $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
@@ -66,6 +68,13 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
                 'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
                 'fill' => ['fillType' => 'solid', 'startColor' => ['argb' => 'FF111827']],
             ],
+        ];
+    }
+
+    public function columnFormats(): array
+    {
+        return [
+            'B' => '0',
         ];
     }
 }

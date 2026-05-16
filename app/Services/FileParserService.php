@@ -214,8 +214,9 @@ class FileParserService
             }
 
             try {
+                $originalRowId = \Illuminate\Support\Str::uuid()->toString();
                 $combined = array_combine($headers, $row);
-                $mapped = $this->mapSingleRow($combined, $mapping, $listType);
+                $mapped = $this->mapSingleRow($combined, $mapping, $listType, $originalRowId);
                 foreach ($mapped as $item) yield $item;
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("Failed to map CSV row {$rowNumber}: " . $e->getMessage());
@@ -305,12 +306,13 @@ class FileParserService
                 $rowData = array_pad($rowData, count($headers), '');
             }
 
-            $mapped = $this->mapSingleRow(array_combine($headers, $rowData), $mapping, $listType);
+            $originalRowId = \Illuminate\Support\Str::uuid()->toString();
+            $mapped = $this->mapSingleRow(array_combine($headers, $rowData), $mapping, $listType, $originalRowId);
             foreach ($mapped as $item) yield $item;
         }
     }
 
-    protected function mapSingleRow(array $row, array $mapping, string $listType = 'dual'): array
+    protected function mapSingleRow(array $row, array $mapping, string $listType = 'dual', ?string $originalRowId = null): array
     {
         // --- Separator Regex (comma, semicolon, pipe, slash, space, newlines) ---
         $sep = '/[,|;\/\s\n\r]+/';
@@ -362,6 +364,7 @@ class FileParserService
             $data = $this->buildBaseRow($row, $mapping, null, null);
             $data['email'] = $email ? strtolower($email) : null;
             $data['whatsapp_number'] = $phone ?? null;
+            $data['original_row_id'] = $originalRowId;
 
             // Attach invalid phones to the first created row's metadata
             if ($i === 0 && !empty($invalidPhonesStr)) {

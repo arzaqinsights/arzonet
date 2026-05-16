@@ -86,6 +86,7 @@ class ImportEmailChunkJob implements ShouldQueue
                         'is_catch_all'        => $entry['is_catch_all'] ?? false,
                         'has_typo'            => $entry['has_typo'] ?? false,
                         'validation_reason'   => $entry['validation_reason'] ?? null,
+                        'original_row_id'     => $entry['original_row_id'] ?? null,
                     ]);
             }
 
@@ -162,6 +163,7 @@ class ImportEmailChunkJob implements ShouldQueue
             'signup_source'       => $emailList->signup_source,
             'segment_name'        => $emailList->segment_name,
             'reason'              => $entry['reason'] ?? null,
+            'original_row_id'     => $entry['original_row_id'] ?? null,
             'meta'                => isset($entry['meta']) ? json_encode($entry['meta']) : null,
             'created_at'          => now(),
             'updated_at'          => now(),

@@ -437,6 +437,20 @@ class EmailListController extends Controller
             ]
         ]);
 
+        $isConsolidated = $request->input('consolidate') === '1';
+
+        if ($isConsolidated) {
+            // Consolidation logic: Group by original_row_id (or ID if null)
+            // Use ANY_VALUE for non-aggregated columns to satisfy only_full_group_by
+            $query->selectRaw('ANY_VALUE(original_row_id) as original_row_id')
+                  ->selectRaw('ANY_VALUE(name) as name')
+                  ->selectRaw('ANY_VALUE(meta) as meta')
+                  ->selectRaw('ANY_VALUE(created_at) as created_at')
+                  ->selectRaw('GROUP_CONCAT(DISTINCT email SEPARATOR ", ") as email')
+                  ->selectRaw('GROUP_CONCAT(DISTINCT whatsapp_number SEPARATOR ", ") as whatsapp_number')
+                  ->groupBy(\Illuminate\Support\Facades\DB::raw('COALESCE(original_row_id, CAST(id AS CHAR))'));
+        }
+
         return Excel::download(new ContactsExport($query, $extraFields), $filename);
     }
 

@@ -92,20 +92,28 @@
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivery</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($stats['sent'] ?? 0) }}</h3>
             <div class="flex items-center gap-1 mt-1">
-                <p class="text-[10px] text-primary-600 font-bold">{{ $campaign->progress() }}% of {{ number_format($campaign->total_recipients) }}</p>
+                <p class="text-[10px] text-primary-600 font-bold">{{ $campaign->progress() }}% of {{ number_format($campaign->total_recipients) }} total</p>
             </div>
         </div>
 
         <div class="glass-card p-5 rounded-md border-b-4 border-indigo-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Opens</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-open-rate">{{ $campaign->open_rate }}%</h3>
-            <p class="text-[10px] text-indigo-600 mt-1 font-bold">{{ number_format($stats['unique_opens'] ?? 0) }} Unique</p>
+            <div class="flex items-center gap-2 mt-1">
+                <p class="text-[10px] text-indigo-600 font-bold"><span id="stat-unique-opens">{{ number_format($stats['unique_opens'] ?? 0) }}</span> Unique</p>
+                <span class="text-[10px] text-surface-300">|</span>
+                <p class="text-[10px] text-surface-400 font-bold"><span id="stat-total-opens">{{ number_format($stats['opens'] ?? 0) }}</span> Total</p>
+            </div>
         </div>
 
         <div class="glass-card p-5 rounded-md border-b-4 border-emerald-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Clicks</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-click-rate">{{ $campaign->click_rate }}%</h3>
-            <p class="text-[10px] text-emerald-600 mt-1 font-bold">{{ number_format($stats['unique_clicks'] ?? 0) }} Unique</p>
+            <div class="flex items-center gap-2 mt-1">
+                <p class="text-[10px] text-emerald-600 font-bold"><span id="stat-unique-clicks">{{ number_format($stats['unique_clicks'] ?? 0) }}</span> Unique</p>
+                <span class="text-[10px] text-surface-300">|</span>
+                <p class="text-[10px] text-surface-400 font-bold"><span id="stat-total-clicks">{{ number_format($stats['clicks'] ?? 0) }}</span> Total</p>
+            </div>
         </div>
 
         <div class="glass-card p-5 rounded-md border-b-4 border-rose-500">
@@ -303,6 +311,12 @@
                         <option value="opened">Opened</option>
                         <option value="clicked">Clicked</option>
                     </select>
+
+                    <select id="log-exported-filter" class="text-xs px-3 py-2 rounded-md border-surface-200 focus:border-primary-500 focus:ring-0 bg-white shadow-sm">
+                        <option value="">All Logs</option>
+                        <option value="not_exported" {{ request('exported_filter') === 'not_exported' ? 'selected' : '' }}>Not Exported</option>
+                        <option value="exported" {{ request('exported_filter') === 'exported' ? 'selected' : '' }}>Already Exported</option>
+                    </select>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -494,6 +508,7 @@
     let logFilters = {
         status: '',
         engagement: '',
+        exported_filter: '',
         search: '',
         page: 1
     };
@@ -503,6 +518,7 @@
         const url = new URL(window.location.href);
         url.searchParams.set('status', logFilters.status || '');
         url.searchParams.set('engagement', logFilters.engagement || '');
+        url.searchParams.set('exported_filter', logFilters.exported_filter || '');
         url.searchParams.set('search', logFilters.search || '');
         url.searchParams.set('sort_by', logFilters.sort_by || 'created_at');
         url.searchParams.set('sort_dir', logFilters.sort_dir || 'desc');
@@ -514,6 +530,7 @@
             const exportUrl = new URL('{{ route("admin.campaigns.export-logs", $campaign) }}');
             exportUrl.searchParams.set('status', logFilters.status || '');
             exportUrl.searchParams.set('engagement', logFilters.engagement || '');
+            exportUrl.searchParams.set('exported_filter', logFilters.exported_filter || '');
             exportUrl.searchParams.set('search', logFilters.search || '');
             exportUrl.searchParams.set('sort_by', logFilters.sort_by || 'created_at');
             exportUrl.searchParams.set('sort_dir', logFilters.sort_dir || 'desc');
@@ -542,6 +559,12 @@
 
     document.getElementById('log-engagement-filter')?.addEventListener('change', (e) => {
         logFilters.engagement = e.target.value;
+        logFilters.page = 1;
+        refreshLogs();
+    });
+
+    document.getElementById('log-exported-filter')?.addEventListener('change', (e) => {
+        logFilters.exported_filter = e.target.value;
         logFilters.page = 1;
         refreshLogs();
     });
@@ -599,8 +622,10 @@
             document.getElementById('stat-failed-count').innerText = data.failed_count.toLocaleString();
             document.getElementById('stat-open-rate').innerText = data.open_rate + '%';
             document.getElementById('stat-click-rate').innerText = data.click_rate + '%';
-            document.querySelector('#stat-open-rate + p').innerText = data.open_count + ' Total';
-            document.querySelector('#stat-click-rate + p').innerText = data.click_count + ' Total';
+            document.getElementById('stat-unique-opens').innerText = data.unique_opens.toLocaleString();
+            document.getElementById('stat-total-opens').innerText = data.total_opens.toLocaleString();
+            document.getElementById('stat-unique-clicks').innerText = data.unique_clicks.toLocaleString();
+            document.getElementById('stat-total-clicks').innerText = data.total_clicks.toLocaleString();
             
             // 2. Update Progress Engine (if visible)
             const engine = document.getElementById('progress-engine');

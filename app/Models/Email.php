@@ -13,6 +13,7 @@ class Email extends Model
     protected $fillable = [
         'user_id',
         'email_list_id',
+        'original_row_id',
         'activity_log_id',
         'email',
         'name',
