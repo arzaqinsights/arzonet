@@ -357,7 +357,7 @@
                     <div class="space-y-4">
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] font-bold text-surface-400 uppercase">Email List</span>
-                            <span class="text-sm font-medium text-surface-900">{{ $campaign->emailList->name }}</span>
+                            <span class="text-sm font-medium text-surface-900">{{ $campaign->emailList->name ?? 'Audience (Deleted)' }}</span>
                         </div>
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] font-bold text-surface-400 uppercase">Total Candidates</span>

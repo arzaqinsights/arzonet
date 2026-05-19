@@ -5,6 +5,10 @@
     foreach(['company', 'job_title', 'phone', 'city'] as $field) {
         if (isset($mapping[$field])) $displayedFields[] = $field;
     }
+    // Auto-display phone if whatsapp_number is mapped, so that landlines/extra numbers extracted are visible
+    if (isset($mapping['whatsapp_number']) && !in_array('phone', $displayedFields)) {
+        $displayedFields[] = 'phone';
+    }
     foreach($mapping as $key => $val) {
         if (str_starts_with($key, 'custom_')) $displayedFields[] = $key;
     }

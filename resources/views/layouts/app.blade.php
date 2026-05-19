@@ -8,6 +8,7 @@
     <title>@yield('title', 'Dashboard') — Arzonet</title>
     <meta name="description" content="Advanced Bulk Email Sending Platform">
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="shortcut icon" href="{{ asset('images/logo/square-logo.png')}}" type="image/x-icon">
     <link
         href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=Righteous&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
         rel="stylesheet">

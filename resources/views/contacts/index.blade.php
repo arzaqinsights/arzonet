@@ -65,7 +65,7 @@
                             <span class="badge {{ $statusCls }}">{{ ucfirst($contact->subscription_status) }}</span>
                         </td>
                         <td>
-                            <span class="text-xs font-bold text-surface-400 bg-surface-100 px-2 py-1 rounded">{{ $contact->emailList->name }}</span>
+                            <span class="text-xs font-bold text-surface-400 bg-surface-100 px-2 py-1 rounded">{{ $contact->emailList->name ?? 'Deleted List' }}</span>
                         </td>
                         <td>
                             <div class="flex items-center justify-center gap-4">

@@ -32,7 +32,7 @@ class DashboardController extends Controller
         $totalUnsubscribed = \App\Models\Email::whereNotNull('unsubscribed_at')->count();
 
         $globalOpenRate = $totalDelivered > 0 ? round(($totalOpens / max($totalDelivered, $totalOpens)) * 100, 1) : 0;
-        $globalClickRate = $totalOpens > 0 ? round(($totalClicks / max($totalOpens, $totalClicks)) * 100, 1) : 0;
+        $globalClickRate = $totalDelivered > 0 ? round(($totalClicks / max($totalDelivered, $totalClicks)) * 100, 1) : 0;
         $bounceRate = $totalSent > 0 ? round(($totalBounced / $totalSent) * 100, 1) : 0;
 
         // ── 2. HYBRID PERFORMANCE TRENDS (Fall-back to Logs if Stats empty) ──

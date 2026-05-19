@@ -22,9 +22,15 @@ class CampaignService
             throw new \Exception("Campaign dispatch blocked: Email sending limit exceeded. Please upgrade your plan.");
         }
 
+        if (!$campaign->emailList) {
+            throw new \Exception("Campaign dispatch failed: The linked Email List has been deleted.");
+        }
+
         $query = $campaign->emailList->emails()
             ->valid()
-            ->subscribed();
+            ->subscribed()
+            ->whereNotNull('email')
+            ->where('email', '!=', '');
 
         // Apply Advanced Audience Config (Segments/Tags/Health)
         if ($campaign->audience_config) {
@@ -240,10 +246,16 @@ class CampaignService
     {
         $campaign->update(['status' => 'sending']);
 
+        if (!$campaign->emailList) {
+            throw new \Exception("Campaign retry failed: The linked Email List has been deleted.");
+        }
+
         // 1. Audit and Recreate MISSING logs (The reason for 90% stall)
         $allValidEmailIds = $campaign->emailList->emails()
             ->valid()
             ->subscribed()
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
             ->pluck('id')
             ->toArray();
         

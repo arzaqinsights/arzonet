@@ -24,7 +24,7 @@
                         };
                     @endphp
                     <span class="badge {{ $statusCls }} px-4 py-1.5">{{ ucfirst($email->subscription_status) }}</span>
-                    <span class="badge badge-info px-4 py-1.5">List: {{ $email->emailList->name }}</span>
+                    <span class="badge badge-info px-4 py-1.5">List: {{ $email->emailList->name ?? 'Deleted List' }}</span>
                 </div>
 
                 <div class="pt-6 border-t border-surface-100 text-left">

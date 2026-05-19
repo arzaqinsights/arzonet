@@ -157,25 +157,29 @@ class CampaignController extends Controller
 
         // If draft, show expected recipients. If sending/completed, show logs.
         if ($campaign->status === 'draft') {
-            $query = $campaign->emailList->emails()->valid()->subscribed();
+            $query = $campaign->emailList 
+                ? $campaign->emailList->emails()->valid()->subscribed()->whereNotNull('email')->where('email', '!=', '') 
+                : null;
             
-            if ($request->search) {
+            if ($request->search && $query) {
                 $query->where('email', 'LIKE', "%{$request->search}%");
             }
 
-            $logs = $query->latest()
-                ->paginate(50)
-                ->through(function($email) {
-                    return (object) [
-                        'email' => $email,
-                        'email_address' => $email->email,
-                        'status' => 'pending',
-                        'error_message' => 'Waiting for launch...',
-                        'message_id' => null,
-                        'sent_at' => null,
-                        'created_at' => null
-                    ];
-                });
+            $logs = $query 
+                ? $query->latest()
+                    ->paginate(50)
+                    ->through(function($email) {
+                        return (object) [
+                            'email' => $email,
+                            'email_address' => $email->email,
+                            'status' => 'pending',
+                            'error_message' => 'Waiting for launch...',
+                            'message_id' => null,
+                            'sent_at' => null,
+                            'created_at' => null
+                        ];
+                    })
+                : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50);
         } else {
             $query = $campaign->logs()->with('email');
 
