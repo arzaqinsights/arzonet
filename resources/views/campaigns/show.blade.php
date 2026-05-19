@@ -26,7 +26,7 @@
 @endsection
 
 @section('content')
-<div class="space-y-8 animate-slide-up" x-data="{ tab: 'analytics' }">
+<div class="space-y-8 animate-slide-up" x-data="{ tab: 'analytics', showExportLogsModal: false, exportLogsFormat: 'xlsx', exportLogsFilename: 'campaign_{{ $campaign->id }}_logs' }">
     
     {{-- Header Actions --}}
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -320,10 +320,10 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <a href="{{ route('admin.campaigns.export-logs', $campaign) }}" id="export-logs-link" class="flex items-center gap-2 px-4 py-2 bg-surface-900 text-white text-xs font-black uppercase tracking-widest rounded-md hover:bg-black transition-all shadow-md">
+                    <button @click="showExportLogsModal = true" class="flex items-center gap-2 px-4 py-2 bg-surface-900 text-white text-xs font-black uppercase tracking-widest rounded-md hover:bg-black transition-all shadow-md cursor-pointer">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Export CSV
-                    </a>
+                        Export Logs
+                    </button>
                 </div>
             </div>
 
@@ -368,12 +368,84 @@
             </div>
         </div>
     </div>
+
+    {{-- ── Teleported Modals ── --}}
+    <template x-teleport="body">
+        <div>
+            {{-- Export Logs Modal --}}
+            <div x-show="showExportLogsModal" class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-surface-900/90" x-cloak>
+                <div class="bg-white rounded-sm w-full max-w-lg overflow-hidden animate-scale-in" @click.away="showExportLogsModal = false">
+                    <div class="p-8 border-b border-gray-100 bg-surface-50/50">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-xl font-black text-surface-900 tracking-tight">Export Campaign Logs</h3>
+                                <p class="text-[10px] text-surface-400 font-black uppercase mt-1 tracking-widest">Generate filtered dispatch logs</p>
+                            </div>
+                            <button @click="showExportLogsModal = false" class="text-surface-400 hover:text-surface-600 transition-colors cursor-pointer">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-8 space-y-8">
+                        <div>
+                            <label class="block text-[10px] font-black text-surface-900 uppercase tracking-widest mb-3">Custom Filename</label>
+                            <div class="relative">
+                                <input type="text" x-model="exportLogsFilename" class="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-sm text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all">
+                                <div class="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-surface-300 uppercase" x-text="`.${exportLogsFormat}`"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-black text-surface-900 uppercase tracking-widest mb-3">Select Format</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <button @click="exportLogsFormat = 'xlsx'" :class="exportLogsFormat === 'xlsx' ? 'border-brand bg-brand/5 text-brand' : 'border-gray-100 text-surface-400'" class="p-6 border rounded-sm transition-all text-center cursor-pointer group">
+                                    <div class="flex flex-col items-center gap-3">
+                                        <div :class="exportLogsFormat === 'xlsx' ? 'bg-brand/10' : 'bg-gray-50'" class="w-12 h-12 rounded-full flex items-center justify-center transition-colors">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                        </div>
+                                        <p class="text-[10px] font-black uppercase tracking-widest">Excel / XLSX</p>
+                                    </div>
+                                </button>
+                                <button @click="exportLogsFormat = 'csv'" :class="exportLogsFormat === 'csv' ? 'border-brand bg-brand/5 text-brand' : 'border-gray-100 text-surface-400'" class="p-6 border rounded-sm transition-all text-center cursor-pointer group">
+                                    <div class="flex flex-col items-center gap-3">
+                                        <div :class="exportLogsFormat === 'csv' ? 'bg-brand/10' : 'bg-gray-50'" class="w-12 h-12 rounded-full flex items-center justify-center transition-colors">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h1m2 0h1m-3 4h1m2 0h1m-3 4h1m2 0h1"></path></svg>
+                                        </div>
+                                        <p class="text-[10px] font-black uppercase tracking-widest">Text / CSV</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+                        <button @click="showExportLogsModal = false" class="flex-1 py-3.5 text-[10px] font-black text-surface-400 uppercase tracking-widest hover:text-surface-600 transition-colors cursor-pointer">Cancel</button>
+                        <button @click="triggerLogsExport(exportLogsFormat, exportLogsFilename); showExportLogsModal = false" class="flex-2 bg-brand text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-sm transition-all hover:scale-[1.01]">Download File</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
 </div>
 @endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
+    function triggerLogsExport(format, filename) {
+        const url = new URL(`{{ route('admin.campaigns.export-logs', $campaign) }}`);
+        url.searchParams.set('format', format);
+        url.searchParams.set('filename', filename);
+        url.searchParams.set('status', logFilters.status || '');
+        url.searchParams.set('engagement', logFilters.engagement || '');
+        url.searchParams.set('exported_filter', logFilters.exported_filter || '');
+        url.searchParams.set('search', logFilters.search || '');
+        url.searchParams.set('sort_by', logFilters.sort_by || 'created_at');
+        url.searchParams.set('sort_dir', logFilters.sort_dir || 'desc');
+        window.location.href = url.toString();
+    }
+
     // Initialize ApexCharts
     document.addEventListener("DOMContentLoaded", function () {
         var options = {
@@ -524,18 +596,7 @@
         url.searchParams.set('sort_dir', logFilters.sort_dir || 'desc');
         url.searchParams.set('page', logFilters.page || 1);
 
-        // Update Export Link
-        const exportLink = document.getElementById('export-logs-link');
-        if (exportLink) {
-            const exportUrl = new URL('{{ route("admin.campaigns.export-logs", $campaign) }}');
-            exportUrl.searchParams.set('status', logFilters.status || '');
-            exportUrl.searchParams.set('engagement', logFilters.engagement || '');
-            exportUrl.searchParams.set('exported_filter', logFilters.exported_filter || '');
-            exportUrl.searchParams.set('search', logFilters.search || '');
-            exportUrl.searchParams.set('sort_by', logFilters.sort_by || 'created_at');
-            exportUrl.searchParams.set('sort_dir', logFilters.sort_dir || 'desc');
-            exportLink.href = exportUrl.toString();
-        }
+        // Export link updated via modal trigger
 
         container.style.opacity = '0.5';
         

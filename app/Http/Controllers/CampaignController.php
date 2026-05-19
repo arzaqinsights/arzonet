@@ -247,66 +247,30 @@ class CampaignController extends Controller
             $query->where('is_exported', true);
         }
 
-        $filename = "campaign_{$campaign->id}_logs_" . now()->format('Y-m-d_H-i-s') . ".csv";
-        
-        $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=$filename",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
-        ];
+        // Get first log to determine meta headers
+        $firstLog = (clone $query)->first();
+        $metaKeys = [];
+        if ($firstLog && $firstLog->email && $firstLog->email->meta) {
+            $metaKeys = array_keys($firstLog->email->meta);
+        }
 
-        $callback = function() use($query) {
-            $file = fopen('php://output', 'w');
-            
-            // Get first log to determine meta headers
-            $firstLog = (clone $query)->first();
-            $metaKeys = [];
-            if ($firstLog && $firstLog->email && $firstLog->email->meta) {
-                $metaKeys = array_keys($firstLog->email->meta);
-            }
+        // Get format
+        $ext = $request->input('format') === 'csv' ? 'csv' : 'xlsx';
+        $filename = "campaign_{$campaign->id}_logs_" . now()->format('Y-m-d_H-i-s') . '.' . $ext;
 
-            $columns = array_merge(['Email', 'Name', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At', 'Exported'], $metaKeys);
-            fputcsv($file, $columns);
+        // Mark as exported
+        $logIds = (clone $query)->pluck('id')->toArray();
+        if (!empty($logIds)) {
+            \App\Models\EmailLog::whereIn('id', $logIds)->update([
+                'is_exported' => true,
+                'exported_at' => now()
+            ]);
+        }
 
-            $query->chunk(1000, function($logs) use($file, $metaKeys) {
-                $idsToMark = [];
-                foreach ($logs as $log) {
-                    $email = $log->email;
-                    $row = [
-                        $log->email_address,
-                        $email->name ?? '—',
-                        $log->status,
-                        $log->open_count,
-                        $log->click_count,
-                        $email->segment_name ?? '—',
-                        is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '—'),
-                        $log->created_at->toDateTimeString(),
-                        $log->is_exported ? 'YES' : 'NO',
-                    ];
-                    
-                    foreach ($metaKeys as $key) {
-                        $row[] = ($email->meta[$key] ?? '') ?: '—';
-                    }
-
-                    fputcsv($file, $row);
-                    $idsToMark[] = $log->id;
-                }
-
-                // Mark as exported
-                if (!empty($idsToMark)) {
-                    \App\Models\EmailLog::whereIn('id', $idsToMark)->update([
-                        'is_exported' => true,
-                        'exported_at' => now()
-                    ]);
-                }
-            });
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\CampaignLogsExport($query, $metaKeys), 
+            $filename
+        );
     }
 
     public function send(Campaign $campaign, CampaignService $campaignService)
