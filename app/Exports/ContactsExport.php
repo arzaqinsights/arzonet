@@ -61,7 +61,7 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             'blocked' => 'Banned',
             default => 'Unknown',
         };
-        $validReasonValue = $email->validation_reason ?: ($email->reason ?? '');
+        // $validReasonValue = $email->validation_reason ?: ($email->reason ?? '');
 
         $base = [
             $email->name ?? '',
@@ -69,7 +69,7 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             $phoneValue,
             $tagsValue,
             $healthValue,
-            $validReasonValue,
+            // $validReasonValue,
         ];
 
         $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
