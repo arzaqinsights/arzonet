@@ -87,6 +87,7 @@ class SendGridWebhookController extends Controller
                             'sg_event_id' => $eventId,
                             'sg_machine_open' => $event['sg_machine_open'] ?? false,
                         ],
+                        'created_at' => now(),
                     ]);
                     break;
 
@@ -123,6 +124,7 @@ class SendGridWebhookController extends Controller
                         'metadata' => [
                             'sg_event_id' => $eventId,
                         ],
+                        'created_at' => now(),
                     ]);
                     break;
 

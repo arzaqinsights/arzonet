@@ -37,6 +37,7 @@ class ProcessTrackingEventJob implements ShouldQueue
             'ip_address'   => $this->data['ip'] ?? null,
             'user_agent'   => $this->data['ua'] ?? null,
             'metadata'     => $metadata,
+            'created_at'   => now(),
         ]);
 
         // 2. Update Log Stats (Deduplicated)
