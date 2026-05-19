@@ -36,8 +36,8 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function headings(): array
     {
-        // Order: Name, Email, Phone, [Extras], Joined
-        $base = ['Full Name', 'Email Address', 'Phone'];
+        // Order: Name, Email, Phone, Tags, Health, Valid Reason, [Extras], Joined
+        $base = ['Full Name', 'Email Address', 'Phone', 'Tags', 'Health', 'Valid Reason'];
         $extra = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->extraFields);
         $tail = ['Joined'];
 
@@ -50,11 +50,26 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
         // Use whatsapp_number, fallback to meta['phone'] if exists
         $phoneValue = $email->whatsapp_number ?: ($meta['phone'] ?? '');
+        $tagsValue = is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '');
+        $healthValue = match($email->email_status ?? $email->status) {
+            'clean', 'valid' => 'Clean',
+            'risky', 'suspicious' => 'Risky',
+            'role_based' => 'Role',
+            'disposable' => 'Temp',
+            'invalid', 'hard_bounce' => 'Dead',
+            'complaint' => 'Spam',
+            'blocked' => 'Banned',
+            default => 'Unknown',
+        };
+        $validReasonValue = $email->validation_reason ?: ($email->reason ?? '');
 
         $base = [
             $email->name ?? '',
             $email->email,
             $phoneValue,
+            $tagsValue,
+            $healthValue,
+            $validReasonValue,
         ];
 
         $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
@@ -69,7 +84,7 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     public function styles(Worksheet $sheet): array
     {
         // Ensure the entire top area is clean white
-        $sheet->getStyle('A1:H2')->getFill()
+        $sheet->getStyle('A1:S2')->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFFFF');
 
@@ -79,13 +94,13 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
         // $sheet->getStyle('C1')->getFont()->setBold(true)->setSize(12)->getColor()->setARGB('FF111827');
         // $sheet->getStyle('C1')->getAlignment()->setHorizontal('left')->setVertical('center')->setWrapText(true);
 
-        $sheet->setCellValue('G1', 'Export Date:');
-        $sheet->setCellValue('H1', now()->format('d M Y'));
-        $sheet->setCellValue('G2', 'Total Records:');
-        $sheet->setCellValue('H2', (clone $this->query)->reorder()->count());
-        $sheet->getStyle('G1:H2')->getFont()->setBold(true)->setSize(9);
+        $sheet->setCellValue('H1', 'Export Date:');
+        $sheet->setCellValue('I1', now()->format('d M Y'));
+        $sheet->setCellValue('H2', 'Total Records:');
+        $sheet->setCellValue('I2', (clone $this->query)->reorder()->count());
+        $sheet->getStyle('H1:I2')->getFont()->setBold(true)->setSize(9);
 
-        // Style the Data Header Row (Starts at Row 5) - BRAND ORANGE
+        // Style the Data Header Row (Starts at Row 3) - BRAND ORANGE
         return [
             3 => [
                 'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
