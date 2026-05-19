@@ -159,7 +159,7 @@
                 <div class="space-y-2">
                     <div class="flex items-center justify-between text-xs font-bold">
                         <span class="text-surface-600 truncate max-w-[250px]" title="{{ $link->url }}">{{ str_starts_with($link->url, 'http') ? $link->url : 'https://' . $link->url }}</span>
-                        <span class="text-primary-600">{{ $link->count }} clicks</span>
+                        <span class="text-primary-600">{{ $link->unique_count ?? 0 }} unique / {{ $link->count }} total</span>
                     </div>
                     <div class="w-full h-2 bg-surface-50 rounded-md overflow-hidden border border-surface-100">
                         <div class="h-full bg-primary-500" style="width: {{ ($link->count / max(1, $stats['clicks'])) * 100 }}%"></div>

@@ -123,6 +123,7 @@ class CampaignController extends Controller
             ->where('url', 'NOT LIKE', '%unsubscribe%')
             ->select('url')
             ->selectRaw('count(*) as count')
+            ->selectRaw('count(distinct email_log_id) as unique_count')
             ->groupBy('url')
             ->orderByDesc('count')
             ->take(5)

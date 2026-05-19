@@ -201,9 +201,9 @@ class CampaignService
     /**
      * Calculate delay for a batch based on rate limiting.
      */
-    protected function calculateDelay(int $batchIndex, int $batchSize, int $emailsPerMinute): int
+    protected function calculateDelay(int $batchIndex, int $batchSize, ?int $emailsPerMinute): int
     {
-        if ($emailsPerMinute <= 0) return 0;
+        if (!$emailsPerMinute || $emailsPerMinute <= 0) return 0;
 
         $secondsPerBatch = ($batchSize / $emailsPerMinute) * 60;
         return (int) ($batchIndex * $secondsPerBatch);
@@ -280,29 +280,42 @@ class CampaignService
             }
         }
 
-        // 2. Identify emails to actually SEND (Pending ones)
-        // We only retry 'pending' because failed/bounced already count towards progress.
-        $emailsToDispatch = $campaign->logs()
-            ->where('status', 'pending')
-            ->whereNotNull('email_id')
-            ->pluck('email_id')
-            ->toArray();
+        // 2. Identify emails to actually SEND (Pending and Failed ones, NOT bounced/sent/delivered/etc.)
+        $logsToRetry = $campaign->logs()
+            ->whereIn('status', ['pending', 'failed'])
+            ->whereNotNull('email_id');
+
+        $emailsToDispatch = $logsToRetry->pluck('email_id')->toArray();
 
         \Illuminate\Support\Facades\Log::info("Ultimate Retry for Campaign {$campaign->id}. Dispatching " . count($emailsToDispatch) . " emails.");
 
         if (empty($emailsToDispatch)) {
-            // If no pending emails, but still not 100%, check if we should mark it complete
             $campaign->refresh();
-            if ($campaign->progress() >= 100) {
+            $processedCount = $campaign->logs()
+                ->whereIn('status', ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])
+                ->count();
+            if ($processedCount >= $campaign->total_recipients) {
                 $campaign->update(['status' => 'completed', 'completed_at' => now()]);
             }
             return;
         }
 
-        // 3. Clear errors for the ones we are about to retry
+        // 3. Clear errors and reset status to pending for the ones we are about to retry
         $campaign->logs()
             ->whereIn('email_id', $emailsToDispatch)
-            ->update(['error_message' => null]);
+            ->update([
+                'status' => 'pending',
+                'error_message' => null
+            ]);
+
+        // Recalculate and update the campaign's sent_count and failed_count
+        $actualSentCount = $campaign->logs()->whereIn('status', ['sent', 'delivered'])->count();
+        $actualFailedCount = 0; // they are all reset to pending now
+
+        $campaign->update([
+            'sent_count' => $actualSentCount,
+            'failed_count' => $actualFailedCount
+        ]);
         
         $sender = $campaign->sender;
         $providerType = $sender ? strtolower($sender->type) : 'ses';
@@ -324,7 +337,9 @@ class CampaignService
         $queueName = "bulk-{$providerType}";
 
         foreach ($chunks as $index => $chunk) {
-            $delay = $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute);
+            $delay = ($providerType === 'smtp')
+                ? $this->calculateDelay($index, $batchSize, $campaign->emails_per_minute)
+                : 0;
 
             SendEmailBatchJob::dispatch($campaign->id, $chunk)
                 ->onQueue($queueName)

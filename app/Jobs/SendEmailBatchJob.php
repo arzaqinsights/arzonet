@@ -114,7 +114,7 @@ class SendEmailBatchJob implements ShouldQueue
             if (!$email || !$log) continue;
             
             // Skip if already processed successfully or permanently failed
-            if (in_array($log->status, ['sent', 'delivered', 'bounced', 'complaint', 'spamreport', 'dropped'])) {
+            if (in_array($log->status, ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])) {
                 continue;
             }
 
@@ -283,7 +283,11 @@ class SendEmailBatchJob implements ShouldQueue
         $key = "campaign_{$campaign->id}_jobs_count";
         $remainingJobs = (int) Redis::decr($key);
 
-        $isActuallyFinished = ($campaign->sent_count + $campaign->failed_count) >= $campaign->total_recipients;
+        $processedCount = $campaign->logs()
+            ->whereIn('status', ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])
+            ->count();
+
+        $isActuallyFinished = $processedCount >= $campaign->total_recipients;
 
         if ($isActuallyFinished) {
             $campaign->update([
@@ -296,11 +300,14 @@ class SendEmailBatchJob implements ShouldQueue
 
         // SMART CHECK: If NO MORE JOBS are in the queue (Redis count <= 0) 
         // but campaign is NOT finished, it means it's STALLED.
+        // We mark it as completed so the campaign does not remain stuck in paused/sending state.
         if ($remainingJobs <= 0) {
             $campaign->update([
-                'status' => 'paused',
-                'error_message' => 'Campaign stalled: All dispatched jobs finished but some emails remain unsent. Please click "Retry Failed".'
+                'status'       => 'completed',
+                'completed_at' => now(),
+                'error_message' => 'Campaign finished. Some emails could not be sent.'
             ]);
+            Redis::del($key); // Cleanup
         }
     }
 }
