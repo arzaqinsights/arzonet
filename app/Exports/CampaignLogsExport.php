@@ -66,11 +66,11 @@ class CampaignLogsExport implements FromQuery, WithHeadings, WithMapping, Should
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFFFF');
 
-        $sheet->setCellValue('G1', 'Export Date:');
-        $sheet->setCellValue('H1', now()->format('d M Y'));
-        $sheet->setCellValue('G2', 'Total Logs:');
-        $sheet->setCellValue('H2', (clone $this->query)->reorder()->count());
-        $sheet->getStyle('G1:H2')->getFont()->setBold(true)->setSize(9);
+        $sheet->setCellValue('H1', 'Export Date:');
+        $sheet->setCellValue('I1', now()->format('d M Y'));
+        $sheet->setCellValue('H2', 'Total Logs:');
+        $sheet->setCellValue('I2', (clone $this->query)->reorder()->count());
+        $sheet->getStyle('H1:I2')->getFont()->setBold(true)->setSize(9);
 
         // Style the Data Header Row (Starts at Row 3) - BRAND ORANGE
         return [

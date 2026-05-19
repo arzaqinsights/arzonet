@@ -39,9 +39,9 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
         // Order: Name, Email, Phone, [Extras], Joined
         $base = ['Full Name', 'Email Address', 'Phone'];
         $extra = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->extraFields);
+        $extraCoulumn = ['Tags', 'Healthy Status', 'Bounced Status'];
         $tail = ['Joined'];
-
-        return array_merge($base, $extra, $tail);
+        return array_merge($base, $extra, $extraCoulumn, $tail);
     }
 
     public function map($email): array
@@ -58,12 +58,13 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
         ];
 
         $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
+        $extraCoulumn = [$email->tags, $email->healthy_status, $email->bounced_status];
 
         $tail = [
             $email->created_at?->format('d M Y') ?? '',
         ];
 
-        return array_merge($base, $extra, $tail);
+        return array_merge($base, $extra, $extraCoulumn, $tail);
     }
 
     public function styles(Worksheet $sheet): array
