@@ -33,7 +33,7 @@ class CampaignLogsExport implements FromQuery, WithHeadings, WithMapping, Should
 
     public function headings(): array
     {
-        $base = ['Full Name', 'Email Address', 'Status', 'Opens', 'Clicks', 'Rating', 'Reply Chances', 'Segment', 'Tags', 'Sent At'];
+        $base = ['Full Name', 'Email Address', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At'];
         $metaHeaders = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->metaKeys);
 
         return array_merge($base, $metaHeaders);
@@ -44,30 +44,12 @@ class CampaignLogsExport implements FromQuery, WithHeadings, WithMapping, Should
         $email = $log->email;
         $meta = $email ? ($email->meta ?? []) : [];
 
-        $clickCount = $log->click_count ?? 0;
-        // $openCount = $log->open_count ?? ($clickCount > 0 ? $clickCount : 0);
-        $rating = "—";
-        if ($clickCount === 1) {
-            $rating = "⭐";
-        } elseif ($clickCount === 2) {
-            $rating = "⭐⭐";
-        } elseif ($clickCount === 3) {
-            $rating = "⭐⭐⭐";
-        } elseif ($clickCount === 4) {
-            $rating = "⭐⭐⭐⭐";
-        } elseif ($clickCount >= 5) {
-            $rating = "⭐⭐⭐⭐⭐";
-        } else {
-            $rating = "—";
-        }
-
         $base = [
             $email->name ?? '—',
             $log->email_address,
             strtoupper($log->status),
             $log->open_count ?? $log->click_count,
-            $log->click_count ?? 0,
-            $rating,
+            $log->click_count ?? 0, 
             $email->segment_name ?? '—',
             is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '—'),
             $log->created_at?->format('d M Y H:i:s') ?? '',
