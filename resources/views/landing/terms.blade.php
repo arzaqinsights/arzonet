@@ -2,7 +2,8 @@
 @section('title', 'Terms & Conditions — Arzonet')
 
 @section('content')
-<section class="py-24 max-w-3xl mx-auto px-6">
+<section class="py-24 container">
+    <div class="max-w-3xl mx-auto">
     <div class="mb-12">
         <h1 class="text-4xl font-black text-gray-900 mb-4" style="font-family:'Outfit',sans-serif;">Terms & Conditions</h1>
         <p class="text-gray-500">Last updated: {{ date('F j, Y') }}</p>
@@ -20,6 +21,7 @@
 
         <h2 class="text-xl font-bold text-gray-900">4. Service Availability</h2>
         <p>While we strive for 99.9% uptime, we do not guarantee that the service will be uninterrupted, secure, or error-free. We may experience hardware, software, or other problems, resulting in interruptions, delays, or errors.</p>
+    </div>
     </div>
 </section>
 @endsection

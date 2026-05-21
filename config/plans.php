@@ -3,217 +3,298 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Arzonet Pricing & Subscription Plans
+    | Arzonet Pricing Plans
     |--------------------------------------------------------------------------
     |
-    | This file contains the complete configurations of all subscription plans
-    | including features, limit thresholds, taglines, and pricing details,
-    | as well as promotional add-on modules for secondary monetization.
+    | 3 fixed plans (Starter, Growth, Business) + 1 Custom plan.
+    | All plans include CRM + Email + WhatsApp.
+    | Custom plan lets user pick their own quantities.
+    |
+    | Per-unit rates (for custom scaling & overage):
+    |   CRM:      ₹600 / user / month
+    |   Email:    ₹100 per 1,000 emails / month
+    |   WhatsApp: ₹500 / number / month + ₹0.90 per marketing message
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Per-Unit Scaling Rates
+    |--------------------------------------------------------------------------
+    */
+    'rates' => [
+        'crm_per_user'             => 600,     // ₹600 per extra CRM user / month
+        'crm_per_1k_contacts'      => 20,      // ₹20 per 1,00,000 extra contacts / month
+        'email_per_1k'             => 100,     // ₹100 per 1,000 emails / month
+        'whatsapp_per_number'      => 500,     // ₹500 per WhatsApp number / month
+        'whatsapp_per_message'     => 0,       // ₹0 (Billed directly by Meta)
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fixed Plans
+    |--------------------------------------------------------------------------
+    */
     'plans' => [
         'starter' => [
-            'name' => 'STARTER PLAN',
-            'tagline' => 'For Small Businesses & Beginners',
-            'best_for' => ['Small businesses', 'Coaches', 'Local shops', 'Beginners'],
-            'price' => '₹1299',
-            'period' => 'month',
-            'limits' => [
-                'contacts' => '5,000 Email Contacts',
-                'emails' => '10,000 Emails/month',
-                'whatsapp' => '1 WhatsApp Number',
-                'team' => '3 Team Members',
+            'name'    => 'Starter',
+            'tagline' => 'Perfect for starting your business',
+            'price'   => 2200,
+            'period'  => 'month',
+            'limits'  => [
+                'crm_users'          => 1,
+                'crm_contacts'       => 5000,
+                'emails_per_month'   => 10000,
+                'whatsapp_numbers'   => 1,
+                'whatsapp_messages'  => 1000,
             ],
             'features' => [
-                'Contact CRM',
-                'CSV & Excel Contact Import',
-                'Smart Column Detection',
-                'Email Campaign Builder',
-                'HTML Email Templates',
-                'Test Send Feature',
-                'Basic Personalization Tags',
-                'Email Scheduling',
-                'Campaign Draft Saving',
-                'Open & Click Tracking',
-                'Basic Analytics Dashboard',
-                'Unsubscribe Management',
-                'Bounce Handling',
-                'Global Suppression List',
-                'WhatsApp Template Sync',
-                'Basic WhatsApp Broadcasting',
-                'Live Chat Inbox',
-                'Mobile Responsive Dashboard',
+                'Save & manage customer contacts',
+                'Import contacts from Excel / CSV',
+                'Create and send email campaigns',
+                'Use ready-made email templates',
+                'Track email opens and clicks',
+                'Send WhatsApp template messages',
+                'Connect 1 WhatsApp number',
+                'View basic reports & analytics',
+                'Auto-manage bounces & unsubscribes',
+                'Email support (24-hour response time)',
             ],
             'not_included' => [
-                'Automation Workflows',
-                'Advanced Analytics',
-                'Multiple Sending Gateways',
-                'Team Permissions',
-                'White Label',
+                'Auto follow-up email sequences',
+                'Multiple email gateways (SendGrid, SES)',
+                'Team roles & permissions',
+                'Dedicated sending IP',
+                'WhatsApp media messages (images, PDFs)',
             ],
         ],
+
         'growth' => [
-            'name' => 'GROWTH PLAN',
-            'tagline' => 'For Growing Companies & Marketing Teams',
-            'price' => '₹4,999',
-            'period' => 'month',
-            'limits' => [
-                'contacts' => '10,000 Contacts',
-                'emails' => '50,000 Emails/month',
-                'whatsapp' => '3 WhatsApp Numbers',
-                'team' => '10 Team Members',
+            'name'     => 'Growth',
+            'tagline'  => 'Take your marketing to the next level',
+            'price'    => 10000,
+            'period'   => 'month',
+            'popular'  => true,
+            'limits'   => [
+                'crm_users'          => 5,
+                'crm_contacts'       => 25000,
+                'emails_per_month'   => 50000,
+                'whatsapp_numbers'   => 3,
+                'whatsapp_messages'  => 10000,
             ],
             'features' => [
-                'Multi-Gateway Email Routing (SendGrid, Amazon SES, SMTP)',
-                'Smart Delivery Throttling',
-                'Advanced Audience Filtering',
-                'Dynamic Segmentation',
-                'WhatsApp Bulk Campaign Scheduling',
-                'Rich Media WhatsApp Messages (PDFs, Images, Buttons)',
-                'Multi-Agent Live Inbox',
-                'Internal CRM Notes',
-                'Campaign Pause/Resume/Retry',
-                'Advanced Open & Click Reports',
-                'ISP Reputation Monitoring',
-                'Peak Engagement Heatmaps',
-                'Shared Media Library',
-                'Contact Activity Timeline',
-                'Advanced Export System',
-                'Role-Based Team Permissions',
+                'All Starter features included',
+                'Create smart contact groups & filters',
+                'Send via multiple email gateways (SendGrid, SES, SMTP)',
+                'Auto-schedule emails at the best time',
+                'Campaign pause / resume / retry controls',
+                'Assign roles & permissions to team members',
+                'Send images, PDFs, & buttons on WhatsApp',
+                'Shared WhatsApp inbox for the team',
+                'Email health monitoring (domain & IP checks)',
+                'Campaign performance heatmaps',
+                'Priority support (6-hour response time)',
             ],
             'not_included' => [
-                'Advanced Marketing Automation',
-                'Dedicated IP Support',
-                'Custom Tracking Domains',
-                'White Label Reports',
-                'Multi-Branch Workspace System',
+                'Auto drip campaigns & workflow builder',
+                'Dedicated sending IP address',
+                'Custom tracking domain',
+                'WhatsApp green-tick verification help',
             ],
         ],
+
         'business' => [
-            'name' => 'BUSINESS PLAN',
-            'tagline' => 'For Serious Brands & High Volume Marketing',
-            'price' => '₹9,999',
-            'period' => 'month',
-            'limits' => [
-                'contacts' => '20,000 Contacts',
-                'emails' => '100,000 Emails/month',
-                'whatsapp' => '10 WhatsApp Numbers',
-                'team' => 'Unlimited Team Members',
+            'name'     => 'Business',
+            'tagline'  => 'Full-power marketing automation',
+            'price'    => 33000,
+            'period'   => 'month',
+            'limits'   => [
+                'crm_users'          => 10,
+                'crm_contacts'       => 100000,
+                'emails_per_month'   => 200000,
+                'whatsapp_numbers'   => 10,
+                'whatsapp_messages'  => 50000,
             ],
             'features' => [
-                'Advanced Marketing Automation (Welcome Series, Cart Recovery, Re-engagement, Birthday Campaigns, Drip Campaigns)',
-                'Visual Workflow Builder',
-                'Auto Follow-Up Sequences',
-                'Real-Time Deliverability Center',
-                'Domain Reputation Monitoring',
-                'Dedicated IP Support',
-                'Advanced WhatsApp Analytics',
-                'Conversation Assignment System',
-                'SLA-Based Support Tools',
-                'AI Subject Line Suggestions',
-                'Smart Send-Time Optimization',
-                'Custom Tracking Domains',
-                'White Label Reports',
-                'Custom Branding',
-                'Priority Queue Sending',
-                'Multi-Branch Workspace System',
-                'Custom SMTP Pool Management',
+                'All Growth features included',
+                'Auto follow-up email sequences (drip campaigns)',
+                'Drag & drop workflow builder',
+                'Get AI-powered subject line suggestions',
+                'Dedicated sending IP address',
+                'Custom tracking domain (yourdomain.com)',
+                'WhatsApp analytics & conversation tracking',
+                'Assistance with WhatsApp green-tick verification',
+                'Multi-branch workspace system',
+                'Team hierarchy controls',
+                'API access (100,000 requests/day)',
+                'Live chat support (1-hour response time)',
             ],
             'not_included' => [
-                'Dedicated Server Deployment',
-                'White Label SaaS Dashboard',
-                'Client Billing System / Reseller Panel',
+                'White label branding',
+                'Reseller panel',
+                'Dedicated server deployment',
             ],
-        ],
-        'enterprise' => [
-            'name' => 'ENTERPRISE PLAN',
-            'tagline' => 'Agencies, SaaS Platforms & Large Enterprises',
-            'price' => 'Custom',
-            'period' => 'contact sales',
-            'limits' => [
-                'contacts' => 'Unlimited Contacts',
-                'emails' => 'Unlimited Sending Infrastructure',
-                'whatsapp' => 'Official Partner Support',
-                'team' => 'Team Hierarchy System',
-            ],
-            'features' => [
-                'Dedicated Server Deployment',
-                'White Label SaaS Dashboard',
-                'Custom Domain Branding',
-                'Multi-Tenant Architecture',
-                'Client Billing System',
-                'Reseller Panel',
-                'Advanced Security Logs',
-                'SSO Login',
-                'Audit Trails',
-                'Dedicated Account Manager',
-                'SLA Guarantees',
-                'Custom Integrations',
-                'ERP/CRM Integrations',
-                'AI-Powered Insights Engine',
-                'Custom Feature Development',
-                'On-Premise Deployment Option',
-            ],
-            'not_included' => [],
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Custom Plan Configuration (Build Your Own)
+    |--------------------------------------------------------------------------
+    | Users pick their own quantities. All Business-level features included.
+    | Price = sum of per-unit costs for chosen quantities.
+    */
+    'custom' => [
+        'name'    => 'Custom',
+        'tagline' => 'Build a plan tailored to your needs',
+        'features_label' => 'All Business features + custom limits',
+        'features' => [
+            'All Business features included',
+            'Choose your own limits for CRM, emails, and WhatsApp',
+            'Scale up or down at any time',
+            'Pay only for what you use',
+        ],
+        'sliders' => [
+            'crm_users' => [
+                'label' => 'CRM Team Members',
+                'min'   => 1,
+                'max'   => 100,
+                'step'  => 1,
+                'default' => 5,
+                'unit_label' => 'users',
+                'rate_key' => 'crm_per_user',
+            ],
+            'crm_contacts' => [
+                'label' => 'CRM Contacts',
+                'min'   => 1000,
+                'max'   => 500000,
+                'step'  => 1000,
+                'default' => 10000,
+                'unit_label' => 'contacts',
+                'rate_key' => 'crm_per_1k_contacts',
+                'rate_per' => 1000,
+            ],
+            'emails_per_month' => [
+                'label' => 'Emails Per Month',
+                'min'   => 5000,
+                'max'   => 1000000,
+                'step'  => 5000,
+                'default' => 25000,
+                'unit_label' => 'emails/mo',
+                'rate_key' => 'email_per_1k',
+                'rate_per' => 1000,
+            ],
+            'whatsapp_numbers' => [
+                'label' => 'WhatsApp Numbers',
+                'min'   => 1,
+                'max'   => 50,
+                'step'  => 1,
+                'default' => 2,
+                'unit_label' => 'numbers',
+                'rate_key' => 'whatsapp_per_number',
+            ],
+            'whatsapp_messages' => [
+                'label' => 'WhatsApp Messages / Month',
+                'min'   => 1000,
+                'max'   => 500000,
+                'step'  => 1000,
+                'default' => 5000,
+                'unit_label' => 'messages/mo',
+                'rate_key' => 'whatsapp_per_message',
+                'rate_per' => 1,
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Feature Comparison Table (for /pricing page)
+    |--------------------------------------------------------------------------
+    */
+    'comparison' => [
+        'CRM & Contacts' => [
+            'CRM Users (Team Members)'         => ['1', '5', '10', 'Custom'],
+            'Contacts Store Limit'              => ['5,000', '25,000', '1,00,000', 'Custom'],
+            'Excel / CSV Contact Import'        => [true, true, true, true],
+            'Smart Contact Groups & Filters'    => [false, true, true, true],
+            'Contact Activity Timeline'         => [false, true, true, true],
+            'Team Roles & Permissions'          => [false, true, true, true],
+            'Multi-branch Workspace'            => [false, false, true, true],
+            'Team Hierarchy Controls'           => [false, false, true, true],
+        ],
+        'Email Marketing' => [
+            'Emails Per Month'                  => ['10,000', '50,000', '2,00,000', 'Custom'],
+            'Email Campaign Builder'            => [true, true, true, true],
+            'Ready-made Templates'              => [true, true, true, true],
+            'Open & Click Tracking'             => [true, true, true, true],
+            'Multiple Gateways (SES, SendGrid)' => [false, true, true, true],
+            'Auto Schedule at Best Time'        => [false, true, true, true],
+            'Campaign Pause / Resume'           => [false, true, true, true],
+            'Domain & IP Health Monitoring'     => [false, true, true, true],
+            'Auto Follow-up Sequences'          => [false, false, true, true],
+            'Drag & Drop Workflow Builder'      => [false, false, true, true],
+            'AI Subject Line Suggestions'       => [false, false, true, true],
+            'Dedicated Sending IP'              => [false, false, true, true],
+            'Custom Tracking Domain'            => [false, false, true, true],
+        ],
+        'WhatsApp Marketing' => [
+            'Connected WhatsApp Numbers'        => ['1', '3', '10', 'Custom'],
+            'Messages Per Month'                => ['1,000', '10,000', '50,000', 'Custom'],
+            'WhatsApp Template Messages'        => [true, true, true, true],
+            'Live Chat Inbox'                   => [true, true, true, true],
+            'Media Messages (Images, PDFs)'     => [false, true, true, true],
+            'Shared Team Inbox'                 => [false, true, true, true],
+            'Analytics & Conversation Tracking' => [false, false, true, true],
+            'Green-tick Verification Help'      => [false, false, true, true],
+        ],
+        'Platform & Support' => [
+            'API Access'                        => ['—', '10K req/day', '1L req/day', '1L req/day'],
+            'Support Level'                     => ['Email (24hr)', 'Priority (6hr)', 'Live Chat (1hr)', 'Live Chat (1hr)'],
+            'White Label Branding'              => [false, false, false, 'Add-on'],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Add-Ons
+    |--------------------------------------------------------------------------
+    */
     'addons' => [
         'extra_contacts' => [
-            'name' => 'Extra Contacts',
-            'desc' => 'Scale your CRM limits with dedicated additional contact capacities.',
-            'icon' => 'user-group'
+            'name' => 'Extra CRM Contacts',
+            'desc' => 'Store more contacts in your CRM.',
+            'price_label' => '₹20 / 1,000 contacts',
+            'icon' => 'fa-users',
         ],
         'extra_emails' => [
             'name' => 'Extra Email Volume',
-            'desc' => 'Boost monthly credit volumes for high-density transactional flows.',
-            'icon' => 'envelope-open'
+            'desc' => 'Increase your monthly email sending limit.',
+            'price_label' => '₹100 / 1,000 emails',
+            'icon' => 'fa-envelope',
         ],
-        'dedicated_ip' => [
-            'name' => 'Dedicated IP',
-            'desc' => 'Isolate your reputation profile with an exclusive SMTP delivery address.',
-            'icon' => 'globe-alt'
-        ],
-        'additional_whatsapp' => [
-            'name' => 'Additional WhatsApp Number',
-            'desc' => 'Connect more customer care numbers or brand channels to Live Chat.',
-            'icon' => 'phone'
-        ],
-        'ai_content' => [
-            'name' => 'AI Content Generator',
-            'desc' => 'Leverage smart GPT models for copy recommendations and drafts.',
-            'icon' => 'sparkles'
+        'extra_whatsapp_number' => [
+            'name' => 'Extra WhatsApp Number',
+            'desc' => 'Connect additional WhatsApp numbers.',
+            'price_label' => '₹500 / number / month',
+            'icon' => 'fa-whatsapp',
         ],
         'extra_team' => [
             'name' => 'Extra Team Members',
-            'desc' => 'Onboard more support reps and agents to coordinate campaigns.',
-            'icon' => 'users'
+            'desc' => 'Add more members to your team.',
+            'price_label' => '₹600 / user / month',
+            'icon' => 'fa-user-plus',
         ],
-        'premium_templates' => [
-            'name' => 'Premium Templates',
-            'desc' => 'Gain access to modern, pre-designed high-converting templates.',
-            'icon' => 'document-duplicate'
-        ],
-        'priority_support' => [
-            'name' => 'Priority Support',
-            'desc' => 'Get 24/7 dedicated support via phone, Slack, or WhatsApp.',
-            'icon' => 'chat'
+        'dedicated_ip' => [
+            'name' => 'Dedicated IP Address',
+            'desc' => 'Get a dedicated sending IP address for better email deliverability.',
+            'price_label' => '₹2,000 / month',
+            'icon' => 'fa-server',
         ],
         'white_label' => [
-            'name' => 'White Label',
-            'desc' => 'Remove brand credits and power layouts under your custom identity.',
-            'icon' => 'tag'
+            'name' => 'White Label Branding',
+            'desc' => 'Remove Arzonet branding and use your own brand assets.',
+            'price_label' => '₹5,000 / month',
+            'icon' => 'fa-eye-slash',
         ],
-        'custom_domain' => [
-            'name' => 'Custom Domain Tracking',
-            'desc' => 'Track opens and click indicators under your corporate domain structure.',
-            'icon' => 'link'
-        ],
-        'managed_deliverability' => [
-            'name' => 'Managed Deliverability Service',
-            'desc' => 'Dedicated delivery specialist team to warm-up and audit domains.',
-            'icon' => 'shield-check'
-        ],
-    ]
+    ],
 ];

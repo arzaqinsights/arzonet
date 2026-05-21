@@ -208,6 +208,8 @@ class EmailListController extends Controller
     {
         $emailList->recalculateStats();
 
+        $groupExpr = "COALESCE(original_row_id, CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE CONCAT('id_', id) END)";
+
         $stats = [
             'total' => $emailList->total_records,
             'valid' => $emailList->valid_count,
@@ -225,6 +227,17 @@ class EmailListController extends Controller
             'suspicious' => $emailList->emails()->where('is_archived', false)->where('email_status', 'suspicious')->count(),
             'hard_bounce' => $emailList->emails()->where('is_archived', false)->where('email_status', 'hard_bounce')->count(),
             'soft_bounce' => $emailList->emails()->where('is_archived', false)->where('email_status', 'soft_bounce')->count(),
+            
+            // Advanced counts
+            'global_main_rows' => DB::table('emails')
+                ->where('email_list_id', $emailList->id)
+                ->where('is_archived', false)
+                ->distinct()
+                ->count(DB::raw($groupExpr)),
+            'total_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->count(),
+            'subscribed_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->where('subscription_status', 'subscribed')->count(),
+            'total_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->count(),
+            'subscribed_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->where('whatsapp_subscription_status', 'subscribed')->count(),
         ];
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
@@ -337,6 +350,8 @@ class EmailListController extends Controller
 
         // 2. Calculate stats for the CURRENT filtered set
         $statsQuery = clone $query;
+        $groupExpr = "COALESCE(original_row_id, CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE CONCAT('id_', id) END)";
+
         $dynamicStats = [
             'total' => $statsQuery->count(),
             'valid' => (clone $statsQuery)->where('status', 'valid')->count(),
@@ -346,7 +361,37 @@ class EmailListController extends Controller
             'unsubscribed' => (clone $statsQuery)->where('subscription_status', 'unsubscribed')->count(),
             'whatsapp_unsubscribed' => (clone $statsQuery)->where('whatsapp_subscription_status', 'unsubscribed')->count(),
             'bounced' => (clone $statsQuery)->where('subscription_status', 'bounced')->count(),
+            
+            // Advanced counts
+            'global_main_rows' => DB::table('emails')
+                ->where('email_list_id', $emailList->id)
+                ->where('is_archived', false)
+                ->distinct()
+                ->count(DB::raw($groupExpr)),
+            'total_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->count(),
+            'subscribed_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->where('subscription_status', 'subscribed')->count(),
+            'total_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->count(),
+            'subscribed_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->where('whatsapp_subscription_status', 'subscribed')->count(),
         ];
+
+        // Check if filter is applied
+        $isFiltered = false;
+        if (($request->status && $request->status !== 'all') ||
+            ($request->subscription && $request->subscription !== 'all') ||
+            ($request->segment && $request->segment !== 'all') ||
+            ($request->source && $request->source !== 'all') ||
+            ($request->tag && $request->tag !== 'all') ||
+            ($request->channel && $request->channel !== 'all') ||
+            ($request->wa_status && $request->wa_status !== 'all') ||
+            $request->search) {
+            $isFiltered = true;
+        }
+
+        $dynamicStats['is_filtered'] = $isFiltered;
+        $dynamicStats['filtered_main_rows'] = $isFiltered ? DB::table('emails')
+            ->whereIn('id', (clone $query)->reorder()->select('emails.id'))
+            ->distinct()
+            ->count(DB::raw($groupExpr)) : 0;
 
         $emails = $query->paginate(50);
         return response()->json([
@@ -490,6 +535,8 @@ class EmailListController extends Controller
 
     public function checkStatus(EmailList $emailList)
     {
+        $groupExpr = "COALESCE(original_row_id, CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE CONCAT('id_', id) END)";
+
         $data = [
             'status' => $emailList->status,
             'total_records' => $emailList->total_records,
@@ -507,6 +554,17 @@ class EmailListController extends Controller
             'role_based_count' => $emailList->emails()->where('is_archived', false)->where('is_role_based', true)->count(),
             'suspicious_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'suspicious')->count(),
             'archived_count' => $emailList->emails()->where('is_archived', true)->count(),
+            
+            // Advanced counts
+            'global_main_rows' => DB::table('emails')
+                ->where('email_list_id', $emailList->id)
+                ->where('is_archived', false)
+                ->distinct()
+                ->count(DB::raw($groupExpr)),
+            'total_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->count(),
+            'subscribed_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->where('subscription_status', 'subscribed')->count(),
+            'total_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->count(),
+            'subscribed_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->where('whatsapp_subscription_status', 'subscribed')->count(),
         ];
 
         // Check for active batch progress
@@ -584,7 +642,53 @@ class EmailListController extends Controller
             $data['meta'] = array_merge($email->meta ?? [], $request->meta);
         }
 
+        if (isset($data['tags']) && is_string($data['tags'])) {
+            $data['tags'] = array_map('trim', array_filter(explode(',', $data['tags'])));
+        }
+
+        $oldName = $email->name;
+
         $email->update($data);
+
+        // Advanced CRM Group Sync: Propagate shared details (name, segment_name, tags, meta, signup_source)
+        // to other channels belonging to the same contact/person.
+        $syncData = [];
+        if ($request->has('name')) $syncData['name'] = $data['name'];
+        if ($request->has('segment_name')) $syncData['segment_name'] = $data['segment_name'];
+        if ($request->has('tags')) $syncData['tags'] = $data['tags'];
+        if ($request->has('meta')) $syncData['meta'] = $data['meta'];
+        if ($request->has('signup_source')) $syncData['signup_source'] = $data['signup_source'];
+
+        if (!empty($syncData)) {
+            $qbSyncData = $syncData;
+            if (isset($qbSyncData['tags'])) {
+                $qbSyncData['tags'] = json_encode($qbSyncData['tags']);
+            }
+            if (isset($qbSyncData['meta'])) {
+                $qbSyncData['meta'] = json_encode($qbSyncData['meta']);
+            }
+
+            if ($email->original_row_id) {
+                $emailList->emails()
+                    ->where('original_row_id', $email->original_row_id)
+                    ->where('id', '!=', $email->id)
+                    ->update($qbSyncData);
+            } else {
+                if (!empty(trim($oldName))) {
+                    $otherRows = $emailList->emails()
+                        ->where('name', $oldName)
+                        ->where('id', '!=', $email->id);
+
+                    if ($otherRows->exists()) {
+                        $newGroupId = (string) \Illuminate\Support\Str::uuid();
+                        $email->update(['original_row_id' => $newGroupId]);
+                        $qbSyncData['original_row_id'] = $newGroupId;
+                        $otherRows->update($qbSyncData);
+                    }
+                }
+            }
+        }
+
         return response()->json(['success' => true]);
     }
 

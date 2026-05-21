@@ -284,150 +284,150 @@
                 </div>
             </div>
 
-            {{-- Metrics Summary --}}
+            {{-- Premium Counts & Advanced Metrics Dashboard --}}
             <div class="px-1 py-1">
-                <div x-show="archived === 'no'" class="flex items-center gap-2">
-                    <p class="text-xl font-bold text-surface-500 tracking-tight flex items-center gap-x-2">
-                        {{-- Primary Number based on Health Filter --}}
-                        <span>
-                            <template x-if="filter === 'all'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                </span>
-                            </template>
-                            <template x-if="filter === 'valid'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-emerald-500 font-black" x-text="stats.global_valid.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">clean contacts.</span>
-                                </span>
-                            </template>
-                            <template x-if="filter === 'risky'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-amber-500 font-black" x-text="stats.risky.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">risky contacts.</span>
-                                </span>
-                            </template>
-                            <template x-if="filter === 'role_based'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-blue-500 font-black" x-text="stats.role_based.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">role-based emails.</span>
-                                </span>
-                            </template>
-                            <template x-if="filter === 'disposable'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-indigo-500 font-black" x-text="stats.disposable.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">temporary emails.</span>
-                                </span>
-                            </template>
-                            <template x-if="filter === 'suspicious'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-indigo-500 font-black" x-text="stats.suspicious.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">suspicious emails.</span>
-                                </span>
-                            </template>
-                            <template x-if="subscription === 'hard_bounce'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-red-500 font-black" x-text="stats.hard_bounce.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">hard bounce emails.</span>
-                                </span>
-                            </template>
-                            <template x-if="subscription === 'soft_bounce'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-amber-500 font-black" x-text="stats.soft_bounce.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">soft bounce emails.</span>
-                                </span>
-                            </template>
-                            <template x-if="subscription === 'complaint'">
-                                <span>
-                                    <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">total contacts.</span>
-                                    <span class="text-surface-900 font-black" x-text="stats.complaints.toLocaleString()"></span> 
-                                    <span class="text-surface-600 font-medium">spam complaints.</span>
-                                </span>
-                            </template>
-
-
-                            <template x-if="filter === 'invalid'">
-                                <div class="flex items-center gap-4">
-                                    <span>
-                                        <span class="text-brand font-black" x-text="stats.full_total.toLocaleString()"></span> 
-                                        <span class="text-surface-600 font-medium">total contacts.</span>
-                                        <span class="text-red-500 font-black" x-text="stats.global_invalid.toLocaleString()"></span> 
-                                        <span class="text-surface-600 font-medium">invalid contacts.</span>
-                                    </span>
-                                    <a href="{{ route('admin.email-lists.fix-invalid', $emailList) }}" 
-                                       class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-sm flex items-center gap-2 transition-all active:scale-95">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                        </svg>
-                                        Fix Invalid Records
-                                    </a>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <!-- Card 1: Unique Profiles (Main Rows) -->
+                    <div class="relative overflow-hidden bg-white p-5 rounded-sm border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-brand"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Total Contacts</p>
+                                <h3 class="text-3xl font-black text-surface-900 mt-2" x-text="stats.global_main_rows.toLocaleString()"></h3>
+                                <p class="text-[10px] text-surface-500 font-medium mt-1">Unique primary profiles</p>
+                                <div class="flex flex-wrap gap-x-2 gap-y-1 mt-3 border-t border-gray-50 pt-2 text-[9px] text-surface-400 font-bold uppercase tracking-wider">
+                                    <span class="text-surface-400">Total Rows: <span class="text-surface-700" x-text="stats.full_total.toLocaleString()"></span></span>
+                                    <span class="text-gray-300">•</span>
+                                    <span class="text-surface-400">Dupes: <span class="text-surface-700" x-text="stats.global_duplicate.toLocaleString()"></span></span>
                                 </div>
-                            </template>
-                        </span>
-
-                        {{-- Secondary Metrics (Always visible if applicable) --}}
-                        <div class="flex items-center gap-4 text-xl">
-                            <template x-if="stats.subscribed > 0">
-                                <span>
-                                    <span class="text-emerald-500 font-black" x-text="stats.subscribed.toLocaleString()"></span>
-                                    <span class="text-surface-600 font-medium">Subscribers</span>
-                                </span>
-                            </template>
-                            <template x-if="stats.unsubscribed > 0">
-                                <span>
-                                    <span class="text-gray-500 font-black" x-text="stats.unsubscribed.toLocaleString()"></span>
-                                    <span class="text-surface-600 font-medium">Unsubscribed</span>
-                                </span>
-                            </template>
-                            <template x-if="stats.bounced > 0">
-                                <span>
-                                    <span class="text-amber-500 font-black" x-text="stats.bounced.toLocaleString()"></span>
-                                    <span class="text-surface-600 font-medium">Bounce (Any)</span>
-                                </span>
-                            </template>
-                            @if($emailList->isEmailList() || $emailList->isDualList())
-                            <template x-if="stats.hard_bounce > 0">
-                                <span>
-                                    <span class="text-red-500 font-black" x-text="stats.hard_bounce.toLocaleString()"></span>
-                                    <span class="text-surface-600 font-medium">Hard Bounce</span>
-                                </span>
-                            </template>
-                            <template x-if="stats.soft_bounce > 0">
-                                <span>
-                                    <span class="text-amber-500 font-black" x-text="stats.soft_bounce.toLocaleString()"></span>
-                                    <span class="text-surface-600 font-medium">Soft Bounce</span>
-                                </span>
-                            </template>
-                            @endif
-                            <template x-if="stats.complaints > 0">
-                                <span>
-                                    <span class="text-surface-900 font-black" x-text="stats.complaints.toLocaleString()"></span>
-                                    <span class="text-surface-600 font-medium">Spam Complaints</span>
-                                </span>
-                            </template>
+                            </div>
+                            <div class="p-2.5 bg-brand/10 rounded-sm text-brand">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
                         </div>
-                    </p>
+                    </div>
+
+                    <!-- Card 2: Email Channel -->
+                    <div class="relative overflow-hidden bg-white p-5 rounded-sm border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-blue-500"></div>
+                        <div class="flex justify-between items-start">
+                            <div class="w-full">
+                                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest">Email Channel</p>
+                                <div class="flex items-baseline gap-2 mt-2">
+                                    <h3 class="text-3xl font-black text-surface-900" x-text="stats.subscribed_emails.toLocaleString()"></h3>
+                                    <span class="text-xs text-surface-400 font-bold">/ <span x-text="stats.total_emails.toLocaleString()"></span> total</span>
+                                </div>
+                                <div class="w-full bg-gray-100 h-1 rounded-full mt-2.5 overflow-hidden">
+                                    <div class="bg-blue-500 h-full transition-all duration-500" :style="`width: ${stats.total_emails > 0 ? (stats.subscribed_emails / stats.total_emails) * 100 : 0}%`"></div>
+                                </div>
+                                <p class="text-[10px] text-surface-500 font-medium mt-1.5 flex justify-between">
+                                    <span>Active subscribers</span>
+                                    <span class="font-bold text-blue-500" x-text="stats.total_emails > 0 ? Math.round((stats.subscribed_emails / stats.total_emails) * 100) + '%' : '0%'"></span>
+                                </p>
+                                <div class="flex flex-wrap gap-x-2 gap-y-1 mt-3 border-t border-gray-50 pt-2 text-[9px] text-surface-400 font-bold uppercase tracking-wider">
+                                    <span>Bounce: <span class="text-amber-500" x-text="stats.bounced.toLocaleString()"></span></span>
+                                    <span class="text-gray-300">•</span>
+                                    <span>Spam: <span class="text-red-500" x-text="stats.complaints.toLocaleString()"></span></span>
+                                </div>
+                            </div>
+                            <div class="p-2.5 bg-blue-50 rounded-sm text-blue-500 ml-4">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: WhatsApp Channel -->
+                    <div class="relative overflow-hidden bg-white p-5 rounded-sm border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
+                        <div class="flex justify-between items-start">
+                            <div class="w-full">
+                                <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest">WhatsApp Channel</p>
+                                <div class="flex items-baseline gap-2 mt-2">
+                                    <h3 class="text-3xl font-black text-surface-900" x-text="stats.subscribed_whatsapps.toLocaleString()"></h3>
+                                    <span class="text-xs text-surface-400 font-bold">/ <span x-text="stats.total_whatsapps.toLocaleString()"></span> total</span>
+                                </div>
+                                <div class="w-full bg-gray-100 h-1 rounded-full mt-2.5 overflow-hidden">
+                                    <div class="bg-emerald-500 h-full transition-all duration-500" :style="`width: ${stats.total_whatsapps > 0 ? (stats.subscribed_whatsapps / stats.total_whatsapps) * 100 : 0}%`"></div>
+                                </div>
+                                <p class="text-[10px] text-surface-500 font-medium mt-1.5 flex justify-between">
+                                    <span>Opted-in numbers</span>
+                                    <span class="font-bold text-emerald-500" x-text="stats.total_whatsapps > 0 ? Math.round((stats.subscribed_whatsapps / stats.total_whatsapps) * 100) + '%' : '0%'"></span>
+                                </p>
+                                <div class="flex flex-wrap gap-x-2 gap-y-1 mt-3 border-t border-gray-50 pt-2 text-[9px] text-surface-400 font-bold uppercase tracking-wider">
+                                    <span>Opt-out: <span class="text-surface-700" x-text="stats.unsubscribed.toLocaleString()"></span></span>
+                                </div>
+                            </div>
+                            <div class="p-2.5 bg-emerald-50 rounded-sm text-emerald-500 ml-4">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Filter Match Count -->
+                    <div class="relative overflow-hidden p-5 rounded-sm border transition-all duration-300"
+                         :class="stats.is_filtered || archived === 'yes' ? 'bg-amber-500/5 border-amber-200 shadow-sm' : 'bg-gray-50/50 border-gray-100'">
+                        <div class="absolute top-0 left-0 right-0 h-1" :class="stats.is_filtered || archived === 'yes' ? 'bg-amber-500' : 'bg-gray-200'"></div>
+                        <div class="flex justify-between items-start">
+                            <div class="w-full">
+                                <p class="text-[9px] font-black uppercase tracking-widest" :class="stats.is_filtered || archived === 'yes' ? 'text-amber-600' : 'text-surface-400'">Filter Matches</p>
+                                
+                                <template x-if="stats.is_filtered || archived === 'yes'">
+                                    <div>
+                                        <div class="flex items-baseline gap-2 mt-2">
+                                            <h3 class="text-3xl font-black text-amber-700" x-text="stats.total.toLocaleString()"></h3>
+                                            <span class="text-xs text-amber-600 font-bold">rows matched</span>
+                                        </div>
+                                        <p class="text-[10px] text-amber-600 font-medium mt-2">
+                                            Unique contacts: <span class="font-bold" x-text="stats.filtered_main_rows.toLocaleString()"></span>
+                                        </p>
+                                    </div>
+                                </template>
+                                
+                                <template x-if="!stats.is_filtered && archived !== 'yes'">
+                                    <div>
+                                        <h3 class="text-base font-black text-surface-400 mt-3.5">No filters active</h3>
+                                        <p class="text-[10px] text-surface-400 mt-1">Showing all records in grid</p>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div class="p-2.5 rounded-sm ml-4" :class="stats.is_filtered || archived === 'yes' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-surface-300'">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div x-show="archived === 'yes'" x-cloak>
-                    <p class="text-xl font-bold text-surface-500 tracking-tight">
-                        <span class="text-brand font-black" x-text="stats.archived.toLocaleString()"></span> contacts <span class="text-surface-400 font-medium tracking-tight">Archived.</span>
-                    </p>
+
+                <!-- Alert Banner for Invalid Contacts -->
+                <div x-show="stats.invalid > 0" x-cloak class="p-4 bg-red-50 border border-red-100 rounded-sm flex items-center justify-between gap-4 mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-red-800 font-black uppercase text-[10px] tracking-widest">Invalid Contacts Detected</p>
+                            <p class="text-[11px] text-red-700 font-medium mt-0.5">
+                                We found <span class="font-bold" x-text="stats.invalid"></span> contact record(s) with invalid email or phone formats. Click fix to clean them up.
+                            </p>
+                        </div>
+                    </div>
+                    <a href="{{ route('admin.email-lists.fix-invalid', $emailList) }}" 
+                       class="shrink-0 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all active:scale-95 shadow-sm hover:shadow-md cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Fix Invalid Records
+                    </a>
                 </div>
             </div>
             {{-- Premium Inline Bulk Action Toolbar --}}
@@ -512,22 +512,21 @@
                                         </div>
                                     </div>
                                 </th>
-                                <th class="px-8 py-4 whitespace-nowrap">Email Address</th>
-                                <th class="px-8 py-4 whitespace-nowrap">WhatsApp Number</th>
-
                                 <th class="px-8 py-4 whitespace-nowrap">Full Name</th>
                                 @foreach($displayedFields as $field)
                                     <th class="px-8 py-4 whitespace-nowrap">{{ str_replace(['_', 'custom_'], [' ', ''], $field) }}</th>
                                 @endforeach
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Segment</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Tag</th>
+                                <th class="px-8 py-4 whitespace-nowrap">Email Address</th>
+                                <th class="px-8 py-4 whitespace-nowrap">WhatsApp Number</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Health</th>
-                                <th class="px-8 py-4 text-center whitespace-nowrap">Email</th>
-                                <th class="px-8 py-4 text-center whitespace-nowrap">WhatsApp</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">Email Status</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">WA Status</th>
                                 <th class="px-8 py-4 text-right whitespace-nowrap">Action</th>
                             </tr>
                         </thead>
-                        <tbody id="email-table-body" class="divide-y divide-gray-50">
+                        <tbody id="email-table-body" class="divide-y divide-gray-200">
                             @include('email-lists.partials.email-table-rows', ['emails' => $emails, 'emailList' => $emailList])
                         </tbody>
                     </table>
@@ -916,7 +915,16 @@
                 unsubscribed: {{ $stats['unsubscribed'] ?? 0 }},
                 bounced: {{ $stats['bounced'] ?? 0 }},
                 archived: {{ $stats['archived'] ?? 0 }}, 
-                status: '{{ $emailList->status }}' 
+                status: '{{ $emailList->status }}',
+                
+                // Advanced CRM metrics
+                global_main_rows: {{ $stats['global_main_rows'] ?? 0 }},
+                total_emails: {{ $stats['total_emails'] ?? 0 }},
+                subscribed_emails: {{ $stats['subscribed_emails'] ?? 0 }},
+                total_whatsapps: {{ $stats['total_whatsapps'] ?? 0 }},
+                subscribed_whatsapps: {{ $stats['subscribed_whatsapps'] ?? 0 }},
+                is_filtered: false,
+                filtered_main_rows: 0
             },
 
             init() {
@@ -1013,6 +1021,15 @@
                         this.stats.subscribed = data.stats.subscribed;
                         this.stats.unsubscribed = data.stats.unsubscribed;
                         this.stats.bounced = data.stats.bounced;
+
+                        // Advanced CRM metrics
+                        this.stats.global_main_rows = data.stats.global_main_rows;
+                        this.stats.total_emails = data.stats.total_emails;
+                        this.stats.subscribed_emails = data.stats.subscribed_emails;
+                        this.stats.total_whatsapps = data.stats.total_whatsapps;
+                        this.stats.subscribed_whatsapps = data.stats.subscribed_whatsapps;
+                        this.stats.is_filtered = data.stats.is_filtered;
+                        this.stats.filtered_main_rows = data.stats.filtered_main_rows;
                     }
                     if (data.global_stats) {
                         this.stats.global_valid = data.global_stats.valid;
@@ -1065,7 +1082,14 @@
                         suspicious: data.suspicious_count || 0,
                         archived: data.archived_count || 0,
                         import_progress: data.import_progress,
-                        import_details: data.import_details
+                        import_details: data.import_details,
+                        global_main_rows: data.global_main_rows || 0,
+                        total_emails: data.total_emails || 0,
+                        subscribed_emails: data.subscribed_emails || 0,
+                        total_whatsapps: data.total_whatsapps || 0,
+                        subscribed_whatsapps: data.subscribed_whatsapps || 0,
+                        is_filtered: this.stats.is_filtered,
+                        filtered_main_rows: this.stats.filtered_main_rows
                     };
                 });
             },
@@ -1097,6 +1121,12 @@
                         this.stats.import_progress = data.import_progress;
                         this.stats.import_details = data.import_details;
 
+                        this.stats.global_main_rows = data.global_main_rows || 0;
+                        this.stats.total_emails = data.total_emails || 0;
+                        this.stats.subscribed_emails = data.subscribed_emails || 0;
+                        this.stats.total_whatsapps = data.total_whatsapps || 0;
+                        this.stats.subscribed_whatsapps = data.subscribed_whatsapps || 0;
+
                         if (data.status === 'completed' || data.status === 'failed') { 
                             clearInterval(interval); 
                             this.fetchEmails();
@@ -1106,6 +1136,21 @@
                         }
                     });
                 }, 2000);
+            },
+
+            deleteEmail(id) {
+                if (!confirm('Are you sure you want to delete this contact?')) return;
+                fetch(`{{ route('admin.email-lists.destroy-email', [$emailList, ':id']) }}`.replace(':id', id), {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        this.fetchEmails();
+                        this.refreshStats();
+                    }
+                });
             },
 
 

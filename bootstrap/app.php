@@ -42,9 +42,13 @@ return Application::configure(basePath: dirname(__DIR__))
             '*/webhooks/cashfree',
             '*/webhooks/sendgrid',
         ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\SwapTeamUser::class,
+        ]);
         $middleware->alias([
             'super_admin' => \App\Http\Middleware\SuperAdminMiddleware::class,
             'whatsapp.verify' => \App\Http\Middleware\VerifyWhatsAppSignature::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

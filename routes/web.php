@@ -13,6 +13,7 @@ use App\Http\Controllers\AuthController;
 // 1. Main Domain Routes (Landing Pages)
 Route::domain(config('app.domain'))->group(function () {
     Route::get('/', fn() => view('landing.index'))->name('home');
+    Route::get('/pricing', [\App\Http\Controllers\PlansController::class, 'pricingPage'])->name('pricing');
     Route::get('/contact', fn() => view('landing.contact'))->name('contact');
     Route::get('/privacy-policy', fn() => view('landing.privacy'))->name('privacy');
     Route::get('/terms', fn() => view('landing.terms'))->name('terms');

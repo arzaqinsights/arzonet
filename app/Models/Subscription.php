@@ -11,12 +11,16 @@ class Subscription extends Model
         'plan_name',
         'contacts_limit',
         'emails_limit',
+        'selected_modules',
+        'whatsapp_limit',
+        'team_limit',
         'status',
         'starts_at',
         'ends_at',
     ];
 
     protected $casts = [
+        'selected_modules' => 'array',
         'starts_at' => 'datetime',
         'ends_at'   => 'datetime',
     ];

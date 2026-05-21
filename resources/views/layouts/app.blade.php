@@ -89,16 +89,17 @@
                     <button @click="open = !open" @click.away="open = false"
                         class="flex items-center gap-3 hover:bg-gray-50 p-1.5 rounded-sm transition-colors text-left cursor-pointer">
                         <div class="hidden md:block text-right">
-                            <p class="text-sm font-bold text-gray-900 leading-tight">{{ auth()->user()->name }}</p>
+                            <p class="text-sm font-bold text-gray-900 leading-tight">
+                                {{ app()->has('team_user') ? app('team_user')->name : auth()->user()->name }}
+                            </p>
                             <p class="text-[10px] font-semibold text-gray-500 tracking-wider">
-                                {{ auth()->user()->email ?? 'Admin' }}
+                                {{ app()->has('team_user') ? app('team_user')->email : (auth()->user()->email ?? 'Admin') }}
                             </p>
                         </div>
                         <div class="w-9 h-9 rounded-sm flex items-center justify-center text-lg font-black text-white shadow-sm"
                             style="background: var(--color-brand);">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                            {{ strtoupper(substr(app()->has('team_user') ? app('team_user')->name : auth()->user()->name, 0, 1)) }}
                         </div>
-                        <!-- <svg class="w-4 h-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg> -->
                     </button>
 
                     {{-- Dropdown Menu --}}
@@ -113,7 +114,9 @@
 
                         <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                             <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Signed in as</p>
-                            <p class="text-sm font-bold text-gray-900 truncate mt-0.5">{{ auth()->user()->email }}</p>
+                            <p class="text-sm font-bold text-gray-900 truncate mt-0.5">
+                                {{ app()->has('team_user') ? app('team_user')->email : auth()->user()->email }}
+                            </p>
                         </div>
 
                         <div class="py-1">
@@ -189,73 +192,114 @@
             {{-- Navigation --}}
             <nav class="p-3 overflow-y-auto scrollbar">
                 @php
-                    $sidebarMenu = [
-                        [
-                            'title' => 'Dashboard',
-                            'route' => 'admin.dashboard',
-                            'active' => 'admin.dashboard',
-                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />',
-                        ],
-                        [
+                    $can = function($permission) {
+                        return \App\Models\User::canAccess($permission);
+                    };
+
+                    $sidebarMenu = [];
+
+                    $sidebarMenu[] = [
+                        'title' => 'Dashboard',
+                        'route' => 'admin.dashboard',
+                        'active' => 'admin.dashboard',
+                        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />',
+                    ];
+
+                    $campaignsSub = [];
+                    if ($can('campaigns.view')) {
+                        $campaignsSub[] = ['title' => 'Email Campaigns', 'route' => 'admin.campaigns.index', 'active' => 'admin.campaigns.*'];
+                    }
+                    if ($can('whatsapp.view')) {
+                        $campaignsSub[] = ['title' => 'WhatsApp Campaigns', 'route' => 'admin.whatsapp.campaigns.index', 'active' => 'admin.whatsapp.campaigns.*'];
+                    }
+                    if (!empty($campaignsSub)) {
+                        $sidebarMenu[] = [
                             'title' => 'Campaigns',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />',
                             'active' => 'admin.*campaigns*',
-                            'submenu' => [
-                                ['title' => 'Email Campaigns', 'route' => 'admin.campaigns.index', 'active' => 'admin.campaigns.*'],
-                                ['title' => 'WhatsApp Campaigns', 'route' => 'admin.whatsapp.campaigns.index', 'active' => 'admin.whatsapp.campaigns.*'],
-                            ]
-                        ],
-                        [
+                            'submenu' => $campaignsSub
+                        ];
+                    }
+
+                    $templatesSub = [];
+                    if ($can('templates.view')) {
+                        $templatesSub[] = ['title' => 'Email Templates', 'route' => 'admin.templates.index', 'active' => 'admin.templates.*'];
+                    }
+                    if ($can('whatsapp.view')) {
+                        $templatesSub[] = ['title' => 'WhatsApp Templates', 'route' => 'admin.whatsapp.templates.index', 'active' => 'admin.whatsapp.templates.*'];
+                    }
+                    if (!empty($templatesSub)) {
+                        $sidebarMenu[] = [
                             'title' => 'Templates',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />',
                             'active' => 'admin.*templates*',
-                            'submenu' => [
-                                ['title' => 'Email Templates', 'route' => 'admin.templates.index', 'active' => 'admin.templates.*'],
-                                ['title' => 'WhatsApp Templates', 'route' => 'admin.whatsapp.templates.index', 'active' => 'admin.whatsapp.templates.*'],
-                            ]
-                        ],
-                        [
+                            'submenu' => $templatesSub
+                        ];
+                    }
+
+                    $audienceSub = [];
+                    if ($can('crm.view')) {
+                        $audienceSub[] = ['title' => 'Contacts List', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'];
+                        $audienceSub[] = ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'];
+                    }
+                    if (!empty($audienceSub)) {
+                        $sidebarMenu[] = [
                             'title' => 'Audience',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
                             'active' => 'admin.*list*',
-                            'submenu' => [
-                                ['title' => 'Contacts List', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'],
-                                ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'],
-                            ]
-                        ],
-                        [
+                            'submenu' => $audienceSub
+                        ];
+                    }
+
+                    $waSub = [];
+                    if ($can('whatsapp.view')) {
+                        $waSub[] = ['title' => 'Live Chat', 'route' => 'admin.whatsapp.conversations.index', 'active' => 'admin.whatsapp.conversations.*'];
+                        $waSub[] = ['title' => 'Phone Numbers', 'route' => 'admin.whatsapp.accounts.index', 'active' => 'admin.whatsapp.accounts.*'];
+                        $waSub[] = ['title' => 'Engagement', 'route' => 'admin.whatsapp.analytics', 'active' => 'admin.whatsapp.analytics'];
+                        $waSub[] = ['title' => 'WA Settings', 'route' => 'admin.whatsapp.settings', 'active' => 'admin.whatsapp.settings'];
+                    }
+                    if (!empty($waSub)) {
+                        $sidebarMenu[] = [
                             'title' => 'WhatsApp Ops',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />',
                             'active' => 'admin.whatsapp.*',
-                            'submenu' => [
-                                ['title' => 'Live Chat', 'route' => 'admin.whatsapp.conversations.index', 'active' => 'admin.whatsapp.conversations.*'],
-                                ['title' => 'Phone Numbers', 'route' => 'admin.whatsapp.accounts.index', 'active' => 'admin.whatsapp.accounts.*'],
-                                ['title' => 'Engagement', 'route' => 'admin.whatsapp.analytics', 'active' => 'admin.whatsapp.analytics'],
-                                ['title' => 'WA Settings', 'route' => 'admin.whatsapp.settings', 'active' => 'admin.whatsapp.settings'],
-                            ]
-                        ],
-                        [
+                            'submenu' => $waSub
+                        ];
+                    }
+
+                    $systemSub = [];
+                    if ($can('senders.view')) {
+                        $systemSub[] = ['title' => 'Verified Domains', 'route' => 'admin.domains.index', 'active' => 'admin.domains.*'];
+                        $systemSub[] = ['title' => 'Active Senders', 'route' => 'admin.senders.index', 'active' => 'admin.senders.*'];
+                    }
+                    if ($can('settings.view')) {
+                        $systemSub[] = ['title' => 'General Settings', 'route' => 'admin.settings.index', 'active' => 'admin.settings.index'];
+                    }
+                    if (!app()->has('team_user')) {
+                        $systemSub[] = ['title' => 'Team Members', 'route' => 'admin.users.index', 'active' => 'admin.users.*'];
+                    }
+                    if (!empty($systemSub)) {
+                        $sidebarMenu[] = [
                             'title' => 'System',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />',
                             'active' => 'admin.settings.*',
-                            'submenu' => [
-                                ['title' => 'Verified Domains', 'route' => 'admin.domains.index', 'active' => 'admin.domains.*'],
-                                ['title' => 'Active Senders', 'route' => 'admin.senders.index', 'active' => 'admin.senders.*'],
-                                ['title' => 'General Settings', 'route' => 'admin.settings.index', 'active' => 'admin.settings.index'],
-                                // Temporarily hidden to prevent accidental deletion of platform users
-                                // ['title' => 'Team Members', 'route' => 'admin.users.index', 'active' => 'admin.users.*'],
-                            ]
-                        ],
-                        [
+                            'submenu' => $systemSub
+                        ];
+                    }
+
+                    $billingSub = [];
+                    if ($can('billing.view')) {
+                        $billingSub[] = ['title' => 'Current Plan', 'route' => 'admin.billing.plans', 'active' => 'admin.billing.plans'];
+                        $billingSub[] = ['title' => 'Invoice History', 'route' => 'admin.billing.invoices.index', 'active' => 'admin.billing.invoices.*'];
+                    }
+                    if (!empty($billingSub)) {
+                        $sidebarMenu[] = [
                             'title' => 'Billing',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />',
                             'active' => 'admin.billing.*',
-                            'submenu' => [
-                                ['title' => 'Current Plan', 'route' => 'admin.billing.plans', 'active' => 'admin.billing.plans'],
-                                ['title' => 'Invoice History', 'route' => 'admin.billing.invoices.index', 'active' => 'admin.billing.invoices.*'],
-                            ]
-                        ],
-                    ];
+                            'submenu' => $billingSub
+                        ];
+                    }
                 @endphp
 
                 @foreach($sidebarMenu as $item)

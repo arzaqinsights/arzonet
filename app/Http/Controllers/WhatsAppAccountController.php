@@ -40,6 +40,25 @@ class WhatsAppAccountController extends Controller
             'phone_number_id' => 'nullable|string',
         ]);
 
+        $currentUser = Auth::user();
+
+        // Check if WhatsApp module is enabled in active subscription
+        if (!$currentUser->hasModule('whatsapp')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your current subscription does not include the WhatsApp Marketing module. Please upgrade your plan.'
+            ], 422);
+        }
+
+        // Check if user has exceeded WhatsApp accounts limit
+        $currentAccountsCount = $currentUser->whatsappAccounts()->count();
+        if ($currentAccountsCount >= $currentUser->getWhatsAppLimit()) {
+            return response()->json([
+                'success' => false,
+                'message' => "You have reached your limit of {$currentUser->getWhatsAppLimit()} WhatsApp account(s). Please upgrade your plan."
+            ], 422);
+        }
+
         try {
             \Log::info('WhatsApp Onboarding started', [
                 'user_id' => Auth::id(),

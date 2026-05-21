@@ -2,7 +2,8 @@
 @section('title', 'Privacy Policy — Arzonet')
 
 @section('content')
-    <section class="py-24 max-w-4xl mx-auto px-6">
+    <section class="py-24 container">
+        <div class="max-w-4xl mx-auto">
         <div class="mb-12">
             <h1 class="text-4xl font-black text-gray-900 mb-4" style="font-family:'Outfit',sans-serif;">
                 Privacy Policy
@@ -144,6 +145,7 @@
                 </a>
             </p>
 
+        </div>
         </div>
     </section>
 @endsection

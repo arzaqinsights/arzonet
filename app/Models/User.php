@@ -12,12 +12,53 @@ use Illuminate\Notifications\Notifiable;
 use App\Notifications\CustomVerifyEmail;
 use App\Notifications\CustomResetPassword;
 
-#[Fillable(['name', 'email', 'password', 'role', 'phone_number', 'company_name', 'gstin', 'address_street', 'address_city', 'address_state', 'address_country', 'address_zip'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone_number', 'company_name', 'gstin', 'address_street', 'address_city', 'address_state', 'address_country', 'address_zip', 'parent_id', 'permissions'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     const ROLE_ADMIN = 'admin';
     const ROLE_TEAM = 'team';
+
+    public function teamMembers()
+    {
+        return $this->hasMany(User::class, 'parent_id');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(User::class, 'parent_id');
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($this->role === self::ROLE_ADMIN) {
+            return true;
+        }
+
+        if ($this->role === self::ROLE_TEAM) {
+            return is_array($this->permissions) && in_array($permission, $this->permissions);
+        }
+
+        return false;
+    }
+
+    public static function canAccess(string $permission): bool
+    {
+        if (app()->has('team_user')) {
+            return app('team_user')->hasPermission($permission);
+        }
+
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        return $user->hasPermission($permission);
+    }
 
     public function isSuperAdmin(): bool
     {
@@ -75,28 +116,84 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
 
+    public function hasModule(string $module): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        $sub = $this->subscription;
+        if (!$sub || $sub->status !== 'active') {
+            return false;
+        }
+        $modules = $sub->selected_modules ?? [];
+        return in_array($module, $modules);
+    }
+
+    public function getWhatsAppLimit(): int
+    {
+        if ($this->isSuperAdmin()) {
+            return 999;
+        }
+        $sub = $this->subscription;
+        if (!$sub || $sub->status !== 'active') {
+            return 0;
+        }
+        return (int) ($sub->whatsapp_limit ?? 0);
+    }
+
+    public function getTeamLimit(): int
+    {
+        if ($this->isSuperAdmin()) {
+            return 999;
+        }
+        $sub = $this->subscription;
+        if (!$sub || $sub->status !== 'active') {
+            return 0;
+        }
+        return (int) ($sub->team_limit ?? 0);
+    }
+
     public function getContactsUsage()
     {
-        $limit = optional($this->subscription)->contacts_limit ?? 0;
+        if ($this->isSuperAdmin()) {
+            return (object) [
+                'total' => $this->emails()->count(),
+                'limit' => 999999,
+                'percent' => 0,
+                'is_exceeded' => false,
+            ];
+        }
+        
+        $hasCrm = $this->hasModule('crm');
+        $limit = $hasCrm ? (optional($this->subscription)->contacts_limit ?? 0) : 0;
         $total = $this->emails()->count();
         return (object) [
             'total' => $total,
             'limit' => $limit,
             'percent' => $limit > 0 ? ($total / $limit) * 100 : 0,
-            'is_exceeded' => $limit > 0 && $total > $limit,
+            'is_exceeded' => !$hasCrm || ($limit > 0 && $total > $limit),
         ];
     }
 
     public function getEmailsUsage()
     {
-        $limit = optional($this->subscription)->emails_limit ?? 0;
-        // Count all logs (sent, delivered, failed, bounced, invalid, etc.)
+        if ($this->isSuperAdmin()) {
+            return (object) [
+                'total' => $this->logs()->count(),
+                'limit' => 999999,
+                'percent' => 0,
+                'is_exceeded' => false,
+            ];
+        }
+
+        $hasEmail = $this->hasModule('email');
+        $limit = $hasEmail ? (optional($this->subscription)->emails_limit ?? 0) : 0;
         $total = $this->logs()->count();
         return (object) [
             'total' => $total,
             'limit' => $limit,
             'percent' => $limit > 0 ? ($total / $limit) * 100 : 0,
-            'is_exceeded' => $limit > 0 && $total > $limit,
+            'is_exceeded' => !$hasEmail || ($limit > 0 && $total > $limit),
         ];
     }
 
@@ -133,6 +230,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array',
         ];
     }
 }

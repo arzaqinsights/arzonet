@@ -105,16 +105,134 @@
 
     @php
         $details = $invoice->plan_details ?? [];
-        $contacts = $details['contacts_limit'] ?? 0;
-        $emails = $details['emails_limit'] ?? 0;
-        $contactsBasePrice = 200;
-        $emailsBasePrice = 100;
-        $contactsAmount = ($contacts / 1000) * $contactsBasePrice;
-        $emailsAmount = ($emails / 1000) * $emailsBasePrice;
-        $subtotal = $contactsAmount + $emailsAmount;
-        $taxableAmount = $invoice->amount / 1.18;
-        $taxAmount = $invoice->amount - $taxableAmount;
         $statusClass = match($invoice->status) { 'paid' => 's-paid', 'pending' => 's-pending', default => 's-failed' };
+        
+        // Check if new simplified format or old module-based format
+        if (isset($details['plan']) && isset($details['limits'])) {
+            // NEW FORMAT: simplified plan with limits
+            $planKey = $details['plan'];
+            $limits = $details['limits'];
+            $rates = config('plans.rates', []);
+            
+            $items = [];
+            
+            if ($planKey !== 'custom') {
+                // Fixed plan — single line item
+                $plan = config("plans.plans.{$planKey}");
+                $items[] = [
+                    'name' => ucfirst($planKey) . ' Plan',
+                    'desc' => 'CRM + Email Marketing + WhatsApp — all included',
+                    'qty' => 1,
+                    'amount' => $plan['price'] ?? 0
+                ];
+            } else {
+                // Custom plan — per-unit line items
+                if (!empty($limits['crm_users'])) {
+                    $items[] = [
+                        'name' => 'CRM Team Members',
+                        'desc' => '₹' . ($rates['crm_per_user'] ?? 100) . ' per user/month',
+                        'qty' => $limits['crm_users'],
+                        'amount' => $limits['crm_users'] * ($rates['crm_per_user'] ?? 100)
+                    ];
+                }
+                if (!empty($limits['crm_contacts'])) {
+                    $items[] = [
+                        'name' => 'CRM Contacts',
+                        'desc' => '₹' . ($rates['crm_per_1k_contacts'] ?? 50) . ' per 1,000 contacts/month',
+                        'qty' => $limits['crm_contacts'],
+                        'amount' => ($limits['crm_contacts'] / 1000) * ($rates['crm_per_1k_contacts'] ?? 50)
+                    ];
+                }
+                if (!empty($limits['emails_per_month'])) {
+                    $items[] = [
+                        'name' => 'Email Volume',
+                        'desc' => '₹' . ($rates['email_per_1k'] ?? 100) . ' per 1,000 emails/month',
+                        'qty' => $limits['emails_per_month'],
+                        'amount' => ($limits['emails_per_month'] / 1000) * ($rates['email_per_1k'] ?? 100)
+                    ];
+                }
+                if (!empty($limits['whatsapp_numbers'])) {
+                    $items[] = [
+                        'name' => 'WhatsApp Numbers',
+                        'desc' => '₹' . ($rates['whatsapp_per_number'] ?? 500) . ' per number/month',
+                        'qty' => $limits['whatsapp_numbers'],
+                        'amount' => $limits['whatsapp_numbers'] * ($rates['whatsapp_per_number'] ?? 500)
+                    ];
+                }
+                if (!empty($limits['whatsapp_messages'])) {
+                    $items[] = [
+                        'name' => 'WhatsApp Messages',
+                        'desc' => '₹' . ($rates['whatsapp_per_message'] ?? 0.80) . ' per message/month',
+                        'qty' => $limits['whatsapp_messages'],
+                        'amount' => $limits['whatsapp_messages'] * ($rates['whatsapp_per_message'] ?? 0.80)
+                    ];
+                }
+            }
+            
+            $subtotal = 0;
+            foreach ($items as $item) {
+                $subtotal += $item['amount'];
+            }
+            $bundleDiscount = 0;
+            
+            $taxableAmount = $invoice->amount / 1.18;
+            $taxAmount = $invoice->amount - $taxableAmount;
+            
+        } elseif (isset($details['plan_level'])) {
+            // OLD FORMAT: module-based pricing (backward compatibility for old invoices)
+            $planLevel = $details['plan_level'];
+            $selectedModules = $details['selected_modules'] ?? [];
+            $contacts = $details['contacts_limit'] ?? 0;
+            $emails = $details['emails_limit'] ?? 0;
+            $whatsapp = $details['whatsapp_limit'] ?? 0;
+            $team = $details['team_limit'] ?? 0;
+            
+            $items = [];
+            $items[] = [
+                'name' => ucfirst($planLevel) . ' Plan License',
+                'desc' => 'Modules: ' . implode(', ', array_map('ucfirst', $selectedModules)),
+                'qty' => 1,
+                'amount' => $invoice->amount / 1.18 // approximate base from total
+            ];
+            
+            $subtotal = $invoice->amount / 1.18;
+            $bundleDiscount = 0;
+            
+            $taxableAmount = $invoice->amount / 1.18;
+            $taxAmount = $invoice->amount - $taxableAmount;
+            
+        } else {
+            $contacts = $details['contacts_limit'] ?? 0;
+            $emails = $details['emails_limit'] ?? 0;
+            $contactsBasePrice = 200;
+            $emailsBasePrice = 100;
+            $contactsAmount = ($contacts / 1000) * $contactsBasePrice;
+            $emailsAmount = ($emails / 1000) * $emailsBasePrice;
+            $subtotal = $contactsAmount + $emailsAmount;
+            $taxableAmount = $invoice->amount / 1.18;
+            $taxAmount = $invoice->amount - $taxableAmount;
+            
+            $items = [
+                [
+                    'name' => 'Contact Storage Plan',
+                    'desc' => 'Manage, filter & export contacts with dedup, bounce tracking & segmentation',
+                    'qty' => $contacts,
+                    'amount' => $contactsAmount
+                ],
+                [
+                    'name' => 'Email Sending Volume',
+                    'desc' => 'Bulk campaigns, transactional & service emails with tracking',
+                    'qty' => $emails,
+                    'amount' => $emailsAmount
+                ],
+                [
+                    'name' => 'Platform License',
+                    'desc' => '',
+                    'qty' => 1,
+                    'amount' => 0
+                ]
+            ];
+        }
     @endphp
 
     <div class="invoice-page">
@@ -168,32 +286,20 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @foreach($items as $index => $item)
                     <tr>
-                        <td>1</td>
+                        <td>{{ $index + 1 }}</td>
                         <td>
-                            <div class="i-name">Contact Storage Plan</div>
-                            <div class="i-desc">Manage, filter & export contacts with dedup, bounce tracking & segmentation</div>
-                            <div class="i-hsn">SAC: 998361</div>
-                        </td>
-                        <td>{{ number_format($contacts) }}</td>
-                        <td>₹{{ number_format($contactsAmount, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td>2</td>
-                        <td>
-                            <div class="i-name">Email Sending Volume</div>
-                            <div class="i-desc">Bulk campaigns, transactional & service emails with tracking</div>
+                            <div class="i-name">{{ $item['name'] }}</div>
+                            @if(!empty($item['desc']))
+                            <div class="i-desc">{{ $item['desc'] }}</div>
+                            @endif
                             <div class="i-hsn">SAC: 998315</div>
                         </td>
-                        <td>{{ number_format($emails) }}/mo</td>
-                        <td>₹{{ number_format($emailsAmount, 2) }}</td>
+                        <td>{{ is_numeric($item['qty']) ? number_format($item['qty']) : $item['qty'] }}</td>
+                        <td>{{ $item['amount'] > 0 ? '₹' . number_format($item['amount'], 2) : 'FREE' }}</td>
                     </tr>
-                    <tr>
-                        <td>3</td>
-                        <td><div class="i-name">Platform License</div></td>
-                        <td>1</td>
-                        <td>FREE</td>
-                    </tr>
+                    @endforeach
                 </tbody>
             </table>
 

@@ -2,7 +2,8 @@
 @section('title', 'Contact Us — Arzonet')
 
 @section('content')
-<section class="py-24 max-w-3xl mx-auto px-6">
+<section class="py-24 container">
+    <div class="max-w-3xl mx-auto">
     <div class="mb-12">
         <h1 class="text-4xl font-black text-gray-900 mb-4" style="font-family:'Outfit',sans-serif;">Contact Us</h1>
         <p class="text-lg text-gray-500">We'd love to hear from you. Please reach out with any questions or support requests.</p>
@@ -38,6 +39,7 @@
         <h3 class="font-bold text-gray-900 mb-2">Enterprise Sales</h3>
         <p class="text-gray-500 mb-4">Looking for a custom plan, dedicated IP warming, or AWS SES direct setup?</p>
         <a href="mailto:arzonetmail@gmail.com" class="btn btn-primary">Contact Sales Team</a>
+    </div>
     </div>
 </section>
 @endsection

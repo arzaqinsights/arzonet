@@ -128,12 +128,19 @@ class WebhookController extends Controller
 
                 // Update User Subscription
                 $details = $invoice->plan_details;
+                $planLevel = $details['plan_level'] ?? 'starter';
+                $selectedModules = $details['selected_modules'] ?? [];
+                $modulesStr = implode(', ', array_map('ucfirst', $selectedModules));
+
                 \App\Models\Subscription::updateOrCreate(
                     ['user_id' => $invoice->user_id],
                     [
-                        'contacts_limit' => $details['contacts_limit'],
-                        'emails_limit' => $details['emails_limit'],
-                        'plan_name' => 'Custom Power Plan',
+                        'plan_name' => ucfirst($planLevel) . " Plan ({$modulesStr})",
+                        'contacts_limit' => $details['contacts_limit'] ?? 0,
+                        'emails_limit' => $details['emails_limit'] ?? 0,
+                        'selected_modules' => $selectedModules,
+                        'whatsapp_limit' => $details['whatsapp_limit'] ?? 0,
+                        'team_limit' => $details['team_limit'] ?? 0,
                         'status' => 'active',
                         'starts_at' => now(),
                         'ends_at' => now()->addMonth(),

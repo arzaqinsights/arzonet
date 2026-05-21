@@ -28,7 +28,7 @@
 
             <div class="hidden md:flex items-center gap-8 text-base text-black uppercase">
                 <a href="{{ route('home') }}#features" class="hover:text-gray-900 transition-colors">Features</a>
-                <a href="{{ route('home') }}#pricing" class="hover:text-gray-900 transition-colors">Pricing</a>
+                <a href="{{ route('pricing') }}" class="hover:text-gray-900 transition-colors font-medium">Pricing</a>
                 <a href="{{ route('home') }}#faq" class="hover:text-gray-900 transition-colors">FAQ</a>
                 <div class="flex gap-4">
                     @auth
@@ -52,7 +52,7 @@
 
     {{-- FOOTER --}}
     <footer style="border-top:1px solid #e5e5e5;background:#fafafa;">
-        <div class="max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row items-start justify-between gap-10">
+        <div class="container py-12 flex flex-col md:flex-row items-start justify-between gap-10">
             <div class="flex flex-col gap-4 max-w-sm">
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5">
                     <div class="w-7 h-7 rounded overflow-hidden"><img src="{{ asset('images/logo/logo.png') }}"
@@ -69,7 +69,7 @@
                 <div class="flex flex-col gap-3 text-sm text-gray-500">
                     <span class="font-bold text-gray-900 mb-1" style="font-family:'Outfit',sans-serif;">Product</span>
                     <a href="{{ route('home') }}#features" class="hover:text-gray-900 transition-colors">Features</a>
-                    <a href="{{ route('home') }}#pricing" class="hover:text-gray-900 transition-colors">Pricing</a>
+                    <a href="{{ route('pricing') }}" class="hover:text-gray-900 transition-colors">Pricing</a>
                     <a href="{{ route('home') }}#faq" class="hover:text-gray-900 transition-colors">FAQ</a>
                     <a href="{{ route('login') }}" class="hover:text-gray-900 transition-colors">Admin
                         Login</a>

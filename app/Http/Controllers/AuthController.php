@@ -98,7 +98,7 @@ class AuthController extends Controller
             return redirect()->route('admin.super.dashboard');
         }
 
-        return redirect(route('admin.dashboard', absolute: false));
+        return redirect()->intended(route('admin.dashboard', absolute: false));
     }
 
     public function logout(Request $request)

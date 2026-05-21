@@ -2,7 +2,8 @@
 @section('title', 'Refund Policy — Arzonet')
 
 @section('content')
-<section class="py-24 max-w-3xl mx-auto px-6">
+<section class="py-24 container">
+    <div class="max-w-3xl mx-auto">
     <div class="mb-12">
         <h1 class="text-4xl font-black text-gray-900 mb-4" style="font-family:'Outfit',sans-serif;">Refund Policy</h1>
         <p class="text-gray-500">Last updated: {{ date('F j, Y') }}</p>
@@ -20,6 +21,7 @@
 
         <h2 class="text-xl font-bold text-gray-900">4. Account Terminations</h2>
         <p>If your account is suspended or terminated due to a violation of our Anti-Spam Policy or Acceptable Use Policy, you will not be entitled to any refund for unused time or credits.</p>
+    </div>
     </div>
 </section>
 @endsection
