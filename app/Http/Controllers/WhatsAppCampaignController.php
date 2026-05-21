@@ -44,7 +44,9 @@ class WhatsAppCampaignController extends Controller
 
     public function send(WhatsAppCampaign $campaign)
     {
-        $this->authorize('update', $campaign);
+        if ($campaign->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
         
         $campaign->update(['status' => 'processing']);
         ProcessWhatsAppCampaign::dispatch($campaign->id);
