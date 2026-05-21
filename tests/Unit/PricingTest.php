@@ -61,15 +61,15 @@ class PricingTest extends TestCase
     public function test_custom_plan_calculated_pricing()
     {
         // 5 crm users * 600 = 3000
-        // 10000 contacts = 10 * 20 = 200
+        // 10000 contacts = 10 * 10 = 100
         // 25000 emails = 25 * 100 = 2500
         // 2 whatsapp numbers * 500 = 1000
         // 5000 whatsapp messages * 0 = 0
-        // Total base = 3000+200+2500+1000 = 6700
+        // Total base = 3000+100+2500+1000 = 6600
         $pricing = $this->controller->recalculatePricing('custom', 5, 10000, 25000, 2, 5000);
-        $this->assertEquals(6700, $pricing['base_price']);
-        $this->assertEquals(6700, $pricing['subtotal']);
-        $this->assertEquals(1206, $pricing['tax_amount']);
-        $this->assertEquals(7906, $pricing['grand_total']);
+        $this->assertEquals(6600, $pricing['base_price']);
+        $this->assertEquals(6600, $pricing['subtotal']);
+        $this->assertEquals(1188, $pricing['tax_amount']);
+        $this->assertEquals(7788, $pricing['grand_total']);
     }
 }
