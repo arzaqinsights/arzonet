@@ -147,7 +147,7 @@
                         </div>
                         <div class="flex items-center justify-between text-xs font-bold">
                             <span class="text-slate-400 font-medium">Contacts:</span>
-                            <span class="text-brand">₹{{ $rates['crm_per_1k_contacts'] ?? 50 }}/1K/mo</span>
+                            <span class="text-brand">₹{{ $rates['crm_per_1k_contacts'] ?? 10 }}/1K/mo</span>
                         </div>
                         <div class="flex items-center justify-between text-xs font-bold">
                             <span class="text-slate-400 font-medium">Emails:</span>
@@ -192,20 +192,42 @@
             rates: {{ json_encode($rates) }},
             sliders: {{ json_encode($custom['sliders'] ?? []) }},
             
+            // Current limits (if active subscription exists)
+            current_crm_users: {{ $subscription ? ($subscription->team_limit ?? 0) : 0 }},
+            current_crm_contacts: {{ $subscription ? ($subscription->contacts_limit ?? 0) : 0 }},
+            current_emails_per_month: {{ $subscription ? ($subscription->emails_limit ?? 0) : 0 }},
+            current_whatsapp_numbers: {{ $subscription ? ($subscription->whatsapp_limit ?? 0) : 0 }},
+            current_whatsapp_messages: 0,
+            
             // Slider values
-            crm_users: {{ $custom['sliders']['crm_users']['default'] ?? 5 }},
-            crm_contacts: {{ $custom['sliders']['crm_contacts']['default'] ?? 10000 }},
-            emails_per_month: {{ $custom['sliders']['emails_per_month']['default'] ?? 25000 }},
-            whatsapp_numbers: {{ $custom['sliders']['whatsapp_numbers']['default'] ?? 2 }},
+            crm_users: {{ $subscription ? ($subscription->team_limit ?: 1) : ($custom['sliders']['crm_users']['default'] ?? 5) }},
+            crm_contacts: {{ $subscription ? ($subscription->contacts_limit ?: 1000) : ($custom['sliders']['crm_contacts']['default'] ?? 10000) }},
+            emails_per_month: {{ $subscription ? ($subscription->emails_limit ?: 5000) : ($custom['sliders']['emails_per_month']['default'] ?? 25000) }},
+            whatsapp_numbers: {{ $subscription ? ($subscription->whatsapp_limit ?: 1) : ($custom['sliders']['whatsapp_numbers']['default'] ?? 2) }},
             whatsapp_messages: {{ $custom['sliders']['whatsapp_messages']['default'] ?? 5000 }},
 
             taxPercent: {{ $pricing['tax_percent'] ?? 18 }},
 
-            get crmUsersCost() { return this.crm_users * this.rates.crm_per_user; },
-            get crmContactsCost() { return (this.crm_contacts / 1000) * this.rates.crm_per_1k_contacts; },
-            get emailsCost() { return (this.emails_per_month / 1000) * this.rates.email_per_1k; },
-            get whatsappNumbersCost() { return this.whatsapp_numbers * this.rates.whatsapp_per_number; },
-            get whatsappMessagesCost() { return this.whatsapp_messages * this.rates.whatsapp_per_message; },
+            get crmUsersCost() {
+                let diff = Math.max(0, this.crm_users - this.current_crm_users);
+                return diff * this.rates.crm_per_user;
+            },
+            get crmContactsCost() {
+                let diff = Math.max(0, this.crm_contacts - this.current_crm_contacts);
+                return (diff / 1000) * this.rates.crm_per_1k_contacts;
+            },
+            get emailsCost() {
+                let diff = Math.max(0, this.emails_per_month - this.current_emails_per_month);
+                return (diff / 1000) * this.rates.email_per_1k;
+            },
+            get whatsappNumbersCost() {
+                let diff = Math.max(0, this.whatsapp_numbers - this.current_whatsapp_numbers);
+                return diff * this.rates.whatsapp_per_number;
+            },
+            get whatsappMessagesCost() {
+                let diff = Math.max(0, this.whatsapp_messages - this.current_whatsapp_messages);
+                return diff * this.rates.whatsapp_per_message;
+            },
 
             get subtotal() {
                 return Math.round(this.crmUsersCost + this.crmContactsCost + this.emailsCost + this.whatsappNumbersCost + this.whatsappMessagesCost);
@@ -247,12 +269,17 @@
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-xs font-bold text-slate-500">Team Members</span>
-                            <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="crm_users + ' Users'"></span>
+                            <div class="flex gap-2">
+                                <template x-if="current_crm_users > 0">
+                                    <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded animate-pulse" x-text="'Current limit: ' + current_crm_users"></span>
+                                </template>
+                                <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="crm_users + ' Users'"></span>
+                            </div>
                         </div>
-                        <input type="range" min="1" max="100" step="1" x-model.number="crm_users" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
+                        <input type="range" :min="current_crm_users || 1" max="100" step="1" x-model.number="crm_users" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
                         <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                            <span>1 User</span>
-                            <span class="text-brand" x-text="'₹' + crmUsersCost.toLocaleString('en-IN') + '/mo'"></span>
+                            <span x-text="(current_crm_users || 1) + ' User'"></span>
+                            <span class="text-brand" x-text="crmUsersCost > 0 ? '+₹' + crmUsersCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
                             <span>100 Users</span>
                         </div>
                     </div>
@@ -261,12 +288,17 @@
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-xs font-bold text-slate-500">CRM Contacts</span>
-                            <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="crm_contacts.toLocaleString('en-IN') + ' Contacts'"></span>
+                            <div class="flex gap-2">
+                                <template x-if="current_crm_contacts > 0">
+                                    <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded animate-pulse" x-text="'Current limit: ' + current_crm_contacts.toLocaleString('en-IN')"></span>
+                                </template>
+                                <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="crm_contacts.toLocaleString('en-IN') + ' Contacts'"></span>
+                            </div>
                         </div>
-                        <input type="range" min="1000" max="500000" step="1000" x-model.number="crm_contacts" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
+                        <input type="range" :min="current_crm_contacts || 1000" max="500000" step="1000" x-model.number="crm_contacts" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
                         <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                            <span>1,000</span>
-                            <span class="text-brand" x-text="'₹' + crmContactsCost.toLocaleString('en-IN') + '/mo'"></span>
+                            <span x-text="(current_crm_contacts || 1000).toLocaleString('en-IN')"></span>
+                            <span class="text-brand" x-text="crmContactsCost > 0 ? '+₹' + crmContactsCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
                             <span>5,00,000</span>
                         </div>
                     </div>
@@ -284,12 +316,17 @@
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-xs font-bold text-slate-500">Emails Per Month</span>
-                            <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="emails_per_month.toLocaleString('en-IN') + ' Emails/mo'"></span>
+                            <div class="flex gap-2">
+                                <template x-if="current_emails_per_month > 0">
+                                    <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded animate-pulse" x-text="'Current limit: ' + current_emails_per_month.toLocaleString('en-IN')"></span>
+                                </template>
+                                <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="emails_per_month.toLocaleString('en-IN') + ' Emails/mo'"></span>
+                            </div>
                         </div>
-                        <input type="range" min="5000" max="1000000" step="5000" x-model.number="emails_per_month" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
+                        <input type="range" :min="current_emails_per_month || 5000" max="1000000" step="5000" x-model.number="emails_per_month" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
                         <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                            <span>5,000</span>
-                            <span class="text-brand" x-text="'₹' + emailsCost.toLocaleString('en-IN') + '/mo'"></span>
+                            <span x-text="(current_emails_per_month || 5000).toLocaleString('en-IN')"></span>
+                            <span class="text-brand" x-text="emailsCost > 0 ? '+₹' + emailsCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
                             <span>10,00,000</span>
                         </div>
                     </div>
@@ -308,12 +345,17 @@
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-xs font-bold text-slate-500">WhatsApp Numbers</span>
-                            <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="whatsapp_numbers + ' Numbers'"></span>
+                            <div class="flex gap-2">
+                                <template x-if="current_whatsapp_numbers > 0">
+                                    <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded animate-pulse" x-text="'Current limit: ' + current_whatsapp_numbers"></span>
+                                </template>
+                                <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="whatsapp_numbers + ' Numbers'"></span>
+                            </div>
                         </div>
-                        <input type="range" min="1" max="50" step="1" x-model.number="whatsapp_numbers" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
+                        <input type="range" :min="current_whatsapp_numbers || 1" max="50" step="1" x-model.number="whatsapp_numbers" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
                         <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                            <span>1</span>
-                            <span class="text-brand" x-text="'₹' + whatsappNumbersCost.toLocaleString('en-IN') + '/mo'"></span>
+                            <span x-text="current_whatsapp_numbers || 1"></span>
+                            <span class="text-brand" x-text="whatsappNumbersCost > 0 ? '+₹' + whatsappNumbersCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
                             <span>50</span>
                         </div>
                     </div>
@@ -343,19 +385,19 @@
                     <div class="space-y-3 mb-8 text-xs">
                         <div class="flex justify-between">
                             <span class="text-slate-400">CRM Users (<span x-text="crm_users"></span>)</span>
-                            <span class="font-bold" x-text="'₹' + crmUsersCost.toLocaleString('en-IN')"></span>
+                            <span class="font-bold" x-text="(current_crm_users > 0 ? 'Extra: ' : '') + '₹' + crmUsersCost.toLocaleString('en-IN')"></span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-slate-400">CRM Contacts (<span x-text="crm_contacts.toLocaleString('en-IN')"></span>)</span>
-                            <span class="font-bold" x-text="'₹' + crmContactsCost.toLocaleString('en-IN')"></span>
+                            <span class="font-bold" x-text="(current_crm_contacts > 0 ? 'Extra: ' : '') + '₹' + crmContactsCost.toLocaleString('en-IN')"></span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-slate-400">Emails (<span x-text="emails_per_month.toLocaleString('en-IN')"></span>/mo)</span>
-                            <span class="font-bold" x-text="'₹' + emailsCost.toLocaleString('en-IN')"></span>
+                            <span class="font-bold" x-text="(current_emails_per_month > 0 ? 'Extra: ' : '') + '₹' + emailsCost.toLocaleString('en-IN')"></span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-slate-400">WhatsApp No. (<span x-text="whatsapp_numbers"></span>)</span>
-                            <span class="font-bold" x-text="'₹' + whatsappNumbersCost.toLocaleString('en-IN')"></span>
+                            <span class="font-bold" x-text="(current_whatsapp_numbers > 0 ? 'Extra: ' : '') + '₹' + whatsappNumbersCost.toLocaleString('en-IN')"></span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-slate-400">WhatsApp Msgs (<span x-text="whatsapp_messages.toLocaleString('en-IN')"></span>/mo)</span>

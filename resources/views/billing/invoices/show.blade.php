@@ -138,9 +138,9 @@
                 if (!empty($limits['crm_contacts'])) {
                     $items[] = [
                         'name' => 'CRM Contacts',
-                        'desc' => '₹' . ($rates['crm_per_1k_contacts'] ?? 50) . ' per 1,000 contacts/month',
+                        'desc' => '₹' . ($rates['crm_per_1k_contacts'] ?? 10) . ' per 1,000 contacts/month',
                         'qty' => $limits['crm_contacts'],
-                        'amount' => ($limits['crm_contacts'] / 1000) * ($rates['crm_per_1k_contacts'] ?? 50)
+                        'amount' => ($limits['crm_contacts'] / 1000) * ($rates['crm_per_1k_contacts'] ?? 10)
                     ];
                 }
                 if (!empty($limits['emails_per_month'])) {

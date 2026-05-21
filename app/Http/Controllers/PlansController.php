@@ -10,7 +10,8 @@ class PlansController extends Controller
     public function pricingPage()
     {
         $pricing = GlobalSetting::get('pricing_rules') ?: [];
-        return view('landing.pricing', compact('pricing'));
+        $subscription = auth()->check() ? auth()->user()->subscription : null;
+        return view('landing.pricing', compact('pricing', 'subscription'));
     }
 
     public function index(Request $request)
@@ -80,7 +81,7 @@ class PlansController extends Controller
 
         // Active metrics count
         $contactsCount = $user->emails()->count();
-        $emailsCount = $user->logs()->whereIn('status', ['sent', 'delivered'])->count();
+        $emailsCount = $user->logs()->count();
         $whatsappCount = $user->whatsappAccounts()->count();
         $teamCount = \App\Models\User::where('role', 'team')->count();
 
@@ -116,20 +117,32 @@ class PlansController extends Controller
             $basePrice = 0;
             $extraPrice = 0;
 
-            // CRM users: ₹600 per user
-            $basePrice += $crmUsers * $rates['crm_per_user'];
+            // Get current subscription limits if logged in
+            $subscription = auth()->check() ? auth()->user()->subscription : null;
+            $currentCrmUsers = $subscription ? ($subscription->team_limit ?? 0) : 0;
+            $currentCrmContacts = $subscription ? ($subscription->contacts_limit ?? 0) : 0;
+            $currentEmails = $subscription ? ($subscription->emails_limit ?? 0) : 0;
+            $currentWhatsappNumbers = $subscription ? ($subscription->whatsapp_limit ?? 0) : 0;
 
-            // CRM contacts: ₹20 per 1,000 contacts
-            $basePrice += ($crmContacts / 1000) * $rates['crm_per_1k_contacts'];
+            // CRM users: ₹600 per user
+            $crmUsersDiff = max(0, $crmUsers - $currentCrmUsers);
+            $basePrice += $crmUsersDiff * $rates['crm_per_user'];
+
+            // CRM contacts: ₹10 per 1,000 contacts
+            $crmContactsDiff = max(0, $crmContacts - $currentCrmContacts);
+            $basePrice += ($crmContactsDiff / 1000) * $rates['crm_per_1k_contacts'];
 
             // Emails: ₹100 per 1,000 emails
-            $basePrice += ($emailsPerMonth / 1000) * $rates['email_per_1k'];
+            $emailsDiff = max(0, $emailsPerMonth - $currentEmails);
+            $basePrice += ($emailsDiff / 1000) * $rates['email_per_1k'];
 
             // WhatsApp numbers: ₹500 per number
-            $basePrice += $whatsappNumbers * $rates['whatsapp_per_number'];
+            $whatsappNumbersDiff = max(0, $whatsappNumbers - $currentWhatsappNumbers);
+            $basePrice += $whatsappNumbersDiff * $rates['whatsapp_per_number'];
 
             // WhatsApp messages: ₹0.90 per message
-            $basePrice += $whatsappMessages * $rates['whatsapp_per_message'];
+            $whatsappMessagesDiff = max(0, $whatsappMessages - 0);
+            $basePrice += $whatsappMessagesDiff * $rates['whatsapp_per_message'];
 
             $basePrice = round($basePrice);
         }
@@ -164,11 +177,17 @@ class PlansController extends Controller
             $plan = config("plans.plans.{$planKey}");
             $limits = $plan['limits'];
         } else {
+            $subscription = auth()->check() ? auth()->user()->subscription : null;
+            $currentCrmUsers = $subscription ? ($subscription->team_limit ?? 0) : 0;
+            $currentCrmContacts = $subscription ? ($subscription->contacts_limit ?? 0) : 0;
+            $currentEmails = $subscription ? ($subscription->emails_limit ?? 0) : 0;
+            $currentWhatsappNumbers = $subscription ? ($subscription->whatsapp_limit ?? 0) : 0;
+
             $limits = [
-                'crm_users'         => (int) ($request->crm_users ?? 5),
-                'crm_contacts'      => (int) ($request->crm_contacts ?? 10000),
-                'emails_per_month'  => (int) ($request->emails_per_month ?? 25000),
-                'whatsapp_numbers'  => (int) ($request->whatsapp_numbers ?? 2),
+                'crm_users'         => max($currentCrmUsers, (int) ($request->crm_users ?? 5)),
+                'crm_contacts'      => max($currentCrmContacts, (int) ($request->crm_contacts ?? 10000)),
+                'emails_per_month'  => max($currentEmails, (int) ($request->emails_per_month ?? 25000)),
+                'whatsapp_numbers'  => max($currentWhatsappNumbers, (int) ($request->whatsapp_numbers ?? 2)),
                 'whatsapp_messages' => (int) ($request->whatsapp_messages ?? 5000),
             ];
         }

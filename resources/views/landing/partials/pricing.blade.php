@@ -137,7 +137,7 @@
                         </div>
                         <div class="flex items-center justify-between text-xs font-bold">
                             <span class="text-slate-400 font-medium">Contacts:</span>
-                            <span class="text-brand">₹{{ $rates['crm_per_1k_contacts'] ?? 20 }}/1K/mo</span>
+                            <span class="text-brand">₹{{ $rates['crm_per_1k_contacts'] ?? 10 }}/1K/mo</span>
                         </div>
                         <div class="flex items-center justify-between text-xs font-bold">
                             <span class="text-slate-400 font-medium">Emails:</span>

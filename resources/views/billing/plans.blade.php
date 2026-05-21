@@ -4,6 +4,9 @@
 <div class="p-6 md:p-10 max-w-7xl mx-auto">
     <!-- State A: Checkout / Order Confirmation Screen -->
     @if($checkout)
+        @php
+            $currentSub = auth()->check() ? auth()->user()->subscription : null;
+        @endphp
         <div class="mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-surface-100">
             <div>
                 <a href="{{ route('pricing') }}" class="inline-flex items-center gap-2 text-xs font-bold text-surface-500 hover:text-brand transition-colors mb-2">
@@ -40,8 +43,18 @@
                             <i class="fa-solid fa-users text-brand mt-1"></i>
                             <div>
                                 <h4 class="text-sm font-black text-black">Contact CRM</h4>
-                                <p class="text-[11px] text-surface-500 font-medium mt-1">Team Members: <span class="font-bold text-slate-800">{{ $limits['crm_users'] ?? 0 }}</span></p>
-                                <p class="text-[11px] text-surface-500 font-medium">Contacts: <span class="font-bold text-slate-800">{{ number_format($limits['crm_contacts'] ?? 0) }}</span></p>
+                                <p class="text-[11px] text-surface-500 font-medium mt-1">
+                                    Team Members: <span class="font-bold text-slate-800">{{ $limits['crm_users'] ?? 0 }}</span>
+                                    @if($currentSub && isset($currentSub->team_limit))
+                                        <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ $currentSub->team_limit }})</span>
+                                    @endif
+                                </p>
+                                <p class="text-[11px] text-surface-500 font-medium">
+                                    Contacts: <span class="font-bold text-slate-800">{{ number_format($limits['crm_contacts'] ?? 0) }}</span>
+                                    @if($currentSub && isset($currentSub->contacts_limit))
+                                        <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ number_format($currentSub->contacts_limit) }})</span>
+                                    @endif
+                                </p>
                             </div>
                         </div>
 
@@ -49,7 +62,12 @@
                             <i class="fa-solid fa-envelope text-brand mt-1"></i>
                             <div>
                                 <h4 class="text-sm font-black text-black">Email Marketing</h4>
-                                <p class="text-[11px] text-surface-500 font-medium mt-1">Emails/Month: <span class="font-bold text-slate-800">{{ number_format($limits['emails_per_month'] ?? 0) }}</span></p>
+                                <p class="text-[11px] text-surface-500 font-medium mt-1">
+                                    Emails/Month: <span class="font-bold text-slate-800">{{ number_format($limits['emails_per_month'] ?? 0) }}</span>
+                                    @if($currentSub && isset($currentSub->emails_limit))
+                                        <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ number_format($currentSub->emails_limit) }})</span>
+                                    @endif
+                                </p>
                             </div>
                         </div>
 
@@ -57,7 +75,12 @@
                             <i class="fa-brands fa-whatsapp text-brand mt-1"></i>
                             <div>
                                 <h4 class="text-sm font-black text-black">WhatsApp Marketing</h4>
-                                <p class="text-[11px] text-surface-500 font-medium mt-1">Numbers: <span class="font-bold text-slate-800">{{ $limits['whatsapp_numbers'] ?? 0 }}</span></p>
+                                <p class="text-[11px] text-surface-500 font-medium mt-1">
+                                    Numbers: <span class="font-bold text-slate-800">{{ $limits['whatsapp_numbers'] ?? 0 }}</span>
+                                    @if($currentSub && isset($currentSub->whatsapp_limit))
+                                        <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ $currentSub->whatsapp_limit }})</span>
+                                    @endif
+                                </p>
                                 <p class="text-[11px] text-surface-500 font-medium">Messages/Month: <span class="font-bold text-slate-800">{{ number_format($limits['whatsapp_messages'] ?? 0) }}</span> <span class="text-surface-400 font-normal">(Billed by Meta directly)</span></p>
                             </div>
                         </div>

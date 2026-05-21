@@ -24,7 +24,7 @@ return [
     */
     'rates' => [
         'crm_per_user'             => 600,     // ₹600 per extra CRM user / month
-        'crm_per_1k_contacts'      => 20,      // ₹20 per 1000 extra contacts / month
+        'crm_per_1k_contacts'      => 10,      // ₹10 per 1000 extra contacts / month
         'email_per_1k'             => 100,     // ₹100 per 1,000 emails / month
         'whatsapp_per_number'      => 500,     // ₹500 per WhatsApp number / month
         'whatsapp_per_message'     => 0,       // ₹0 (Billed directly by Meta)
@@ -263,7 +263,7 @@ return [
         'extra_contacts' => [
             'name' => 'Extra CRM Contacts',
             'desc' => 'Store more contacts in your CRM.',
-            'price_label' => '₹20 / 1,000 contacts',
+            'price_label' => '₹10 / 1,000 contacts',
             'icon' => 'fa-users',
         ],
         'extra_emails' => [
