@@ -37,7 +37,7 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     public function headings(): array
     {
         // Order: Name, Email, Phone, Tags, Health, Valid Reason, [Extras], Joined
-        $base = ['Full Name', 'Email Address', 'Phone', 'Tags', 'Health', 'Valid Reason'];
+        $base = ['Full Name', 'Email Address', 'Phone', 'Tags', 'Health'];
         $extra = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->extraFields);
         $tail = ['Joined'];
 

@@ -358,7 +358,7 @@
                                     <span class="font-bold text-emerald-500" x-text="stats.total_whatsapps > 0 ? Math.round((stats.subscribed_whatsapps / stats.total_whatsapps) * 100) + '%' : '0%'"></span>
                                 </p>
                                 <div class="flex flex-wrap gap-x-2 gap-y-1 mt-3 border-t border-gray-50 pt-2 text-[9px] text-surface-400 font-bold uppercase tracking-wider">
-                                    <span>Opt-out: <span class="text-surface-700" x-text="stats.unsubscribed.toLocaleString()"></span></span>
+                                    <span>Opt-out: <span class="text-surface-700" x-text="stats.whatsapp_unsubscribed.toLocaleString()"></span></span>
                                 </div>
                             </div>
                             <div class="p-2.5 bg-emerald-50 rounded-sm text-emerald-500 ml-4">
@@ -913,6 +913,7 @@
                 duplicate: {{ $stats['duplicate'] }}, 
                 subscribed: {{ $stats['subscribed'] }}, 
                 unsubscribed: {{ $stats['unsubscribed'] ?? 0 }},
+                whatsapp_unsubscribed: {{ $stats['whatsapp_unsubscribed'] ?? 0 }},
                 bounced: {{ $stats['bounced'] ?? 0 }},
                 archived: {{ $stats['archived'] ?? 0 }}, 
                 status: '{{ $emailList->status }}',
@@ -1020,6 +1021,7 @@
                         this.stats.duplicate = data.stats.duplicate;
                         this.stats.subscribed = data.stats.subscribed;
                         this.stats.unsubscribed = data.stats.unsubscribed;
+                        this.stats.whatsapp_unsubscribed = data.stats.whatsapp_unsubscribed;
                         this.stats.bounced = data.stats.bounced;
 
                         // Advanced CRM metrics
@@ -1088,6 +1090,7 @@
                         subscribed_emails: data.subscribed_emails || 0,
                         total_whatsapps: data.total_whatsapps || 0,
                         subscribed_whatsapps: data.subscribed_whatsapps || 0,
+                        whatsapp_unsubscribed: data.whatsapp_unsubscribed || 0,
                         is_filtered: this.stats.is_filtered,
                         filtered_main_rows: this.stats.filtered_main_rows
                     };
@@ -1109,6 +1112,7 @@
                         this.stats.duplicate = data.duplicate_count;
                         this.stats.subscribed = data.subscribed_count;
                         this.stats.unsubscribed = data.unsubscribed_count;
+                        this.stats.whatsapp_unsubscribed = data.whatsapp_unsubscribed_count;
                         this.stats.bounced = data.bounced_count;
                         this.stats.hard_bounce = data.hard_bounce_count;
                         this.stats.soft_bounce = data.soft_bounce_count;
