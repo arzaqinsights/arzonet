@@ -15,6 +15,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+
 class ImportEmailChunkJob implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -27,6 +29,21 @@ class ImportEmailChunkJob implements ShouldQueue
         public array $chunk,
         public ?int $activityLogId = null
     ) {}
+
+    /**
+     * Get the middleware the job should pass through.
+     *
+     * @return array
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping($this->emailListId))
+                ->releaseAfter(5)
+                ->expireAfter(180)
+        ];
+    }
+
 
     /**
      * Process a chunk of emails using bulk insert.

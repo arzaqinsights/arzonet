@@ -37,12 +37,19 @@ class EmailValidationService
         $toRestore = [];
         $toValid = [];
         $seen = [];
+        $seenNames = [];
         
         $blacklisted = array_flip($this->getBlacklistedEmails());
         $waValidator = new WhatsAppValidationService();
         
-        $batchEmails = collect($emailData)->pluck('email')->filter()->map(fn($e) => $this->normalizeEmail($e))->unique();
+        $rawEmails = collect($emailData)->pluck('email')->filter()->map(fn($e) => trim($e))->unique();
+        $normalizedEmails = $rawEmails->map(fn($e) => $this->normalizeEmail($e))->unique();
+        $batchEmails = $rawEmails->concat($normalizedEmails)->unique();
+        
         $batchPhones = collect($emailData)->pluck('whatsapp_number')->filter()->unique();
+        $batchNames = collect($emailData)->pluck('name')->filter()->map(fn($n) => trim($n))->unique();
+
+        $existingNames = collect();
 
         if (!$currentListId) {
             $existingRecords = collect();
@@ -53,7 +60,14 @@ class EmailValidationService
                     if ($batchPhones->isNotEmpty()) $q->orWhereIn('whatsapp_number', $batchPhones);
                 })
                 ->get(['id', 'email', 'whatsapp_number', 'status', 'is_archived'])
-                ->keyBy(fn($item) => !empty($item->email) ? $item->email : ('wa:' . $item->whatsapp_number));
+                ->keyBy(fn($item) => !empty($item->email) ? $this->normalizeEmail($item->email) : ('wa:' . $item->whatsapp_number));
+
+            if ($batchNames->isNotEmpty()) {
+                $existingNames = Email::where('email_list_id', $currentListId)
+                    ->whereIn('name', $batchNames)
+                    ->get(['id', 'name', 'original_row_id'])
+                    ->keyBy(fn($item) => strtolower(trim($item->name)));
+            }
         }
 
         $trustedDomains = array_flip([
@@ -88,6 +102,31 @@ class EmailValidationService
             $email = !empty($rawEmail) ? $this->normalizeEmail($rawEmail) : null;
             $entry['email'] = !empty($rawEmail) ? $rawEmail : null;
             $entry['whatsapp_number'] = $whatsappNumber;
+            
+            // ── Resolve and align original_row_id by name ──
+            $nameKey = !empty($entry['name']) ? strtolower(trim($entry['name'])) : null;
+            if ($nameKey) {
+                if (isset($seenNames[$nameKey])) {
+                    $entry['original_row_id'] = $seenNames[$nameKey];
+                } elseif (isset($existingNames[$nameKey])) {
+                    $existingRecord = $existingNames[$nameKey];
+                    if ($existingRecord->original_row_id) {
+                        $entry['original_row_id'] = $existingRecord->original_row_id;
+                    } else {
+                        $newUuid = (string) \Illuminate\Support\Str::uuid();
+                        Email::where('id', $existingRecord->id)->update(['original_row_id' => $newUuid]);
+                        $existingRecord->original_row_id = $newUuid;
+                        $entry['original_row_id'] = $newUuid;
+                    }
+                    $seenNames[$nameKey] = $entry['original_row_id'];
+                } else {
+                    $entry['original_row_id'] = $entry['original_row_id'] ?? (string) \Illuminate\Support\Str::uuid();
+                    $seenNames[$nameKey] = $entry['original_row_id'];
+                }
+            } else {
+                $entry['original_row_id'] = $entry['original_row_id'] ?? null;
+            }
+
             
             // ── Health Tracking Initialization ──
             $entry['email_status'] = 'valid';

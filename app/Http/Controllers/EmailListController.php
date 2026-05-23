@@ -208,7 +208,7 @@ class EmailListController extends Controller
     {
         $emailList->recalculateStats();
 
-        $groupExpr = "COALESCE(original_row_id, CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE CONCAT('id_', id) END)";
+        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
 
         $stats = [
             'total' => $emailList->total_records,
@@ -350,7 +350,7 @@ class EmailListController extends Controller
 
         // 2. Calculate stats for the CURRENT filtered set
         $statsQuery = clone $query;
-        $groupExpr = "COALESCE(original_row_id, CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE CONCAT('id_', id) END)";
+        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
 
         $dynamicStats = [
             'total' => $statsQuery->count(),
@@ -498,7 +498,7 @@ class EmailListController extends Controller
                   ->selectRaw('ANY_VALUE(reason) as reason')
                   ->selectRaw('GROUP_CONCAT(DISTINCT email SEPARATOR ", ") as email')
                   ->selectRaw('GROUP_CONCAT(DISTINCT whatsapp_number SEPARATOR ", ") as whatsapp_number')
-                  ->groupBy(\Illuminate\Support\Facades\DB::raw('COALESCE(original_row_id, CAST(id AS CHAR))'))
+                  ->groupBy(\Illuminate\Support\Facades\DB::raw("CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE COALESCE(original_row_id, CAST(id AS CHAR)) END"))
                   ->reorder()
                   ->orderByRaw('ANY_VALUE(created_at) DESC');
         }
@@ -535,7 +535,7 @@ class EmailListController extends Controller
 
     public function checkStatus(EmailList $emailList)
     {
-        $groupExpr = "COALESCE(original_row_id, CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE CONCAT('id_', id) END)";
+        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
 
         $data = [
             'status' => $emailList->status,
@@ -668,24 +668,26 @@ class EmailListController extends Controller
                 $qbSyncData['meta'] = json_encode($qbSyncData['meta']);
             }
 
-            if ($email->original_row_id) {
+            if (!empty(trim($oldName))) {
+                $groupId = $email->original_row_id ?: (string) \Illuminate\Support\Str::uuid();
+                if (!$email->original_row_id) {
+                    $email->update(['original_row_id' => $groupId]);
+                }
+                
+                $qbSyncData['original_row_id'] = $groupId;
+                
+                $emailList->emails()
+                    ->where(function($q) use ($groupId, $oldName) {
+                        $q->where('original_row_id', $groupId)
+                          ->orWhere('name', $oldName);
+                    })
+                    ->where('id', '!=', $email->id)
+                    ->update($qbSyncData);
+            } elseif ($email->original_row_id) {
                 $emailList->emails()
                     ->where('original_row_id', $email->original_row_id)
                     ->where('id', '!=', $email->id)
                     ->update($qbSyncData);
-            } else {
-                if (!empty(trim($oldName))) {
-                    $otherRows = $emailList->emails()
-                        ->where('name', $oldName)
-                        ->where('id', '!=', $email->id);
-
-                    if ($otherRows->exists()) {
-                        $newGroupId = (string) \Illuminate\Support\Str::uuid();
-                        $email->update(['original_row_id' => $newGroupId]);
-                        $qbSyncData['original_row_id'] = $newGroupId;
-                        $otherRows->update($qbSyncData);
-                    }
-                }
             }
         }
 

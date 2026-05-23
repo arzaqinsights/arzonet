@@ -1,10 +1,10 @@
 @php
     $groupedEmails = $emails->groupBy(function ($email) {
-        if ($email->original_row_id) {
-            return 'orig_' . $email->original_row_id;
-        }
         if (!empty(trim($email->name))) {
             return 'name_' . strtolower(trim($email->name));
+        }
+        if ($email->original_row_id) {
+            return 'orig_' . $email->original_row_id;
         }
         return 'id_' . $email->id;
     });
