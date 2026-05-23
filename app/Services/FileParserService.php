@@ -438,8 +438,14 @@ class FileParserService
         $emailColumn = $mapping['email'] ?? null;
         $phoneColumn  = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
 
+        $processedExcelColumns = [];
+
+        // 1. Process mapped columns
         foreach ($mapping as $systemField => $excelColumn) {
             if (is_array($excelColumn) || str_starts_with($systemField, '_')) continue;
+            
+            $processedExcelColumns[$excelColumn] = true;
+
             // Skip the primary split column (already handled)
             if ($excelColumn === $emailColumn && $systemField === 'email') continue;
             if ($excelColumn === $phoneColumn && in_array($systemField, ['whatsapp_number', 'phone', 'whatsapp'])) continue;
@@ -450,6 +456,25 @@ class FileParserService
                 $data['name'] = $value ?: null;
             } else {
                 $data['meta'][$systemField] = $value;
+            }
+        }
+
+        // 2. Proactively capture all other unmapped Excel columns into meta
+        foreach ($row as $excelColumn => $value) {
+            $excelColumnStr = (string)$excelColumn;
+            if (!isset($processedExcelColumns[$excelColumnStr]) && $excelColumnStr !== '') {
+                if ($excelColumnStr === $emailColumn || $excelColumnStr === $phoneColumn) continue;
+                
+                $valStr = trim((string)$value);
+                if ($valStr !== '') {
+                    $metaKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]/', '_', $excelColumnStr)));
+                    $metaKey = preg_replace('/__+/', '_', $metaKey);
+                    $metaKey = trim($metaKey, '_');
+                    
+                    if (!empty($metaKey)) {
+                        $data['meta'][$metaKey] = $valStr;
+                    }
+                }
             }
         }
 

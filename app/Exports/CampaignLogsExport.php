@@ -33,7 +33,7 @@ class CampaignLogsExport implements FromQuery, WithHeadings, WithMapping, Should
 
     public function headings(): array
     {
-        $base = ['Full Name', 'Email Address', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At'];
+        $base = ['Full Name', 'Email Address', 'WhatsApp Number', 'Status', 'Opens', 'Clicks', 'Segment', 'Tags', 'Sent At'];
         $metaHeaders = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->metaKeys);
 
         return array_merge($base, $metaHeaders);
@@ -47,6 +47,7 @@ class CampaignLogsExport implements FromQuery, WithHeadings, WithMapping, Should
         $base = [
             $email->name ?? '—',
             $log->email_address,
+            $email->whatsapp_number ?? ($meta['phone'] ?? '—'),
             strtoupper($log->status),
             $log->open_count ?? $log->click_count,
             $log->click_count ?? 0, 
@@ -145,6 +146,8 @@ class CampaignLogsExport implements FromQuery, WithHeadings, WithMapping, Should
 
     public function columnFormats(): array
     {
-        return [];
+        return [
+            'C' => '0',
+        ];
     }
 }
