@@ -165,6 +165,7 @@
                             <option value="role_based">Role-Based</option>
                             <option value="disposable">Disposable</option>
                             <option value="invalid">Invalid/Broken</option>
+                            <option value="cross_duplicate">Cross-List Duplicates</option>
                             <!-- <option value="duplicate">Duplicates</option> -->
                         </select>
                     </div>
@@ -404,6 +405,30 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Alert Banner for Cross-List Duplicates -->
+                <div x-show="stats.cross_duplicate > 0" x-cloak class="p-4 bg-amber-50 border border-amber-100 rounded-sm flex items-center justify-between gap-4 mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-amber-800 font-black uppercase text-[10px] tracking-widest">Cross-list Duplicates Detected</p>
+                            <p class="text-[11px] text-amber-700 font-medium mt-0.5">
+                                We found <span class="font-bold" x-text="stats.cross_duplicate"></span> contact record(s) that already exist in your other lists. Choose how to handle them.
+                            </p>
+                        </div>
+                    </div>
+                    <a href="{{ route('admin.email-lists.duplicates.index', $emailList) }}" 
+                       class="shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-sm flex items-center gap-2 transition-all active:scale-95 shadow-sm hover:shadow-md cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 00-2 2h2a2 2 0 002-2" />
+                        </svg>
+                        Resolve Duplicates
+                    </a>
                 </div>
 
                 <!-- Alert Banner for Invalid Contacts -->
@@ -884,7 +909,7 @@
     <script>
     function emailListView() {
         return {
-            filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all', wa_status: 'all',
+            filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all', wa_status: 'all', cross_duplicate: 'all',
             search: '', searchField: 'all', selectedIds: [], activeTab: 'contacts', globalSelect: false,
             showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false,
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
@@ -897,6 +922,7 @@
                 global_valid: {{ $stats['valid'] }}, 
                 global_invalid: {{ $stats['invalid'] }}, 
                 global_duplicate: {{ $stats['duplicate'] }}, 
+                cross_duplicate: {{ $emailList->cross_duplicate_count ?? 0 }},
                 risky: {{ $stats['risky'] ?? 0 }},
                 disposable: {{ $stats['disposable'] ?? 0 }},
                 role_based: {{ $stats['role_based'] ?? 0 }},
@@ -1083,6 +1109,7 @@
                         role_based: data.role_based_count || 0,
                         suspicious: data.suspicious_count || 0,
                         archived: data.archived_count || 0,
+                        cross_duplicate: data.cross_duplicate_count || 0,
                         import_progress: data.import_progress,
                         import_details: data.import_details,
                         global_main_rows: data.global_main_rows || 0,
@@ -1122,6 +1149,7 @@
                         this.stats.role_based = data.role_based_count;
                         this.stats.suspicious = data.suspicious_count;
                         this.stats.archived = data.archived_count;
+                        this.stats.cross_duplicate = data.cross_duplicate_count || 0;
                         this.stats.import_progress = data.import_progress;
                         this.stats.import_details = data.import_details;
 

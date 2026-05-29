@@ -342,6 +342,7 @@ class EmailListController extends Controller
             'valid' => $emailList->emails()->where('status', 'valid')->count(),
             'invalid' => $emailList->emails()->where('status', 'invalid')->count(),
             'duplicate' => $emailList->emails()->where('status', 'duplicate')->count(),
+            'cross_duplicate' => $emailList->emails()->where('status', 'cross_duplicate')->count(),
             'subscribed' => $emailList->emails()->where('is_archived', false)->where('status', 'valid')->where('subscription_status', 'subscribed')->count(),
             'segment' => ($request->segment && $request->segment !== 'all') ? $emailList->emails()->where('segment_name', $request->segment)->count() : 0,
             'tag' => ($request->tag && $request->tag !== 'all') ? $emailList->emails()->where('tags', 'like', "%{$request->tag}%")->count() : 0,
@@ -357,6 +358,7 @@ class EmailListController extends Controller
             'valid' => (clone $statsQuery)->where('status', 'valid')->count(),
             'invalid' => (clone $statsQuery)->where('status', 'invalid')->count(),
             'duplicate' => (clone $statsQuery)->where('status', 'duplicate')->count(),
+            'cross_duplicate' => (clone $statsQuery)->where('status', 'cross_duplicate')->count(),
             'subscribed' => (clone $statsQuery)->where('subscription_status', 'subscribed')->count(),
             'unsubscribed' => (clone $statsQuery)->where('subscription_status', 'unsubscribed')->count(),
             'whatsapp_unsubscribed' => (clone $statsQuery)->where('whatsapp_subscription_status', 'unsubscribed')->count(),
@@ -543,6 +545,7 @@ class EmailListController extends Controller
             'valid_count' => $emailList->valid_count,
             'invalid_count' => $emailList->invalid_count,
             'duplicate_count' => $emailList->duplicate_count,
+            'cross_duplicate_count' => $emailList->cross_duplicate_count,
             'subscribed_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'subscribed')->count(),
             'unsubscribed_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'unsubscribed')->count(),
             'bounced_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'bounced')->count(),
@@ -576,10 +579,11 @@ class EmailListController extends Controller
                 
                 // Merge real-time atomic session counters into the details for the UI
                 $details = $latestLog->details ?? [];
-                $details['processed'] = (int) $latestLog->session_valid_count + (int) $latestLog->session_invalid_count + (int) $latestLog->session_duplicate_count;
+                $details['processed'] = (int) $latestLog->session_valid_count + (int) $latestLog->session_invalid_count + (int) $latestLog->session_duplicate_count + (int) $latestLog->session_cross_duplicate_count;
                 $details['valid']     = (int) $latestLog->session_valid_count;
                 $details['invalid']   = (int) $latestLog->session_invalid_count;
                 $details['duplicate'] = (int) $latestLog->session_duplicate_count;
+                $details['cross_duplicate'] = (int) $latestLog->session_cross_duplicate_count;
                 
                 $data['import_details'] = $details;
 
@@ -599,6 +603,7 @@ class EmailListController extends Controller
                                 'valid' => $details['valid'],
                                 'invalid' => $details['invalid'],
                                 'duplicate' => $details['duplicate'],
+                                'cross_duplicate' => $details['cross_duplicate'],
                             ])
                         ]);
                     }
@@ -1063,6 +1068,20 @@ class EmailListController extends Controller
                     'reason' => $entry['reason']
                 ]);
             }
+
+            // 4. Handle Cross-List Duplicates
+            foreach ($results['cross_duplicate'] as $entry) {
+                $emailRecord = Email::find($entry['id']);
+                if ($emailRecord) {
+                    $emailRecord->update([
+                        'email' => $entry['email'],
+                        'name' => $entry['name'],
+                        'status' => 'cross_duplicate',
+                        'meta' => array_merge($emailRecord->meta ?? [], $entry['meta'] ?? []),
+                        'reason' => 'Exists in other lists'
+                    ]);
+                }
+            }
         });
 
         // Recalculate stats for the list
@@ -1075,7 +1094,100 @@ class EmailListController extends Controller
                 'fixed' => count($results['valid']),
                 'duplicate' => count($results['duplicate']),
                 'invalid' => count($results['invalid']),
+                'cross_duplicate' => count($results['cross_duplicate']),
             ]
         ]);
+    }
+
+    public function resolveDuplicates(EmailList $emailList)
+    {
+        $duplicates = $emailList->emails()->where('status', 'cross_duplicate')->paginate(20);
+        return view('email-lists.duplicates', compact('emailList', 'duplicates'));
+    }
+
+    public function resolveDuplicatesAction(Request $request, EmailList $emailList)
+    {
+        $request->validate([
+            'resolutions' => 'nullable|array',
+            'resolutions.*' => 'in:keep_old,move_new,keep_both',
+            'bulk_action' => 'nullable|in:keep_old,move_new,keep_both',
+            'selected_ids' => 'nullable|array',
+            'selected_ids.*' => 'exists:emails,id',
+        ]);
+
+        $resolutions = $request->input('resolutions', []);
+        $bulkAction = $request->input('bulk_action');
+        $selectedIds = $request->input('selected_ids', []);
+
+        $query = $emailList->emails()->where('status', 'cross_duplicate');
+
+        if ($bulkAction) {
+            if (!empty($selectedIds)) {
+                $query->whereIn('id', $selectedIds);
+            }
+            $emailsToResolve = $query->get();
+            foreach ($emailsToResolve as $email) {
+                $resolutions[$email->id] = $bulkAction;
+            }
+        } else {
+            $emailsToResolve = $emailList->emails()
+                ->whereIn('id', array_keys($resolutions))
+                ->where('status', 'cross_duplicate')
+                ->get();
+        }
+
+        if ($emailsToResolve->isEmpty()) {
+            return redirect()->route('admin.email-lists.show', $emailList)
+                ->with('success', 'No duplicates to resolve.');
+        }
+
+        DB::transaction(function () use ($resolutions, $emailsToResolve, $emailList) {
+            foreach ($emailsToResolve as $email) {
+                $action = $resolutions[$email->id] ?? null;
+                if (!$action) continue;
+
+                if ($action === 'keep_old') {
+                    // Keep in old list only: delete from new list
+                    $email->delete();
+                } 
+                elseif ($action === 'move_new') {
+                    // Move to new list: remove from old lists, make valid in new list
+                    $crossListDuplicates = $email->meta['cross_list_duplicates'] ?? [];
+                    foreach ($crossListDuplicates as $dup) {
+                        $oldListId = $dup['list_id'];
+                        // Delete from the old list
+                        $oldQuery = Email::where('email_list_id', $oldListId);
+                        if (!empty($email->email)) {
+                            $oldQuery->where('email', $email->email);
+                        } else {
+                            $oldQuery->where('whatsapp_number', $email->whatsapp_number);
+                        }
+                        $oldQuery->delete();
+                        
+                        $oldList = EmailList::find($oldListId);
+                        $oldList?->recalculateStats();
+                    }
+
+                    // Mark as valid in current list
+                    $email->update([
+                        'status' => 'valid',
+                        'subscription_status' => 'subscribed',
+                    ]);
+                } 
+                elseif ($action === 'keep_both') {
+                    // Keep in both: make valid in current list, leave in old lists
+                    $email->update([
+                        'status' => 'valid',
+                        'subscription_status' => 'subscribed',
+                    ]);
+                }
+            }
+
+            // Recalculate stats for the current list
+            $emailList->recalculateStats();
+        });
+
+        return redirect()->route('admin.email-lists.show', $emailList)
+            ->with('success', 'Duplicates resolved successfully.');
     }
 }

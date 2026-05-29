@@ -36,6 +36,7 @@ class EmailValidationService
         $duplicates = [];
         $toRestore = [];
         $toValid = [];
+        $crossDuplicates = [];
         $seen = [];
         $seenNames = [];
         
@@ -67,6 +68,34 @@ class EmailValidationService
                     ->whereIn('name', $batchNames)
                     ->get(['id', 'name', 'original_row_id'])
                     ->keyBy(fn($item) => strtolower(trim($item->name)));
+            }
+        }
+
+        $userId = null;
+        if ($currentListId) {
+            $emailList = \App\Models\EmailList::find($currentListId);
+            $userId = $emailList?->user_id;
+        }
+        $userId = $userId ?? auth()->id();
+
+        $otherRecordsMap = [];
+        if ($userId && $currentListId) {
+            $otherLists = \App\Models\EmailList::where('user_id', $userId)->where('id', '!=', $currentListId)->pluck('id');
+            if ($otherLists->isNotEmpty()) {
+                $otherRecords = Email::whereIn('email_list_id', $otherLists)
+                    ->where(function($q) use ($batchEmails, $batchPhones) {
+                        if ($batchEmails->isNotEmpty()) $q->orWhereIn('email', $batchEmails);
+                        if ($batchPhones->isNotEmpty()) $q->orWhereIn('whatsapp_number', $batchPhones);
+                    })
+                    ->get(['id', 'email_list_id', 'email', 'whatsapp_number', 'status', 'is_archived']);
+                
+                foreach ($otherRecords as $rec) {
+                    $key = !empty($rec->email) ? $this->normalizeEmail($rec->email) : ('wa:' . $rec->whatsapp_number);
+                    if (!isset($otherRecordsMap[$key])) {
+                        $otherRecordsMap[$key] = [];
+                    }
+                    $otherRecordsMap[$key][] = $rec;
+                }
             }
         }
 
@@ -217,6 +246,27 @@ class EmailValidationService
             }
             $seen[$lookupKey] = true;
 
+            // 6. Cross-list duplicate check
+            if (isset($otherRecordsMap[$lookupKey])) {
+                $otherListsData = [];
+                foreach ($otherRecordsMap[$lookupKey] as $otherRec) {
+                    $otherList = \App\Models\EmailList::find($otherRec->email_list_id);
+                    $otherListsData[] = [
+                        'list_id' => $otherRec->email_list_id,
+                        'list_name' => $otherList ? $otherList->name : 'Unknown List',
+                        'email_id' => $otherRec->id,
+                    ];
+                }
+
+                $entry['status'] = 'cross_duplicate';
+                $entry['meta'] = array_merge($entry['meta'] ?? [], [
+                    'cross_list_duplicates' => $otherListsData
+                ]);
+                $entry['validation_reason'] = 'Exists in other lists: ' . collect($otherListsData)->pluck('list_name')->implode(', ');
+                $crossDuplicates[] = $entry;
+                continue;
+            }
+
             // ── Advanced Validations (Only if email exists) ──
             if (empty($email)) {
                 $entry['status'] = 'valid';
@@ -295,6 +345,7 @@ class EmailValidationService
             'duplicate' => $duplicates,
             'to_restore'=> $toRestore,
             'to_valid'  => $toValid,
+            'cross_duplicate' => $crossDuplicates,
         ];
     }
 

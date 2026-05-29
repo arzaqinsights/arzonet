@@ -120,4 +120,9 @@ class Email extends Model
     {
         return $query->where('status', 'duplicate');
     }
+
+    public function scopeCrossDuplicate($query)
+    {
+        return $query->where('status', 'cross_duplicate');
+    }
 }

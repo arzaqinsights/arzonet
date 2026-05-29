@@ -118,6 +118,7 @@ class ProcessEmailListJob implements ShouldQueue
                             $sValid       = (int) $log->session_valid_count;
                             $sInvalid     = (int) $log->session_invalid_count;
                             $sDuplicate   = (int) $log->session_duplicate_count;
+                            $sCrossDuplicate = (int) $log->session_cross_duplicate_count;
                             $sRisky       = (int) $log->session_risky_count;
                             $sRole        = (int) $log->session_role_based_count;
                             $sDisposable  = (int) $log->session_disposable_count;
@@ -127,10 +128,11 @@ class ProcessEmailListJob implements ShouldQueue
                             $log->update([
                                 'details' => array_merge($log->details ?? [], [
                                     'status'      => 'completed',
-                                    'processed'   => $sValid + $sInvalid + $sDuplicate,
+                                    'processed'   => $sValid + $sInvalid + $sDuplicate + $sCrossDuplicate,
                                     'valid'       => $sValid,
                                     'duplicate'   => $sDuplicate,
                                     'invalid'     => $sInvalid,
+                                    'cross_duplicate' => $sCrossDuplicate,
                                     'risky'       => $sRisky,
                                     'role_based'  => $sRole,
                                     'disposable'  => $sDisposable,
@@ -142,6 +144,7 @@ class ProcessEmailListJob implements ShouldQueue
                                 'session_valid_count'     => 0,
                                 'session_invalid_count'   => 0,
                                 'session_duplicate_count' => 0,
+                                'session_cross_duplicate_count' => 0,
                                 'session_risky_count'      => 0,
                                 'session_role_based_count' => 0,
                                 'session_disposable_count' => 0,

@@ -27,6 +27,7 @@ class EmailList extends Model
         'valid_count',
         'invalid_count',
         'duplicate_count',
+        'cross_duplicate_count',
         'status',
     ];
 
@@ -82,6 +83,7 @@ class EmailList extends Model
             'valid_count'     => $this->emails()->where('is_archived', false)->where('status', 'valid')->count(),
             'invalid_count'   => $this->emails()->where('is_archived', false)->where('status', 'invalid')->count(),
             'duplicate_count' => $this->emails()->where('is_archived', false)->where('status', 'duplicate')->count(),
+            'cross_duplicate_count' => $this->emails()->where('is_archived', false)->where('status', 'cross_duplicate')->count(),
         ]);
     }
 }

@@ -60,13 +60,16 @@ class ImportEmailChunkJob implements ShouldQueue
 
             $results = $validator->validateBatch($this->chunk, $this->emailListId, $skipDns);
 
-            // ── Step 1: Build new inserts (valid + invalid only) ──
+            // ── Step 1: Build new inserts (valid + invalid + cross_duplicate) ──
             $batchEntries = [];
             foreach ($results['valid'] as $entry) {
                 $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid');
             }
             foreach ($results['invalid'] as $entry) {
                 $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid');
+            }
+            foreach ($results['cross_duplicate'] as $entry) {
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'cross_duplicate');
             }
             // Duplicates are NOT inserted — they already exist
 
@@ -125,6 +128,7 @@ class ImportEmailChunkJob implements ShouldQueue
             $countValid     = count($results['valid']) + count($results['to_restore']) + count($results['to_valid']);
             $countInvalid   = count($results['invalid']);
             $countDuplicate = count($results['duplicate']);
+            $countCrossDuplicate = count($results['cross_duplicate']);
 
             // Detailed Health Metrics for Log
             $healthData = collect(array_merge($results['valid'], $results['to_restore'], $results['to_valid']));
@@ -141,6 +145,7 @@ class ImportEmailChunkJob implements ShouldQueue
                         'session_valid_count'     => DB::raw("session_valid_count + $countValid"),
                         'session_invalid_count'   => DB::raw("session_invalid_count + $countInvalid"),
                         'session_duplicate_count' => DB::raw("session_duplicate_count + $countDuplicate"),
+                        'session_cross_duplicate_count' => DB::raw("session_cross_duplicate_count + $countCrossDuplicate"),
                         'session_risky_count'      => DB::raw("session_risky_count + $countRisky"),
                         'session_role_based_count' => DB::raw("session_role_based_count + $countRole"),
                         'session_disposable_count' => DB::raw("session_disposable_count + $countDisposable"),
@@ -155,6 +160,7 @@ class ImportEmailChunkJob implements ShouldQueue
                 'valid_count'     => DB::raw('valid_count + ' . $countValid),
                 'invalid_count'   => DB::raw('invalid_count + ' . $countInvalid),
                 'duplicate_count' => DB::raw('duplicate_count - ' . count($results['to_valid']) . ' + ' . $countDuplicate),
+                'cross_duplicate_count' => DB::raw('cross_duplicate_count + ' . $countCrossDuplicate),
             ]);
 
         } catch (\Exception $e) {

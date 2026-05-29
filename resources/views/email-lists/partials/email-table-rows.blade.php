@@ -181,6 +181,7 @@
                     $statusVal = $email->email_status ?? $email->status;
                     $status = match($statusVal) {
                         'clean', 'valid' => ['label' => 'Clean', 'cls' => 'bg-emerald-50 text-emerald-600 border-emerald-100'],
+                        'cross_duplicate' => ['label' => 'Cross-List Dup', 'cls' => 'bg-amber-50 text-amber-700 border-amber-200'],
                         'risky', 'suspicious' => ['label' => 'Risky', 'cls' => 'bg-amber-50 text-amber-600 border-amber-100'],
                         'role_based' => ['label' => 'Role', 'cls' => 'bg-blue-50 text-blue-600 border-blue-100'],
                         'disposable' => ['label' => 'Temp', 'cls' => 'bg-indigo-50 text-indigo-600 border-indigo-100'],
