@@ -35,4 +35,8 @@ return [
         'weekly' => 50000,
         'monthly' => 200000,
     ],
+
+    'upload' => [
+        'max_file_size' => 102400, // 100MB in KB
+    ],
 ];

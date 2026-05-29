@@ -130,7 +130,7 @@
                                         <span x-show="fileName" class="text-[12px] uppercase tracking-widest" x-text="fileName.split('.').pop()"></span>
                                     </div>
                                     <h3 class="text-2xl font-black text-surface-900 uppercase tracking-tight" x-text="fileName || 'Click to Browse Files'"></h3>
-                                    <p class="text-surface-500 mt-3 text-[12px] font-bold">Supported Formats: CSV, XLSX, XLS, TXT (Max 10MB)</p>
+                                    <p class="text-surface-500 mt-3 text-[12px] font-bold">Supported Formats: CSV, XLSX, XLS, TXT (Max 100MB)</p>
                                     
                                     <!-- <div x-show="fileName" class="mt-6 inline-flex items-center gap-2 text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-sm uppercase tracking-widest border border-emerald-100">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
