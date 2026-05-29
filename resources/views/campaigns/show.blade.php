@@ -1,10 +1,37 @@
 @extends('layouts.app')
 @section('title', 'Campaign Intelligence')
 @section('heading')
-    <div class="flex items-center gap-3 group relative" x-data="{ editingName: false, newName: '{{ $campaign->name }}', saving: false }">
+    <div class="flex items-center gap-3 group relative" x-data="{ 
+        editingName: false, 
+        newName: '{{ addslashes($campaign->name) }}', 
+        saving: false,
+        saveName() {
+            if (this.newName.trim() === '') return;
+            this.saving = true;
+            fetch('{{ route("admin.campaigns.update", $campaign) }}', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ name: this.newName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.editingName = false;
+                    window.location.reload();
+                }
+            })
+            .finally(() => {
+                this.saving = false;
+            });
+        }
+    }">
         <template x-if="!editingName">
             <div class="flex items-center gap-3">
-                <span class="cursor-pointer">{{ $campaign->name }}</span>
+                <span class="cursor-pointer" @click="editingName = true; $nextTick(() => $refs.nameInput.focus())" x-text="newName"></span>
                 <button @click="editingName = true; $nextTick(() => $refs.nameInput.focus())" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-surface-100 rounded-sm">
                     <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 </button>
@@ -12,12 +39,12 @@
         </template>
         <template x-if="editingName">
             <div class="flex items-center gap-2">
-                <input type="text" x-model="newName" x-ref="nameInput" @keydown.enter="saveName()" @keydown.escape="editingName = false" :disabled="saving" class="bg-white border border-surface-200 rounded-sm px-2 py-1 text-lg font-black uppercase outline-none focus:border-primary-500 min-w-[300px]">
+                <input type="text" x-model="newName" x-ref="nameInput" @keydown.enter="saveName()" @keydown.escape="editingName = false; newName = '{{ addslashes($campaign->name) }}'" :disabled="saving" class="bg-white border border-surface-200 rounded-sm px-2 py-1 text-lg font-black uppercase outline-none focus:border-primary-500 min-w-[300px]">
                 <button @click="saveName()" class="p-1 hover:bg-emerald-50 text-emerald-600 rounded-sm" :disabled="saving">
                     <svg x-show="!saving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    <svg x-show="saving" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <svg x-show="saving" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </button>
-                <button @click="editingName = false" class="p-1 hover:bg-rose-50 text-rose-600 rounded-sm" :disabled="saving">
+                <button @click="editingName = false; newName = '{{ addslashes($campaign->name) }}'" class="p-1 hover:bg-rose-50 text-rose-600 rounded-sm" :disabled="saving">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
@@ -738,31 +765,5 @@
         });
     }, pollMs);
     @endif
-
-    function saveName() {
-        const alpine = document.querySelector('[x-data]').__x.$data;
-        if (alpine.newName.trim() === '') return;
-        
-        alpine.saving = true;
-        fetch('{{ route("admin.campaigns.update", $campaign) }}', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ name: alpine.newName })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alpine.editingName = false;
-                window.location.reload(); // Refresh to update title etc
-            }
-        })
-        .finally(() => {
-            alpine.saving = false;
-        });
-    }
 </script>
 @endpush
