@@ -206,6 +206,9 @@
             whatsapp_numbers: {{ $subscription ? ($subscription->whatsapp_limit ?: 1) : ($custom['sliders']['whatsapp_numbers']['default'] ?? 2) }},
             whatsapp_messages: {{ $custom['sliders']['whatsapp_messages']['default'] ?? 5000 }},
 
+            include_email: {{ ($subscription && ($subscription->emails_limit ?? 0) == 0) ? 'false' : 'true' }},
+            include_whatsapp: {{ ($subscription && ($subscription->whatsapp_limit ?? 0) == 0) ? 'false' : 'true' }},
+
             taxPercent: {{ $pricing['tax_percent'] ?? 18 }},
 
             get crmUsersCost() {
@@ -217,14 +220,17 @@
                 return (diff / 1000) * this.rates.crm_per_1k_contacts;
             },
             get emailsCost() {
+                if (!this.include_email) return 0;
                 let diff = Math.max(0, this.emails_per_month - this.current_emails_per_month);
                 return (diff / 1000) * this.rates.email_per_1k;
             },
             get whatsappNumbersCost() {
+                if (!this.include_whatsapp) return 0;
                 let diff = Math.max(0, this.whatsapp_numbers - this.current_whatsapp_numbers);
                 return diff * this.rates.whatsapp_per_number;
             },
             get whatsappMessagesCost() {
+                if (!this.include_whatsapp) return 0;
                 let diff = Math.max(0, this.whatsapp_messages - this.current_whatsapp_messages);
                 return diff * this.rates.whatsapp_per_message;
             },
@@ -240,9 +246,9 @@
                 params.set('plan', 'custom');
                 params.set('crm_users', this.crm_users);
                 params.set('crm_contacts', this.crm_contacts);
-                params.set('emails_per_month', this.emails_per_month);
-                params.set('whatsapp_numbers', this.whatsapp_numbers);
-                params.set('whatsapp_messages', this.whatsapp_messages);
+                params.set('emails_per_month', this.include_email ? this.emails_per_month : 0);
+                params.set('whatsapp_numbers', this.include_whatsapp ? this.whatsapp_numbers : 0);
+                params.set('whatsapp_messages', this.include_whatsapp ? this.whatsapp_messages : 0);
                 window.location.href = '{{ route('admin.billing.plans') }}?' + params.toString();
             }
          }">
@@ -306,14 +312,21 @@
 
                 {{-- Email Slider --}}
                 <div class="border border-slate-200 rounded-sm bg-white p-6 shadow-sm space-y-6">
-                    <div class="flex items-center gap-2 pb-3 border-b border-slate-100">
-                        <div class="w-7 h-7 rounded-sm bg-blue-50 text-blue-500 flex items-center justify-center text-sm border border-blue-100/50">
-                            <i class="fa-solid fa-envelope"></i>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-sm bg-blue-50 text-blue-500 flex items-center justify-center text-sm border border-blue-100/50">
+                                <i class="fa-solid fa-envelope"></i>
+                            </div>
+                            <span class="text-sm font-black text-slate-900 font-['Outfit'] uppercase tracking-wider">Email Marketing</span>
                         </div>
-                        <span class="text-sm font-black text-slate-900 font-['Outfit'] uppercase tracking-wider">Email Marketing</span>
+                        <!-- Toggle Switch -->
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" x-model="include_email" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
+                        </label>
                     </div>
 
-                    <div>
+                    <div :class="!include_email && 'opacity-40 pointer-events-none transition-all duration-300'">
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-xs font-bold text-slate-500">Emails Per Month</span>
                             <div class="flex gap-2">
@@ -323,7 +336,7 @@
                                 <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="emails_per_month.toLocaleString('en-IN') + ' Emails/mo'"></span>
                             </div>
                         </div>
-                        <input type="range" :min="current_emails_per_month || 5000" max="1000000" step="5000" x-model.number="emails_per_month" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
+                        <input type="range" :min="current_emails_per_month || 5000" max="1000000" step="5000" x-model.number="emails_per_month" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand" :disabled="!include_email">
                         <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
                             <span x-text="(current_emails_per_month || 5000).toLocaleString('en-IN')"></span>
                             <span class="text-brand" x-text="emailsCost > 0 ? '+₹' + emailsCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
@@ -334,43 +347,52 @@
 
                 {{-- WhatsApp Sliders --}}
                 <div class="border border-slate-200 rounded-sm bg-white p-6 shadow-sm space-y-6">
-                    <div class="flex items-center gap-2 pb-3 border-b border-slate-100">
-                        <div class="w-7 h-7 rounded-sm bg-emerald-50 text-emerald-500 flex items-center justify-center text-sm border border-emerald-100/50">
-                            <i class="fa-brands fa-whatsapp"></i>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-sm bg-emerald-50 text-emerald-500 flex items-center justify-center text-sm border border-emerald-100/50">
+                                <i class="fa-brands fa-whatsapp"></i>
+                            </div>
+                            <span class="text-sm font-black text-slate-900 font-['Outfit'] uppercase tracking-wider">WhatsApp Marketing</span>
                         </div>
-                        <span class="text-sm font-black text-slate-900 font-['Outfit'] uppercase tracking-wider">WhatsApp Marketing</span>
+                        <!-- Toggle Switch -->
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" x-model="include_whatsapp" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
+                        </label>
                     </div>
 
-                    {{-- WhatsApp Numbers --}}
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold text-slate-500">WhatsApp Numbers</span>
-                            <div class="flex gap-2">
-                                <template x-if="current_whatsapp_numbers > 0">
-                                    <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded animate-pulse" x-text="'Current limit: ' + current_whatsapp_numbers"></span>
-                                </template>
-                                <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="whatsapp_numbers + ' Numbers'"></span>
+                    <div :class="!include_whatsapp && 'opacity-40 pointer-events-none transition-all duration-300'" class="space-y-6">
+                        {{-- WhatsApp Numbers --}}
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-slate-500">WhatsApp Numbers</span>
+                                <div class="flex gap-2">
+                                    <template x-if="current_whatsapp_numbers > 0">
+                                        <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded animate-pulse" x-text="'Current limit: ' + current_whatsapp_numbers"></span>
+                                    </template>
+                                    <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="whatsapp_numbers + ' Numbers'"></span>
+                                </div>
+                            </div>
+                            <input type="range" :min="current_whatsapp_numbers || 1" max="50" step="1" x-model.number="whatsapp_numbers" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand" :disabled="!include_whatsapp">
+                            <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
+                                <span x-text="current_whatsapp_numbers || 1"></span>
+                                <span class="text-brand" x-text="whatsappNumbersCost > 0 ? '+₹' + whatsappNumbersCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
+                                <span>50</span>
                             </div>
                         </div>
-                        <input type="range" :min="current_whatsapp_numbers || 1" max="50" step="1" x-model.number="whatsapp_numbers" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
-                        <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                            <span x-text="current_whatsapp_numbers || 1"></span>
-                            <span class="text-brand" x-text="whatsappNumbersCost > 0 ? '+₹' + whatsappNumbersCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
-                            <span>50</span>
-                        </div>
-                    </div>
 
-                    {{-- WhatsApp Messages --}}
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold text-slate-500">WhatsApp Messages / Month</span>
-                            <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="whatsapp_messages.toLocaleString('en-IN') + ' Messages/mo'"></span>
-                        </div>
-                        <input type="range" min="1000" max="500000" step="1000" x-model.number="whatsapp_messages" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
-                        <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                            <span>1,000</span>
-                            <span class="text-brand">Billed by Meta</span>
-                            <span>5,00,000</span>
+                        {{-- WhatsApp Messages --}}
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-slate-500">WhatsApp Messages / Month</span>
+                                <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="whatsapp_messages.toLocaleString('en-IN') + ' Messages/mo'"></span>
+                            </div>
+                            <input type="range" min="1000" max="500000" step="1000" x-model.number="whatsapp_messages" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand" :disabled="!include_whatsapp">
+                            <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
+                                <span>1,000</span>
+                                <span class="text-brand">Billed by Meta</span>
+                                <span>5,00,000</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -391,15 +413,15 @@
                             <span class="text-slate-400">CRM Contacts (<span x-text="crm_contacts.toLocaleString('en-IN')"></span>)</span>
                             <span class="font-bold" x-text="(current_crm_contacts > 0 ? 'Extra: ' : '') + '₹' + crmContactsCost.toLocaleString('en-IN')"></span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between" x-show="include_email">
                             <span class="text-slate-400">Emails (<span x-text="emails_per_month.toLocaleString('en-IN')"></span>/mo)</span>
                             <span class="font-bold" x-text="(current_emails_per_month > 0 ? 'Extra: ' : '') + '₹' + emailsCost.toLocaleString('en-IN')"></span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between" x-show="include_whatsapp">
                             <span class="text-slate-400">WhatsApp No. (<span x-text="whatsapp_numbers"></span>)</span>
                             <span class="font-bold" x-text="(current_whatsapp_numbers > 0 ? 'Extra: ' : '') + '₹' + whatsappNumbersCost.toLocaleString('en-IN')"></span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between" x-show="include_whatsapp">
                             <span class="text-slate-400">WhatsApp Msgs (<span x-text="whatsapp_messages.toLocaleString('en-IN')"></span>/mo)</span>
                             <span class="font-bold" x-text="whatsappMessagesCost > 0 ? '₹' + whatsappMessagesCost.toLocaleString('en-IN') : '₹0 (Meta Direct)'"></span>
                         </div>

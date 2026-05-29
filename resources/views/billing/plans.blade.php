@@ -58,30 +58,44 @@
                             </div>
                         </div>
 
-                        <div class="border border-surface-100 bg-surface-50/50 p-4 rounded flex items-start gap-3">
-                            <i class="fa-solid fa-envelope text-brand mt-1"></i>
+                        @php
+                            $emailEnabled = ($limits['emails_per_month'] ?? 0) > 0;
+                        @endphp
+                        <div class="border border-surface-100 p-4 rounded flex items-start gap-3 {{ $emailEnabled ? 'bg-surface-50/50' : 'bg-slate-100/50 opacity-60' }}">
+                            <i class="fa-solid fa-envelope {{ $emailEnabled ? 'text-brand' : 'text-slate-400' }} mt-1"></i>
                             <div>
-                                <h4 class="text-sm font-black text-black">Email Marketing</h4>
-                                <p class="text-[11px] text-surface-500 font-medium mt-1">
-                                    Emails/Month: <span class="font-bold text-slate-800">{{ number_format($limits['emails_per_month'] ?? 0) }}</span>
-                                    @if($currentSub && isset($currentSub->emails_limit))
-                                        <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ number_format($currentSub->emails_limit) }})</span>
-                                    @endif
-                                </p>
+                                <h4 class="text-sm font-black text-black {{ $emailEnabled ? '' : 'line-through text-slate-400' }}">Email Marketing</h4>
+                                @if($emailEnabled)
+                                    <p class="text-[11px] text-surface-500 font-medium mt-1">
+                                        Emails/Month: <span class="font-bold text-slate-800">{{ number_format($limits['emails_per_month'] ?? 0) }}</span>
+                                        @if($currentSub && isset($currentSub->emails_limit))
+                                            <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ number_format($currentSub->emails_limit) }})</span>
+                                        @endif
+                                    </p>
+                                @else
+                                    <p class="text-[11px] text-rose-500 font-bold mt-1 uppercase tracking-wider">Not Included in Plan</p>
+                                @endif
                             </div>
                         </div>
 
-                        <div class="border border-surface-100 bg-surface-50/50 p-4 rounded flex items-start gap-3">
-                            <i class="fa-brands fa-whatsapp text-brand mt-1"></i>
+                        @php
+                            $whatsappEnabled = ($limits['whatsapp_numbers'] ?? 0) > 0;
+                        @endphp
+                        <div class="border border-surface-100 p-4 rounded flex items-start gap-3 {{ $whatsappEnabled ? 'bg-surface-50/50' : 'bg-slate-100/50 opacity-60' }}">
+                            <i class="fa-brands fa-whatsapp {{ $whatsappEnabled ? 'text-brand' : 'text-slate-400' }} mt-1"></i>
                             <div>
-                                <h4 class="text-sm font-black text-black">WhatsApp Marketing</h4>
-                                <p class="text-[11px] text-surface-500 font-medium mt-1">
-                                    Numbers: <span class="font-bold text-slate-800">{{ $limits['whatsapp_numbers'] ?? 0 }}</span>
-                                    @if($currentSub && isset($currentSub->whatsapp_limit))
-                                        <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ $currentSub->whatsapp_limit }})</span>
-                                    @endif
-                                </p>
-                                <p class="text-[11px] text-surface-500 font-medium">Messages/Month: <span class="font-bold text-slate-800">{{ number_format($limits['whatsapp_messages'] ?? 0) }}</span> <span class="text-surface-400 font-normal">(Billed by Meta directly)</span></p>
+                                <h4 class="text-sm font-black text-black {{ $whatsappEnabled ? '' : 'line-through text-slate-400' }}">WhatsApp Marketing</h4>
+                                @if($whatsappEnabled)
+                                    <p class="text-[11px] text-surface-500 font-medium mt-1">
+                                        Numbers: <span class="font-bold text-slate-800">{{ $limits['whatsapp_numbers'] ?? 0 }}</span>
+                                        @if($currentSub && isset($currentSub->whatsapp_limit))
+                                            <span class="text-surface-400 font-normal ml-1 text-[10px]">(Current: {{ $currentSub->whatsapp_limit }})</span>
+                                        @endif
+                                    </p>
+                                    <p class="text-[11px] text-surface-500 font-medium">Messages/Month: <span class="font-bold text-slate-800">{{ number_format($limits['whatsapp_messages'] ?? 0) }}</span> <span class="text-surface-400 font-normal">(Billed by Meta directly)</span></p>
+                                @else
+                                    <p class="text-[11px] text-rose-500 font-bold mt-1 uppercase tracking-wider">Not Included in Plan</p>
+                                @endif
                             </div>
                         </div>
                     </div>

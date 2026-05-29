@@ -166,9 +166,9 @@ class PlansController extends Controller
             'plan'               => 'required|string|in:starter,growth,business,custom',
             'crm_users'          => 'nullable|integer|min:1',
             'crm_contacts'       => 'nullable|integer|min:1000',
-            'emails_per_month'   => 'nullable|integer|min:5000',
-            'whatsapp_numbers'   => 'nullable|integer|min:1',
-            'whatsapp_messages'  => 'nullable|integer|min:1000',
+            'emails_per_month'   => 'nullable|integer|min:0',
+            'whatsapp_numbers'   => 'nullable|integer|min:0',
+            'whatsapp_messages'  => 'nullable|integer|min:0',
         ]);
 
         $planKey = $request->plan;
@@ -183,12 +183,15 @@ class PlansController extends Controller
             $currentEmails = $subscription ? ($subscription->emails_limit ?? 0) : 0;
             $currentWhatsappNumbers = $subscription ? ($subscription->whatsapp_limit ?? 0) : 0;
 
+            $emailsPerMonth = (int) ($request->emails_per_month ?? 25000);
+            $whatsappNumbers = (int) ($request->whatsapp_numbers ?? 2);
+
             $limits = [
                 'crm_users'         => max($currentCrmUsers, (int) ($request->crm_users ?? 5)),
                 'crm_contacts'      => max($currentCrmContacts, (int) ($request->crm_contacts ?? 10000)),
-                'emails_per_month'  => max($currentEmails, (int) ($request->emails_per_month ?? 25000)),
-                'whatsapp_numbers'  => max($currentWhatsappNumbers, (int) ($request->whatsapp_numbers ?? 2)),
-                'whatsapp_messages' => (int) ($request->whatsapp_messages ?? 5000),
+                'emails_per_month'  => $emailsPerMonth === 0 ? 0 : max($currentEmails, $emailsPerMonth),
+                'whatsapp_numbers'  => $whatsappNumbers === 0 ? 0 : max($currentWhatsappNumbers, $whatsappNumbers),
+                'whatsapp_messages' => $whatsappNumbers === 0 ? 0 : (int) ($request->whatsapp_messages ?? 5000),
             ];
         }
 
@@ -272,13 +275,21 @@ class PlansController extends Controller
             $planKey = $details['plan'] ?? 'starter';
             $limits = $details['limits'] ?? [];
 
+            $selectedModules = ['crm'];
+            if (($limits['emails_per_month'] ?? 0) > 0) {
+                $selectedModules[] = 'email';
+            }
+            if (($limits['whatsapp_numbers'] ?? 0) > 0) {
+                $selectedModules[] = 'whatsapp';
+            }
+
             \App\Models\Subscription::updateOrCreate(
                 ['user_id' => $invoice->user_id],
                 [
                     'plan_name'        => ucfirst($planKey) . ' Plan',
                     'contacts_limit'   => $limits['crm_contacts'] ?? 0,
                     'emails_limit'     => $limits['emails_per_month'] ?? 0,
-                    'selected_modules' => ['crm', 'email', 'whatsapp'], // All modules always included
+                    'selected_modules' => $selectedModules,
                     'whatsapp_limit'   => $limits['whatsapp_numbers'] ?? 0,
                     'team_limit'       => $limits['crm_users'] ?? 0,
                     'status'           => 'active',

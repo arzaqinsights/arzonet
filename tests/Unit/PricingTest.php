@@ -72,4 +72,22 @@ class PricingTest extends TestCase
         $this->assertEquals(1188, $pricing['tax_amount']);
         $this->assertEquals(7788, $pricing['grand_total']);
     }
+
+    /**
+     * Test Custom plan calculated pricing with unselected modules.
+     */
+    public function test_custom_plan_calculated_pricing_with_unselected_modules()
+    {
+        // 5 crm users * 600 = 3000
+        // 10000 contacts = 10 * 10 = 100
+        // 0 emails = 0
+        // 0 whatsapp numbers = 0
+        // 0 whatsapp messages = 0
+        // Total base = 3100
+        $pricing = $this->controller->recalculatePricing('custom', 5, 10000, 0, 0, 0);
+        $this->assertEquals(3100, $pricing['base_price']);
+        $this->assertEquals(3100, $pricing['subtotal']);
+        $this->assertEquals(558, $pricing['tax_amount']);
+        $this->assertEquals(3658, $pricing['grand_total']);
+    }
 }
