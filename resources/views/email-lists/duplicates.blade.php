@@ -18,8 +18,17 @@
         selectedIds: [],
         bulkAction: '',
         resolutions: {},
+        selectAllScope: 'none', // 'none', 'visible', 'all'
+        globalBulkAction: '',
         toggleSelectAll(checked) {
-            this.selectedIds = checked ? this.getPageIds() : [];
+            if (checked) {
+                this.selectedIds = this.getPageIds();
+                this.selectAllScope = 'visible';
+            } else {
+                this.selectedIds = [];
+                this.selectAllScope = 'none';
+                this.globalBulkAction = '';
+            }
         },
         getPageIds() {
             const checkboxes = document.querySelectorAll('tbody input[type=&quot;checkbox&quot;]');
@@ -28,6 +37,11 @@
         applyBulk() {
             if (!this.bulkAction) {
                 alert('Please select a resolution action first.');
+                return;
+            }
+            if (this.selectAllScope === 'all') {
+                this.globalBulkAction = this.bulkAction;
+                this.bulkAction = '';
                 return;
             }
             if (this.selectedIds.length === 0) {
@@ -39,6 +53,7 @@
             });
             this.bulkAction = '';
             this.selectedIds = [];
+            this.selectAllScope = 'none';
         }
     }">
         <div class="bg-amber-50 border border-amber-100 rounded-sm p-6 flex items-start gap-4">
@@ -71,7 +86,7 @@
                 </select>
                 <button type="button" @click="applyBulk()"
                     class="bg-brand text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-sm shadow hover:bg-brand/90 hover:scale-[1.02] active:scale-95 transition-all">
-                    Apply to Selected (<span x-text="selectedIds.length"></span>)
+                    Apply to Selected (<span x-text="selectAllScope === 'all' ? {{ $duplicates->total() }} : selectedIds.length"></span>)
                 </button>
             </div>
             <div class="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">
@@ -81,14 +96,50 @@
 
         <form action="{{ route('admin.email-lists.duplicates.resolve', $emailList) }}" method="POST">
             @csrf
+            <input type="hidden" name="bulk_action" :value="globalBulkAction">
             <div class="bg-white border border-gray-150 rounded-sm overflow-hidden shadow-sm">
+                
+                {{-- Gmail-style Selection and Resolution Banners --}}
+                <div x-show="selectAllScope === 'visible'" class="bg-brand/5 border-b border-gray-150 px-6 py-3 text-xs text-surface-700 flex items-center justify-between transition-all" x-cloak>
+                    <div>
+                        All <span class="font-black text-surface-900" x-text="selectedIds.length"></span> duplicates on this page are selected.
+                    </div>
+                    <button type="button" @click="selectAllScope = 'all'" class="text-brand font-black hover:underline cursor-pointer">
+                        Select all {{ $duplicates->total() }} duplicates in this list
+                    </button>
+                </div>
+                
+                <div x-show="selectAllScope === 'all'" class="bg-brand/10 border-b border-gray-150 px-6 py-3 text-xs text-surface-700 flex items-center justify-between transition-all" x-cloak>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex w-2 h-2 rounded-full bg-brand animate-pulse"></span>
+                        All <span class="font-black text-surface-900">{{ $duplicates->total() }}</span> duplicates in this list are selected.
+                    </div>
+                    <button type="button" @click="toggleSelectAll(false)" class="text-red-600 font-black hover:underline cursor-pointer">
+                        Clear selection
+                    </button>
+                </div>
+
+                <div x-show="globalBulkAction !== ''" class="bg-emerald-50 border-b border-gray-150 px-6 py-3 text-xs text-emerald-800 flex items-center justify-between transition-all" x-cloak>
+                    <div class="flex items-center gap-2 font-medium">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Global Bulk Resolution set to: 
+                            <strong class="uppercase" x-text="globalBulkAction === 'keep_old' ? 'Keep Old Only' : (globalBulkAction === 'move_new' ? 'Move Here' : 'Keep in Both')"></strong>
+                            for all {{ $duplicates->total() }} duplicates.
+                        </span>
+                    </div>
+                    <button type="button" @click="globalBulkAction = ''; selectAllScope = 'none'; selectedIds = []" class="text-emerald-700 font-black hover:underline cursor-pointer">
+                        Cancel Global Action
+                    </button>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-surface-50 border-b border-gray-200 text-xs uppercase tracking-widest text-surface-500 font-black">
                                 <th class="px-6 py-4 w-12 text-center">
                                     <input type="checkbox" @change="toggleSelectAll($event.target.checked)"
-                                        :checked="selectedIds.length > 0"
+                                        :checked="selectAllScope === 'visible' || selectAllScope === 'all'"
                                         class="rounded-sm border-gray-300 text-brand focus:ring-brand focus:ring-offset-0 cursor-pointer">
                                 </th>
                                 <th class="px-6 py-4">Contact Details</th>
@@ -101,6 +152,7 @@
                                 <tr class="hover:bg-slate-50/50 transition-colors">
                                     <td class="px-6 py-5 text-center">
                                         <input type="checkbox" :value="{{ $email->id }}" x-model="selectedIds"
+                                            @change="if (selectAllScope === 'all') { selectAllScope = 'visible'; globalBulkAction = ''; }"
                                             class="rounded-sm border-gray-300 text-brand focus:ring-brand focus:ring-offset-0 cursor-pointer">
                                     </td>
                                     <td class="px-6 py-5">
@@ -159,20 +211,23 @@
                                         <div class="flex items-center justify-center gap-4"
                                             x-init="resolutions[{{ $email->id }}] = resolutions[{{ $email->id }}] || 'keep_both'">
                                             <input type="hidden" :name="`resolutions[{{ $email->id }}]`"
-                                                :value="resolutions[{{ $email->id }}]">
-
-                                            <button type="button" @click="resolutions[{{ $email->id }}] = 'keep_old'"
-                                                :class="resolutions[{{ $email->id }}] === 'keep_old' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-surface-500 border-gray-200 hover:bg-slate-50'"
+                                                :value="globalBulkAction !== '' ? globalBulkAction : resolutions[{{ $email->id }}]">
+ 
+                                            <button type="button" 
+                                                @click="if (globalBulkAction !== '') { globalBulkAction = ''; selectAllScope = 'none'; selectedIds = []; } resolutions[{{ $email->id }}] = 'keep_old'"
+                                                :class="(globalBulkAction !== '' ? globalBulkAction === 'keep_old' : resolutions[{{ $email->id }}] === 'keep_old') ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-surface-500 border-gray-200 hover:bg-slate-50'"
                                                 class="px-3 py-2 border rounded-sm text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer">
                                                 Keep Old Only
                                             </button>
-                                            <button type="button" @click="resolutions[{{ $email->id }}] = 'move_new'"
-                                                :class="resolutions[{{ $email->id }}] === 'move_new' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-surface-500 border-gray-200 hover:bg-slate-50'"
+                                            <button type="button" 
+                                                @click="if (globalBulkAction !== '') { globalBulkAction = ''; selectAllScope = 'none'; selectedIds = []; } resolutions[{{ $email->id }}] = 'move_new'"
+                                                :class="(globalBulkAction !== '' ? globalBulkAction === 'move_new' : resolutions[{{ $email->id }}] === 'move_new') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-surface-500 border-gray-200 hover:bg-slate-50'"
                                                 class="px-3 py-2 border rounded-sm text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer">
                                                 Move Here
                                             </button>
-                                            <button type="button" @click="resolutions[{{ $email->id }}] = 'keep_both'"
-                                                :class="resolutions[{{ $email->id }}] === 'keep_both' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-surface-500 border-gray-200 hover:bg-slate-50'"
+                                            <button type="button" 
+                                                @click="if (globalBulkAction !== '') { globalBulkAction = ''; selectAllScope = 'none'; selectedIds = []; } resolutions[{{ $email->id }}] = 'keep_both'"
+                                                :class="(globalBulkAction !== '' ? globalBulkAction === 'keep_both' : resolutions[{{ $email->id }}] === 'keep_both') ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-surface-500 border-gray-200 hover:bg-slate-50'"
                                                 class="px-3 py-2 border rounded-sm text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer">
                                                 Keep in Both
                                             </button>
@@ -208,6 +263,7 @@
                         Cancel Changes
                     </a>
                     <button type="submit"
+                        @click="if (selectAllScope === 'all' && globalBulkAction === '') { alert('Please choose a Bulk Resolution and click Apply first to resolve all duplicates across pages.'); $event.preventDefault(); }"
                         class="px-8 py-4 bg-surface-900 text-white rounded-sm text-xs font-black uppercase tracking-[0.2em] hover:bg-black transition-all hover:scale-[1.02] active:scale-95 shadow-md">
                         Apply Resolutions
                     </button>

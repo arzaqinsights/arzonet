@@ -344,4 +344,45 @@ class CrossListDuplicateImportTest extends TestCase
         $response->assertSessionHasNoErrors();
         $response->assertViewIs('email-lists.mapping');
     }
+
+    /**
+     * Test resolving all duplicates across pages via bulk action (selected_ids empty).
+     */
+    public function test_resolve_all_duplicates_across_pages_via_bulk_action()
+    {
+        $this->actingAs($this->user);
+
+        // Create duplicate contacts in List B
+        $contacts = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $contacts[] = Email::create([
+                'user_id' => $this->user->id,
+                'email_list_id' => $this->listB->id,
+                'email' => "dup{$i}@example.com",
+                'name' => "Duplicate {$i}",
+                'status' => 'cross_duplicate',
+                'subscription_status' => 'subscribed',
+            ]);
+        }
+
+        // Post resolution: bulk_action = 'keep_both', resolutions empty, selected_ids empty
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.duplicates.resolve', $this->listB->id, false);
+        $response = $this->post($url, [
+            'bulk_action' => 'keep_both',
+            'resolutions' => [],
+            'selected_ids' => [],
+        ], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertRedirect();
+
+        // Verify all 5 contacts are resolved to 'valid'
+        foreach ($contacts as $contact) {
+            $this->assertDatabaseHas('emails', [
+                'id' => $contact->id,
+                'status' => 'valid',
+            ]);
+        }
+    }
 }
