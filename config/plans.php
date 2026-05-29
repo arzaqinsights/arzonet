@@ -12,7 +12,7 @@ return [
     |
     | Per-unit rates (for custom scaling & overage):
     |   CRM:      ₹600 / user / month
-    |   Email:    ₹100 per 1,000 emails / month
+    |   Email:    ₹80 per 1,000 emails / month
     |   WhatsApp: ₹500 / number / month + ₹0.90 per marketing message
     |
     */
@@ -25,7 +25,7 @@ return [
     'rates' => [
         'crm_per_user'             => 600,     // ₹600 per extra CRM user / month
         'crm_per_1k_contacts'      => 10,      // ₹10 per 1000 extra contacts / month
-        'email_per_1k'             => 100,     // ₹100 per 1,000 emails / month
+        'email_per_1k'             => 80,      // ₹80 per 1,000 emails / month
         'whatsapp_per_number'      => 500,     // ₹500 per WhatsApp number / month
         'whatsapp_per_message'     => 0,       // ₹0 (Billed directly by Meta)
     ],
@@ -269,7 +269,7 @@ return [
         'extra_emails' => [
             'name' => 'Extra Email Volume',
             'desc' => 'Increase your monthly email sending limit.',
-            'price_label' => '₹100 / 1,000 emails',
+            'price_label' => '₹80 / 1,000 emails',
             'icon' => 'fa-envelope',
         ],
         'extra_whatsapp_number' => [
