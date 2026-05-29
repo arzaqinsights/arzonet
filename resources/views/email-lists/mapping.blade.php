@@ -58,13 +58,13 @@
                         elseif (str_contains($h, 'title') || str_contains($h, 'designation')) $target = 'job_title';
                     }
 
-                    // 3. Uniqueness Enforcement (Only auto-map a target once)
                     if ($target && in_array($target, $usedTargets)) {
                         $target = ''; 
                     }
 
                     if ($target) $usedTargets[] = $target;
-                    $initialMappings[$header] = $target;
+                    // If not explicitly mapped to a system field, default to "save as custom field"
+                    $initialMappings[$header] = $target ?: '__custom__';
                 }
             }
         @endphp
@@ -119,6 +119,7 @@
                                         class="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-100 rounded-sm font-bold text-[11px] uppercase tracking-wider transition-all appearance-none outline-none focus:border-brand"
                                         :class="mappings['{{ $header }}'] ? 'text-surface-600 border-surface-600/30 bg-surface-600/5' : 'text-surface-400'">
                                         <option value="">— Skip Column —</option>
+                                        <option value="__custom__" selected>✦ Save as Custom Field</option>
                                         <optgroup label="Main Identity" class="bg-white">
                                             <option value="email" :disabled="isOptionDisabled('email', '{{ $header }}')" x-text="getOptionText('email', 'Email Address *', '{{ $header }}')"></option>
                                             <option value="name" :disabled="isOptionDisabled('name', '{{ $header }}')" x-text="getOptionText('name', 'Full Name', '{{ $header }}')"></option>
@@ -203,7 +204,7 @@
                 mappings: @json($initialMappings),
                 
                 isOptionDisabled(val, currentHeader) {
-                    if (!val) return false;
+                    if (!val || val === '__custom__' || val === '') return false; // Allow multiple __custom__
                     // Check if this value is selected by ANY other header
                     return Object.entries(this.mappings).some(([header, selectedVal]) => {
                         return header !== currentHeader && selectedVal === val;
@@ -225,11 +226,11 @@
                         return;
                     }
 
-                    // Final check for duplicates (should be impossible with disabled options, but for safety)
-                    const selectedValues = Object.values(this.mappings).filter(v => v !== '');
+                    // Check for duplicates — but allow multiple __custom__ and '' (skip)
+                    const selectedValues = Object.values(this.mappings).filter(v => v !== '' && v !== '__custom__');
                     const uniqueValues = [...new Set(selectedValues)];
                     if (selectedValues.length !== uniqueValues.length) {
-                        alert('Duplicate mapping detected. Each target field can only be mapped once.');
+                        alert('Duplicate mapping detected. Each system field can only be mapped once.');
                         return;
                     }
 

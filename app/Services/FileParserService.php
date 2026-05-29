@@ -459,15 +459,18 @@ class FileParserService
         $emailColumn = $mapping['email'] ?? null;
         $phoneColumn  = $mapping['whatsapp_number'] ?? $mapping['phone'] ?? $mapping['whatsapp'] ?? null;
 
+        // Columns explicitly marked as "Save as Custom Field" by user
+        $customColumns = $mapping['_custom_columns'] ?? [];
+
         $processedExcelColumns = [];
 
-        // 1. Process mapped columns
+        // 1. Process system-mapped columns (email → name → job_title etc.)
         foreach ($mapping as $systemField => $excelColumn) {
             if (is_array($excelColumn) || str_starts_with($systemField, '_')) continue;
             
             $processedExcelColumns[$excelColumn] = true;
 
-            // Skip the primary split column (already handled)
+            // Skip the primary split column (already handled above)
             if ($excelColumn === $emailColumn && $systemField === 'email') continue;
             if ($excelColumn === $phoneColumn && in_array($systemField, ['whatsapp_number', 'phone', 'whatsapp'])) continue;
 
@@ -480,21 +483,37 @@ class FileParserService
             }
         }
 
-        // 2. Proactively capture all other unmapped Excel columns into meta
+        // 2. Process columns explicitly marked as "Save as Custom Field"
+        foreach ($customColumns as $excelColumn) {
+            $processedExcelColumns[$excelColumn] = true;
+            if ($excelColumn === $emailColumn || $excelColumn === $phoneColumn) continue;
+
+            $value = trim((string)($row[$excelColumn] ?? ''));
+            if ($value !== '') {
+                // Use the original Excel column name as the meta key (cleaned up)
+                $metaKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]/', '_', $excelColumn)));
+                $metaKey = preg_replace('/__+/', '_', $metaKey);
+                $metaKey = trim($metaKey, '_');
+                if (!empty($metaKey)) {
+                    $data['meta'][$metaKey] = $value;
+                }
+            }
+        }
+
+        // 3. Capture any remaining Excel columns NOT explicitly skipped and NOT already processed
+        // This handles edge cases where Excel has extra columns not shown on mapping page
         foreach ($row as $excelColumn => $value) {
             $excelColumnStr = (string)$excelColumn;
-            if (!isset($processedExcelColumns[$excelColumnStr]) && $excelColumnStr !== '') {
-                if ($excelColumnStr === $emailColumn || $excelColumnStr === $phoneColumn) continue;
-                
-                $valStr = trim((string)$value);
-                if ($valStr !== '') {
-                    $metaKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]/', '_', $excelColumnStr)));
-                    $metaKey = preg_replace('/__+/', '_', $metaKey);
-                    $metaKey = trim($metaKey, '_');
-                    
-                    if (!empty($metaKey)) {
-                        $data['meta'][$metaKey] = $valStr;
-                    }
+            if (isset($processedExcelColumns[$excelColumnStr]) || $excelColumnStr === '') continue;
+            if ($excelColumnStr === $emailColumn || $excelColumnStr === $phoneColumn) continue;
+
+            $valStr = trim((string)$value);
+            if ($valStr !== '') {
+                $metaKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]/', '_', $excelColumnStr)));
+                $metaKey = preg_replace('/__+/', '_', $metaKey);
+                $metaKey = trim($metaKey, '_');
+                if (!empty($metaKey)) {
+                    $data['meta'][$metaKey] = $valStr;
                 }
             }
         }

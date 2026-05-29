@@ -174,15 +174,26 @@ class EmailListController extends Controller
         $emailList = EmailList::findOrFail($id);
         $rawMapping = $request->input('mapping', []);
         $finalMapping = [];
+        $customColumns = []; // Columns to store as-is in meta
 
         foreach ($rawMapping as $excelColumn => $systemField) {
-            if (!empty($systemField)) {
+            if ($systemField === '__custom__') {
+                // Store column name so FileParserService saves it in meta
+                $customColumns[] = $excelColumn;
+            } elseif (!empty($systemField)) {
+                // Explicitly mapped to a known system field
                 $finalMapping[$systemField] = $excelColumn;
             }
+            // empty $systemField = "Skip Column" → discard
         }
 
         if (!isset($finalMapping['email'])) {
             return back()->withErrors(['mapping' => 'You must map the Email Address column.']);
+        }
+
+        // Store list of custom columns to preserve in meta
+        if (!empty($customColumns)) {
+            $finalMapping['_custom_columns'] = $customColumns;
         }
 
         $finalMapping['_settings'] = ['skip_dns' => false];
