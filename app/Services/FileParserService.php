@@ -106,7 +106,8 @@ class FileParserService
                 $count++;
             }
 
-            $score = count($allRows) + ($hasEmail ? 1000 : 0);
+            $totalRows = (int) $worksheet->getHighestRow();
+            $score = count($allRows) + ($hasEmail ? 1000 : 0) + ($totalRows / 1000000.0);
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $bestRows = $allRows;
@@ -280,7 +281,8 @@ class FileParserService
                     }
                 }
             }
-            $score = $count + ($hasEmail ? 1000 : 0);
+            $totalRows = (int) $worksheet->getHighestRow();
+            $score = $count + ($hasEmail ? 1000 : 0) + ($totalRows / 1000000.0);
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $bestWorksheet = $worksheet;
