@@ -62,6 +62,7 @@ Route::name('admin.')->group(function () {
         Route::put('/{template}', [TemplateController::class, 'update'])->name('update');
         Route::get('/{template}/preview', [TemplateController::class, 'preview'])->name('preview');
         Route::post('/{template}/test', [TemplateController::class, 'sendTest'])->name('send-test');
+        Route::post('/{template}/clone', [TemplateController::class, 'clone'])->name('clone');
         Route::delete('/{template}', [TemplateController::class, 'destroy'])->name('destroy');
     });
 

@@ -113,4 +113,15 @@ class TemplateController extends Controller
 
         return back()->with('success', 'Test email queued for sending via SES.');
     }
+
+    public function clone(Template $template)
+    {
+        $newTemplate = $template->replicate();
+        $newTemplate->name = $template->name . ' (Copy)';
+        $newTemplate->save();
+
+        return redirect()
+            ->route('admin.templates.index')
+            ->with('success', 'Template duplicated successfully.');
+    }
 }

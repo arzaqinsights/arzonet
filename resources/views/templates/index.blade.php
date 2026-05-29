@@ -31,11 +31,17 @@
                 </div>
 
                 {{-- Hover Overlay --}}
-                <div class="absolute inset-0 bg-primary-900/5 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-4 z-20">
-                    <a href="{{ route('admin.templates.preview', $template) }}" target="_blank" class="bg-white text-surface-900 px-6 py-2 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform">
+                <div class="absolute inset-0 bg-primary-900/5 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-3 z-20">
+                    <a href="{{ route('admin.templates.preview', $template) }}" target="_blank" class="bg-white text-surface-900 px-4 py-2 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform">
                         Fullscreen
                     </a>
-                    <a href="{{ route('admin.templates.edit', $template) }}" class="bg-brand text-white px-6 py-2 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform shadow-primary-200">
+                    <form action="{{ route('admin.templates.clone', $template) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform shadow-indigo-200 cursor-pointer">
+                            Duplicate
+                        </button>
+                    </form>
+                    <a href="{{ route('admin.templates.edit', $template) }}" class="bg-brand text-white px-4 py-2 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform shadow-primary-200">
                         Edit Design
                     </a>
                 </div>
@@ -47,12 +53,22 @@
                     <div>
                         <h3 class="text-surface-900 font-black text-base uppercase tracking-tight">{{ $template->name }}</h3>
                     </div>
-                    <form action="{{ route('admin.templates.destroy', $template) }}" method="POST" onsubmit="return confirm('Delete this template permanently?')">
-                        @csrf @method('DELETE')
-                        <button class="text-surface-300 hover:text-rose-500 transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        </button>
-                    </form>
+                    <div class="flex items-center gap-3">
+                        <form action="{{ route('admin.templates.clone', $template) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="text-surface-300 hover:text-primary-500 transition-colors" title="Duplicate Template">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/>
+                                </svg>
+                            </button>
+                        </form>
+                        <form action="{{ route('admin.templates.destroy', $template) }}" method="POST" onsubmit="return confirm('Delete this template permanently?')">
+                            @csrf @method('DELETE')
+                            <button class="text-surface-300 hover:text-rose-500 transition-colors" title="Delete Template">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </form>
+                    </div>
                 </div>
                 
                 <div class="flex items-center gap-4 text-[9px] font-black text-surface-400 uppercase tracking-tighter pt-4 border-t border-surface-50">
