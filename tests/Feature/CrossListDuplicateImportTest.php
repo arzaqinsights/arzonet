@@ -205,4 +205,75 @@ class CrossListDuplicateImportTest extends TestCase
         $this->assertDatabaseHas('emails', ['id' => $contactA->id, 'status' => 'valid']);
         $this->assertDatabaseHas('emails', ['id' => $contactB->id, 'status' => 'valid']);
     }
+
+    /**
+     * Test space-separated country codes or spaces inside phone numbers (like +91 98765 43210)
+     * are parsed as a single contact row (no row multiplier).
+     */
+    public function test_import_preserves_space_formatted_phone_numbers_without_multiplying()
+    {
+        $csvContent = "email,phone\n";
+        $csvContent .= "test@example.com,+91 98765 43210\n";
+        $path = 'temp_test_import.csv';
+        \Illuminate\Support\Facades\Storage::disk('local')->put($path, $csvContent);
+
+        $parser = app(\App\Services\FileParserService::class);
+        $mapping = [
+            'email' => 'email',
+            'whatsapp_number' => 'phone'
+        ];
+
+        $yielded = iterator_to_array($parser->streamStoredFile($path, $mapping));
+        \Illuminate\Support\Facades\Storage::disk('local')->delete($path);
+
+        $this->assertCount(1, $yielded);
+        $this->assertEquals('test@example.com', $yielded[0]['email']);
+        $this->assertEquals('919876543210', $yielded[0]['whatsapp_number']);
+    }
+
+    /**
+     * Test importing an email that already has both a valid and duplicate record in the list
+     * does not incorrectly promote the duplicate record to valid.
+     */
+    public function test_import_does_not_promote_existing_duplicates_when_valid_exists()
+    {
+        $this->actingAs($this->user);
+
+        // 1. Create a valid record in List A
+        $validContact = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->listA->id,
+            'email' => 'onlyone@example.com',
+            'name' => 'Valid Contact',
+            'status' => 'valid',
+            'subscription_status' => 'subscribed',
+        ]);
+
+        // 2. Create a duplicate record in List A
+        $duplicateContact = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->listA->id,
+            'email' => 'onlyone@example.com',
+            'name' => 'Duplicate Contact',
+            'status' => 'duplicate',
+            'subscription_status' => 'subscribed',
+        ]);
+
+        // 3. Import a chunk containing the same email
+        $job = new ImportEmailChunkJob($this->listA->id, [
+            ['email' => 'onlyone@example.com', 'name' => 'New Import Contact']
+        ]);
+        $job->handle($this->validator);
+
+        // 4. Verify that the duplicate record is still status = 'duplicate'
+        $duplicateContact->refresh();
+        $this->assertEquals('duplicate', $duplicateContact->status);
+
+        // 5. Verify there is still only 1 valid record for this email in List A
+        $validCount = Email::where('email_list_id', $this->listA->id)
+            ->where('email', 'onlyone@example.com')
+            ->where('status', 'valid')
+            ->count();
+        $this->assertEquals(1, $validCount);
+    }
 }

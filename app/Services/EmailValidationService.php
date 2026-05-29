@@ -60,6 +60,7 @@ class EmailValidationService
                     if ($batchEmails->isNotEmpty()) $q->orWhereIn('email', $batchEmails);
                     if ($batchPhones->isNotEmpty()) $q->orWhereIn('whatsapp_number', $batchPhones);
                 })
+                ->orderByRaw("CASE WHEN status = 'valid' THEN 4 WHEN status = 'cross_duplicate' THEN 3 WHEN status = 'invalid' THEN 2 WHEN status = 'duplicate' THEN 1 ELSE 0 END ASC")
                 ->get(['id', 'email', 'whatsapp_number', 'status', 'is_archived'])
                 ->keyBy(fn($item) => !empty($item->email) ? $this->normalizeEmail($item->email) : ('wa:' . $item->whatsapp_number));
 
