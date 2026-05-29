@@ -51,23 +51,25 @@ class ProcessEmailListJob implements ShouldQueue
             $emailListId = $this->emailListId;
             $listType = $emailList->list_type;
             
-            $jobs = [];
-            $chunkSize = 50; 
+            // Larger chunk size = fewer jobs = less Redis/DB overhead
+            // 100 rows/job is still fast but reduces total jobs by 2x
+            $chunkSize = 100;
             $currentChunk = [];
             $totalInFile = 0;
+            $allJobs = [];
 
             foreach ($parser->streamStoredFile($emailList->file_path, $mapping, $listType) as $row) {
                 $currentChunk[] = $row;
                 $totalInFile++;
 
                 if (count($currentChunk) >= $chunkSize) {
-                    $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
+                    $allJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
                     $currentChunk = [];
                 }
             }
 
             if (!empty($currentChunk)) {
-                $jobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
+                $allJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
             }
 
             // Update total rows in log if we have it
@@ -80,8 +82,8 @@ class ProcessEmailListJob implements ShouldQueue
                 }
             }
 
-            if (!empty($jobs)) {
-                $this->dispatchBatch($jobs, $emailList);
+            if (!empty($allJobs)) {
+                $this->dispatchBatch($allJobs, $emailList);
             } else {
                 $emailList->update(['status' => 'completed']);
             }

@@ -129,7 +129,7 @@ return [
     |
     */
 
-    'memory_limit' => 128,
+    'memory_limit' => 512,
 
     /*
     |--------------------------------------------------------------------------
@@ -151,9 +151,9 @@ return [
             'maxProcesses' => 5,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 128,
+            'memory' => 256,
             'tries' => 3,
-            'timeout' => 60,
+            'timeout' => 600, // Match ImportEmailChunkJob timeout
             'nice' => 0,
         ],
         'supervisor-bulk' => [
@@ -180,9 +180,9 @@ return [
                 'queue' => ['high', 'default'],
                 'balance' => 'auto',
                 'maxProcesses' => 10,
-                'memory' => 128,
-                'tries' => 3,
-                'timeout' => 60,
+                'memory' => 256,
+                'tries' => 5,
+                'timeout' => 600, // Large import chunk jobs need up to 600s
             ],
 
             'supervisor-ses' => [

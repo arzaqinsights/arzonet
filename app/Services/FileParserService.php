@@ -291,10 +291,56 @@ class FileParserService
 
         if (!$bestWorksheet) return;
 
-        $headerIndex = -1;
-        $headers = [];
+        // 2. Read first 15 non-empty rows to detect header — using SAME detectHeaderIndex() as parseXlsx
+        $firstRows = [];
+        foreach ($bestWorksheet->getRowIterator() as $row) {
+            $cellIterator = $row->getCellIterator();
+            $cellIterator->setIterateOnlyExistingCells(false);
+            $rowData = [];
+            foreach ($cellIterator as $cell) {
+                $rowData[] = $this->normalizeValue($cell->getValue());
+            }
+            while (!empty($rowData) && end($rowData) === '') array_pop($rowData);
+            if (!empty(array_filter($rowData))) {
+                $firstRows[] = $rowData;
+            }
+            if (count($firstRows) >= 15) break;
+        }
 
-        foreach ($bestWorksheet->getRowIterator() as $index => $row) {
+        if (empty($firstRows)) return;
+
+        $headerIndex = $this->detectHeaderIndex($firstRows);
+
+        $headers = [];
+        $dataStartOffset = 0; // how many non-empty rows to skip before yielding
+
+        if ($headerIndex === -1) {
+            // No header found — all rows are data
+            $columnCount = count($firstRows[0]);
+            $headers = array_map(fn($i) => "Column_" . ($i + 1), range(0, $columnCount - 1));
+            $dataStartOffset = 0;
+        } else {
+            $rawHeaders = $firstRows[$headerIndex];
+            foreach ($rawHeaders as $idx => $h) {
+                $h = trim($h);
+                if ($h === '') $h = 'Column_' . ($idx + 1);
+                $original = $h;
+                $c = 1;
+                while (in_array($h, $headers)) {
+                    $h = $original . '_' . $c;
+                    $c++;
+                }
+                $headers[] = $h;
+            }
+            // Skip all rows up to and including the header row
+            $dataStartOffset = $headerIndex + 1;
+        }
+
+        if (empty($headers)) return;
+
+        // 3. Stream all rows. Count non-empty rows seen to skip header rows.
+        $nonEmptyRowsSeen = 0;
+        foreach ($bestWorksheet->getRowIterator() as $row) {
             $cellIterator = $row->getCellIterator();
             $cellIterator->setIterateOnlyExistingCells(false);
             $rowData = [];
@@ -303,40 +349,13 @@ class FileParserService
             }
             while (!empty($rowData) && end($rowData) === '') array_pop($rowData);
 
+            // Skip entirely empty rows
             if (empty(array_filter($rowData))) continue;
 
-            if ($headerIndex === -1) {
-                $rowString = strtolower(implode(' ', $rowData));
-                $nonEmptyCount = count(array_filter($rowData, fn($c) => $c !== ''));
-                
-                // 1. Explicitly skip Arzonet Branding
-                if (str_contains($rowString, 'arzonet') && str_contains($rowString, 'export')) continue;
+            $nonEmptyRowsSeen++;
 
-                // 2. Detect Header Row
-                if (str_contains($rowString, 'email') || $nonEmptyCount >= 3) {
-                    $headerIndex = $index;
-                    foreach ($rowData as $idx => $h) {
-                        $h = trim($h);
-                        if ($h === '') $h = 'Column_' . ($idx + 1);
-                        $original = $h;
-                        $c = 1;
-                        while (in_array($h, $headers)) {
-                            $h = $original . '_' . $c;
-                            $c++;
-                        }
-                        $headers[] = $h;
-                    }
-                    continue; // Skip the header row itself
-                } else if ($index >= 5) {
-                    // 3. Fallback for Headerless: Start processing from this row
-                    $headerIndex = -2; // Marker for headerless
-                    $columnCount = count($rowData);
-                    $headers = array_map(fn($i) => "Column_" . ($i + 1), range(0, $columnCount - 1));
-                    // Proceed to process this row as data
-                } else {
-                    continue; // Still looking
-                }
-            }
+            // Skip header row(s) and any rows before data starts
+            if ($nonEmptyRowsSeen <= $dataStartOffset) continue;
 
             if (count($rowData) > count($headers)) {
                 $rowData = array_slice($rowData, 0, count($headers));

@@ -15,34 +15,20 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
-use Illuminate\Queue\Middleware\WithoutOverlapping;
+
 
 class ImportEmailChunkJob implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
-    public int $timeout = 300;
+    public int $tries = 5;
+    public int $timeout = 600;
 
     public function __construct(
         public int $emailListId,
         public array $chunk,
         public ?int $activityLogId = null
     ) {}
-
-    /**
-     * Get the middleware the job should pass through.
-     *
-     * @return array
-     */
-    public function middleware(): array
-    {
-        return [
-            (new WithoutOverlapping($this->emailListId))
-                ->releaseAfter(5)
-                ->expireAfter(180)
-        ];
-    }
 
 
     /**
@@ -155,8 +141,10 @@ class ImportEmailChunkJob implements ShouldQueue
             }
 
             // ── Step 5: Atomic update list-level stats ──
+            // total_records includes new inserts + restored/promoted records
+            $totalNewOrReactivated = count($batchEntries) + count($results['to_restore']) + count($results['to_valid']);
             $emailList->update([
-                'total_records'   => DB::raw('total_records + ' . count($batchEntries)),
+                'total_records'   => DB::raw('total_records + ' . $totalNewOrReactivated),
                 'valid_count'     => DB::raw('valid_count + ' . $countValid),
                 'invalid_count'   => DB::raw('invalid_count + ' . $countInvalid),
                 'duplicate_count' => DB::raw('duplicate_count - ' . count($results['to_valid']) . ' + ' . $countDuplicate),
