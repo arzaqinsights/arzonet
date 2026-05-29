@@ -1,6 +1,56 @@
 @extends('layouts.app')
 @section('title', $emailList->name)
-@section('heading', $emailList->name)
+@section('heading')
+    <div x-data="{ 
+        isEditing: false, 
+        newName: '{{ addslashes($emailList->name) }}', 
+        isSaving: false,
+        updateName() {
+            if (this.newName.trim() === '' || this.newName === '{{ addslashes($emailList->name) }}') {
+                this.isEditing = false;
+                return;
+            }
+            this.isSaving = true;
+            fetch('{{ route('admin.email-lists.update-name', $emailList) }}', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ name: this.newName })
+            }).then(res => res.json()).then(data => {
+                if(data.success) {
+                    this.isEditing = false;
+                    document.title = this.newName + ' — Arzonet';
+                }
+                this.isSaving = false;
+            }).catch(() => {
+                this.isSaving = false;
+                this.isEditing = false;
+            });
+        }
+    }" class="flex items-center gap-2">
+        <template x-if="!isEditing">
+            <div class="flex items-center gap-2 cursor-pointer group" @click="isEditing = true">
+                <span class="hover:text-brand" x-text="newName"></span>
+                <button class="text-surface-400 hover:text-brand opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                </button>
+            </div>
+        </template>
+        <template x-if="isEditing">
+            <div class="flex items-center gap-2">
+                <input type="text" x-model="newName" @keydown.enter="updateName()" @keydown.escape="isEditing = false; newName = '{{ addslashes($emailList->name) }}'" class="border-b-2 border-brand focus:outline-none bg-transparent pb-0.5 text-lg font-black uppercase" :disabled="isSaving" x-init="$el.focus()">
+                <span x-show="isSaving" class="text-brand">
+                    <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </span>
+            </div>
+        </template>
+    </div>
+@endsection
 
 @section('header-actions')
     <div class="flex items-center gap-3" x-data>
