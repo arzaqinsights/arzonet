@@ -7,6 +7,21 @@
 <div class="" x-data="importWizard()">
     <form action="{{ route('admin.email-lists.store') }}" method="POST" enctype="multipart/form-data" id="wizard-form">
         @csrf
+        
+        @if ($errors->any())
+            <div class="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold rounded-sm flex flex-col gap-1">
+                <div class="flex items-center gap-2 text-rose-800 font-bold mb-1">
+                    <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Import Validation Errors:
+                </div>
+                <ul class="list-disc list-inside font-medium text-xs space-y-1">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <input type="hidden" name="import_type" :value="method">
         <input type="hidden" name="name" value="Audience List - {{ now()->format('Y-m-d h:i A') }}">
         <input type="hidden" name="signup_source" value="Direct Import">

@@ -66,7 +66,17 @@ class EmailListController extends Controller
         // 1. Handling File Upload
         if ($request->import_type === 'upload') {
             $request->validate([
-                'file' => 'required|file|max:' . config('emailplatform.upload.max_file_size', 10240) . '|mimes:csv,xlsx,txt',
+                'file' => [
+                    'required',
+                    'file',
+                    'max:' . config('emailplatform.upload.max_file_size', 10240),
+                    function ($attribute, $value, $fail) {
+                        $extension = strtolower($value->getClientOriginalExtension());
+                        if (!in_array($extension, ['csv', 'xlsx', 'txt'])) {
+                            $fail('The file must be a file of type: csv, xlsx, txt.');
+                        }
+                    }
+                ],
             ]);
 
             $file = $request->file('file');

@@ -19,8 +19,8 @@ class FileParserService
         $extension = strtolower($file->getClientOriginalExtension());
 
         return match ($extension) {
-            'csv'  => $this->parseCsv($file),
-            'xlsx' => $this->parseXlsx($file),
+            'csv', 'txt' => $this->parseCsv($file),
+            'xlsx'       => $this->parseXlsx($file),
             default => throw new \InvalidArgumentException("Unsupported file type: {$extension}"),
         };
     }
@@ -172,7 +172,7 @@ class FileParserService
             throw new \RuntimeException("File not found: {$fullPath}");
         }
 
-        if ($extension === 'csv') {
+        if ($extension === 'csv' || $extension === 'txt') {
             yield from $this->streamCsv($fullPath, $mapping, $listType);
         } else {
             yield from $this->streamXlsx($fullPath, $mapping, $listType);

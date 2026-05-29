@@ -23,10 +23,25 @@ class CrossListDuplicateImportTest extends TestCase
     {
         parent::setUp();
 
-        config(['app.url' => 'http://email.test']);
-        config(['app.domain' => 'email.test']);
+        config('app.url');
+        config('app.domain');
 
         $this->user = User::factory()->create();
+
+        // Create an active subscription so user contact limits are not exceeded under test
+        \App\Models\Subscription::create([
+            'user_id' => $this->user->id,
+            'plan_name' => 'Starter Plan',
+            'contacts_limit' => 10000,
+            'emails_limit' => 10000,
+            'selected_modules' => ['crm', 'email', 'whatsapp'],
+            'whatsapp_limit' => 1,
+            'team_limit' => 1,
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonth(),
+        ]);
+
         $this->validator = app(EmailValidationService::class);
 
         // Create two lists
@@ -275,5 +290,58 @@ class CrossListDuplicateImportTest extends TestCase
             ->where('status', 'valid')
             ->count();
         $this->assertEquals(1, $validCount);
+    }
+
+    /**
+     * Test list store validation fails with invalid file extension.
+     */
+    public function test_list_store_validation_fails_with_invalid_file_extension()
+    {
+        $this->actingAs($this->user);
+
+        $file = \Illuminate\Http\UploadedFile::fake()->create('contacts.pdf', 100);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.store', [], false);
+        
+        $response = $this->post($url, [
+            'import_type' => 'upload',
+            'file' => $file,
+        ], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertSessionHasErrors(['file']);
+    }
+
+    /**
+     * Test list store validation passes with valid file extensions.
+     */
+    public function test_list_store_validation_passes_with_valid_file_extensions()
+    {
+        $this->actingAs($this->user);
+
+        $this->mock(\App\Services\FileParserService::class, function ($mock) {
+            $mock->shouldReceive('parse')->andReturn([
+                'headers' => ['email', 'name'],
+                'rows' => [['email' => 'test@example.com', 'name' => 'Test']],
+            ]);
+            $mock->shouldReceive('autoDetectEmailColumn')->andReturn('email');
+            $mock->shouldReceive('autoDetectNameColumn')->andReturn('name');
+            $mock->shouldReceive('autoDetectMappings')->andReturn(['email' => 'email', 'name' => 'name']);
+        });
+
+        $file = \Illuminate\Http\UploadedFile::fake()->create('contacts.xlsx', 100);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.store', [], false);
+
+        $response = $this->post($url, [
+            'import_type' => 'upload',
+            'file' => $file,
+        ], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertViewIs('email-lists.mapping');
     }
 }
