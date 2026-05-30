@@ -149,17 +149,8 @@ class SendEmailBatchJob implements ShouldQueue
                 if ($senderIndex === 0) {
                     \Log::info("Sample Processed HTML Snippet: " . substr($html, 0, 200));
                 }
-                // ── PRE-FLIGHT DOMAIN VALIDATION (SMTP Safety) ──
-                $domain = substr(strrchr($email->email, "@"), 1);
-                if (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
-                    $log->update([
-                        'status' => 'failed',
-                        'error_message' => "Invalid Domain: {$domain} (DNS check failed)",
-                        'sent_at' => now()
-                    ]);
-                    $campaign->increment('failed_count');
-                    continue;
-                }
+                // Note: DNS pre-flight check removed — emails are already validated at import.
+                // Invalid domains will bounce naturally and are handled by the bounce webhook.
 
                 $subjectSource = $campaign->subject;
                 $subject = $mailService->replaceVariables($subjectSource, $recipientData, false);
