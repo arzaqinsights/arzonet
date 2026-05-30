@@ -1030,17 +1030,11 @@ class EmailListController extends Controller
 
     public function fixInvalid(EmailList $emailList)
     {
-        // Get ALL invalid emails for this list
+        // Load all invalid emails directly — no DNS re-check (too slow for large lists)
         $emails = $emailList->emails()
             ->where('status', 'invalid')
             ->latest()
-            ->get()
-            ->map(function ($e) {
-                // Real-time MX check for the UI
-                $domain = substr(strrchr($e->email, "@"), 1);
-                $e->domain_invalid = $domain ? !@checkdnsrr($domain, "MX") : true;
-                return $e;
-            });
+            ->get();
 
         return view('email-lists.fix-invalid', compact('emailList', 'emails'));
     }
