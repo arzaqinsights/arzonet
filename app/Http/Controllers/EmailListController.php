@@ -1040,6 +1040,24 @@ class EmailListController extends Controller
     }
 
     /**
+     * Delete ALL invalid emails for a list in one query (bulk delete)
+     */
+    public function deleteAllInvalid(EmailList $emailList)
+    {
+        $deleted = $emailList->emails()
+            ->where('status', 'invalid')
+            ->delete();
+
+        $emailList->recalculateStats();
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $deleted,
+            'message' => "{$deleted} invalid records deleted successfully."
+        ]);
+    }
+
+    /**
      * Bulk save and re-validate corrected invalid emails
      */
     public function saveInvalid(Request $request, EmailList $emailList, EmailValidationService $validator)

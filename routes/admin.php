@@ -45,6 +45,7 @@ Route::name('admin.')->group(function () {
         Route::post('/{emailList}/bulk-action', [EmailListController::class, 'bulkAction'])->name('bulk-action');
         Route::get('/{emailList}/export', [EmailListController::class, 'exportContacts'])->name('export');
         Route::get('/{emailList}/fix-invalid', [EmailListController::class, 'fixInvalid'])->name('fix-invalid');
+        Route::delete('/{emailList}/fix-invalid/delete-all', [EmailListController::class, 'deleteAllInvalid'])->name('fix-invalid.delete-all');
         Route::post('/{emailList}/save-invalid', [EmailListController::class, 'saveInvalid'])->name('save-invalid');
         Route::get('/{emailList}/duplicates', [EmailListController::class, 'resolveDuplicates'])->name('duplicates.index');
         Route::post('/{emailList}/duplicates/resolve', [EmailListController::class, 'resolveDuplicatesAction'])->name('duplicates.resolve');

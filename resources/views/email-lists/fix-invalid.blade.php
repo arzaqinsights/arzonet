@@ -182,40 +182,25 @@
                     if (!confirm(`PERMANENT DELETE ALL: This will delete ALL ${this.records.length} invalid records from this list. This cannot be undone. Are you sure?`)) return;
 
                     this.deleting = true;
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-                    const baseUrl = `{{ route('admin.email-lists.destroy-email', [$emailList->id, 'EMAIL_ID']) }}`;
-
-                    const toDelete = [...this.records]; // snapshot before loop
-                    let successCount = 0;
-
-                    for (const record of toDelete) {
-                        try {
-                            const url = baseUrl.replace('EMAIL_ID', record.id);
-                            const res = await fetch(url, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken,
-                                    'Accept': 'application/json'
-                                }
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                                successCount++;
-                                const idx = this.records.findIndex(r => r.id === record.id);
-                                if (idx !== -1) this.records.splice(idx, 1);
+                    try {
+                        const res = await fetch(`{{ route('admin.email-lists.fix-invalid.delete-all', $emailList) }}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'Accept': 'application/json'
                             }
-                        } catch (e) {
-                            console.error('Failed to delete record:', record.id, e);
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            window.location.href = `{{ route('admin.email-lists.show', $emailList) }}`;
+                        } else {
+                            alert(data.message || 'Could not delete records.');
                         }
-                    }
-
-                    this.deleting = false;
-
-                    if (this.records.length === 0) {
-                        // All deleted — go back to list
-                        window.location.href = `{{ route('admin.email-lists.show', $emailList) }}`;
-                    } else {
-                        alert(`Deleted ${successCount} records. ${this.records.length} could not be deleted.`);
+                    } catch (e) {
+                        console.error(e);
+                        alert('An error occurred while deleting.');
+                    } finally {
+                        this.deleting = false;
                     }
                 },
 
