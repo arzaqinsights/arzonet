@@ -11,9 +11,10 @@ return [
     | Custom plan lets user pick their own quantities.
     |
     | Per-unit rates (for custom scaling & overage):
-    |   CRM:      ₹600 / user / month
-    |   Email:    ₹80 per 1,000 emails / month
-    |   WhatsApp: ₹500 / number / month + ₹0.90 per marketing message
+    |   CRM:      ₹699 / user / month
+    |   Contacts: ₹12 per 1,000 contacts / month
+    |   Email:    ₹78 per 1,000 emails / month
+    |   WhatsApp: ₹499 / number / month + ₹0.90 per marketing message
     |
     */
 
@@ -23,10 +24,10 @@ return [
     |--------------------------------------------------------------------------
     */
     'rates' => [
-        'crm_per_user'             => 600,     // ₹600 per extra CRM user / month
-        'crm_per_1k_contacts'      => 10,      // ₹10 per 1000 extra contacts / month
-        'email_per_1k'             => 80,      // ₹80 per 1,000 emails / month
-        'whatsapp_per_number'      => 500,     // ₹500 per WhatsApp number / month
+        'crm_per_user'             => 699,     // ₹699 per extra CRM user / month
+        'crm_per_1k_contacts'      => 12,      // ₹12 per 1000 extra contacts / month
+        'email_per_1k'             => 78,      // ₹78 per 1,000 emails / month
+        'whatsapp_per_number'      => 499,     // ₹499 per WhatsApp number / month
         'whatsapp_per_message'     => 0,       // ₹0 (Billed directly by Meta)
     ],
 
@@ -39,7 +40,7 @@ return [
         'starter' => [
             'name'    => 'Starter',
             'tagline' => 'Perfect for starting your business',
-            'price'   => 2200,
+            'price'   => 1999,
             'period'  => 'month',
             'limits'  => [
                 'crm_users'          => 1,
@@ -72,12 +73,12 @@ return [
         'growth' => [
             'name'     => 'Growth',
             'tagline'  => 'Take your marketing to the next level',
-            'price'    => 10000,
+            'price'    => 7749,
             'period'   => 'month',
             'popular'  => true,
             'limits'   => [
-                'crm_users'          => 5,
-                'crm_contacts'       => 25000,
+                'crm_users'          => 3,
+                'crm_contacts'       => 20000,
                 'emails_per_month'   => 50000,
                 'whatsapp_numbers'   => 3,
                 'whatsapp_messages'  => 10000,
@@ -106,7 +107,7 @@ return [
         'business' => [
             'name'     => 'Business',
             'tagline'  => 'Full-power marketing automation',
-            'price'    => 33000,
+            'price'    => 28999,
             'period'   => 'month',
             'limits'   => [
                 'crm_users'          => 10,
@@ -263,25 +264,25 @@ return [
         'extra_contacts' => [
             'name' => 'Extra CRM Contacts',
             'desc' => 'Store more contacts in your CRM.',
-            'price_label' => '₹10 / 1,000 contacts',
+            'price_label' => '₹12 / 1,000 contacts',
             'icon' => 'fa-users',
         ],
         'extra_emails' => [
             'name' => 'Extra Email Volume',
             'desc' => 'Increase your monthly email sending limit.',
-            'price_label' => '₹80 / 1,000 emails',
+            'price_label' => '₹78 / 1,000 emails',
             'icon' => 'fa-envelope',
         ],
         'extra_whatsapp_number' => [
             'name' => 'Extra WhatsApp Number',
             'desc' => 'Connect additional WhatsApp numbers.',
-            'price_label' => '₹500 / number / month',
+            'price_label' => '₹499 / number / month',
             'icon' => 'fa-whatsapp',
         ],
         'extra_team' => [
             'name' => 'Extra Team Members',
             'desc' => 'Add more members to your team.',
-            'price_label' => '₹600 / user / month',
+            'price_label' => '₹699 / user / month',
             'icon' => 'fa-user-plus',
         ],
         'dedicated_ip' => [
