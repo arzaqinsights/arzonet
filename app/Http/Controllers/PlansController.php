@@ -104,7 +104,11 @@ class PlansController extends Controller
     public function recalculatePricing($planKey, $crmUsers, $crmContacts, $emailsPerMonth, $whatsappNumbers, $whatsappMessages)
     {
         $pricingRules = GlobalSetting::get('pricing_rules') ?: [];
-        $taxPercent = (float) ($pricingRules['tax_percent'] ?? 18);
+        // GST: config/plans.php 'gst_percent' is the primary source.
+        // Super Admin DB setting overrides it only if explicitly saved there.
+        $taxPercent = isset($pricingRules['tax_percent'])
+            ? (float) $pricingRules['tax_percent']
+            : (float) config('plans.gst_percent', 0);
         $rates = config('plans.rates');
 
         if ($planKey !== 'custom') {

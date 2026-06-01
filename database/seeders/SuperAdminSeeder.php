@@ -33,7 +33,7 @@ class SuperAdminSeeder extends Seeder
                 ['min' => 100000, 'percent' => 30],
             ],
             'currency' => 'INR',
-            'tax_percent' => 18, // GST
+            'tax_percent' => 0, // GST (0 = disabled; change in Super Admin Settings or config/plans.php)
         ]);
         
         echo "Super Admin seeded successfully!\n";

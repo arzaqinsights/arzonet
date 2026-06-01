@@ -53,16 +53,27 @@ class EmailValidationService
         $existingNames = collect();
 
         if (!$currentListId) {
-            $existingRecords = collect();
+            $existingByEmail = collect();
+            $existingByPhone = collect();
         } else {
-            $existingRecords = Email::where('email_list_id', $currentListId)
+            $existingRows = Email::where('email_list_id', $currentListId)
                 ->where(function($q) use ($batchEmails, $batchPhones) {
                     if ($batchEmails->isNotEmpty()) $q->orWhereIn('email', $batchEmails);
                     if ($batchPhones->isNotEmpty()) $q->orWhereIn('whatsapp_number', $batchPhones);
                 })
                 ->orderByRaw("CASE WHEN status = 'valid' THEN 4 WHEN status = 'cross_duplicate' THEN 3 WHEN status = 'invalid' THEN 2 WHEN status = 'duplicate' THEN 1 ELSE 0 END ASC")
-                ->get(['id', 'email', 'whatsapp_number', 'status', 'is_archived'])
-                ->keyBy(fn($item) => !empty($item->email) ? $this->normalizeEmail($item->email) : ('wa:' . $item->whatsapp_number));
+                ->get(['id', 'email', 'whatsapp_number', 'status', 'is_archived']);
+
+            // Build TWO separate maps: one by email, one by phone.
+            // This ensures a contact is detected as duplicate if EITHER
+            // its email OR its phone already exists in this list.
+            $existingByEmail = $existingRows
+                ->filter(fn($r) => !empty($r->email))
+                ->keyBy(fn($r) => $this->normalizeEmail($r->email));
+
+            $existingByPhone = $existingRows
+                ->filter(fn($r) => !empty($r->whatsapp_number))
+                ->keyBy(fn($r) => $r->whatsapp_number);
 
             if ($batchNames->isNotEmpty()) {
                 $existingNames = Email::where('email_list_id', $currentListId)
@@ -91,11 +102,16 @@ class EmailValidationService
                     ->get(['id', 'email_list_id', 'email', 'whatsapp_number', 'status', 'is_archived']);
                 
                 foreach ($otherRecords as $rec) {
-                    $key = !empty($rec->email) ? $this->normalizeEmail($rec->email) : ('wa:' . $rec->whatsapp_number);
-                    if (!isset($otherRecordsMap[$key])) {
-                        $otherRecordsMap[$key] = [];
+                    // Index by email
+                    if (!empty($rec->email)) {
+                        $key = $this->normalizeEmail($rec->email);
+                        $otherRecordsMap[$key][] = $rec;
                     }
-                    $otherRecordsMap[$key][] = $rec;
+                    // Also index by phone (separately)
+                    if (!empty($rec->whatsapp_number)) {
+                        $phoneKey = 'wa:' . $rec->whatsapp_number;
+                        $otherRecordsMap[$phoneKey][] = $rec;
+                    }
                 }
             }
         }
@@ -206,10 +222,20 @@ class EmailValidationService
                 $domain = $parts[1];
             }
 
-            // 4. Duplicate check (Already in THIS list)
-            $lookupKey = $email ?? ('wa:' . $whatsappNumber);
-            if (isset($existingRecords[$lookupKey])) {
-                $record = $existingRecords[$lookupKey];
+            // 4. Duplicate check (Already in THIS list) — check BOTH email AND phone
+            $emailKey = $email; // normalized email or null
+            $phoneKey = !empty($whatsappNumber) ? $whatsappNumber : null;
+
+            // Find the best existing record match (email takes priority, then phone)
+            $existingRecord = null;
+            if ($emailKey && isset($existingByEmail[$emailKey])) {
+                $existingRecord = $existingByEmail[$emailKey];
+            } elseif ($phoneKey && isset($existingByPhone[$phoneKey])) {
+                $existingRecord = $existingByPhone[$phoneKey];
+            }
+
+            if ($existingRecord) {
+                $record = $existingRecord;
                 if ($record->status === 'permanent_delete') {
                     $entry['status'] = 'invalid';
                     $entry['email_status'] = 'blocked';
@@ -238,19 +264,36 @@ class EmailValidationService
                 continue;
             }
 
-            // 5. Local Duplicate check
-            if (isset($seen[$lookupKey])) {
+            // 5. Local (within-chunk) Duplicate check — check BOTH email AND phone
+            $localEmailKey = $emailKey;
+            $localPhoneKey = $phoneKey ? ('wa:' . $phoneKey) : null;
+            if (($localEmailKey && isset($seen[$localEmailKey])) || ($localPhoneKey && isset($seen[$localPhoneKey]))) {
                 $entry['status'] = 'duplicate';
                 $entry['validation_reason'] = is_array($entry['validation_reason']) ? implode(', ', $entry['validation_reason']) : $entry['validation_reason'];
                 $duplicates[] = $entry;
                 continue;
             }
-            $seen[$lookupKey] = true;
+            if ($localEmailKey) $seen[$localEmailKey] = true;
+            if ($localPhoneKey) $seen[$localPhoneKey] = true;
 
-            // 6. Cross-list duplicate check
-            if (isset($otherRecordsMap[$lookupKey])) {
+            // 6. Cross-list duplicate check — check BOTH email AND phone
+            $crossMatches = [];
+            if ($emailKey && isset($otherRecordsMap[$emailKey])) {
+                $crossMatches = array_merge($crossMatches, $otherRecordsMap[$emailKey]);
+            }
+            if ($phoneKey && isset($otherRecordsMap['wa:' . $phoneKey])) {
+                $crossMatches = array_merge($crossMatches, $otherRecordsMap['wa:' . $phoneKey]);
+            }
+            // Deduplicate cross matches by record id
+            $seenCrossIds = [];
+            $crossMatches = array_filter($crossMatches, function($rec) use (&$seenCrossIds) {
+                if (isset($seenCrossIds[$rec->id])) return false;
+                return $seenCrossIds[$rec->id] = true;
+            });
+
+            if (!empty($crossMatches)) {
                 $otherListsData = [];
-                foreach ($otherRecordsMap[$lookupKey] as $otherRec) {
+                foreach ($crossMatches as $otherRec) {
                     $otherList = \App\Models\EmailList::find($otherRec->email_list_id);
                     $otherListsData[] = [
                         'list_id' => $otherRec->email_list_id,

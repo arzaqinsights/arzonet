@@ -209,7 +209,7 @@
             include_email: {{ ($subscription && ($subscription->emails_limit ?? 0) == 0) ? 'false' : 'true' }},
             include_whatsapp: {{ ($subscription && ($subscription->whatsapp_limit ?? 0) == 0) ? 'false' : 'true' }},
 
-            taxPercent: {{ $pricing['tax_percent'] ?? 18 }},
+            taxPercent: {{ config('plans.gst_percent', 0) }},
 
             get crmUsersCost() {
                 let diff = Math.max(0, this.crm_users - this.current_crm_users);

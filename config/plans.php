@@ -13,10 +13,19 @@ return [
     | Per-unit rates (for custom scaling & overage):
     |   CRM:      ₹699 / user / month
     |   Contacts: ₹12 per 1,000 contacts / month
-    |   Email:    ₹78 per 1,000 emails / month
+    |   Email:    ₹93 per 1,000 emails / month
     |   WhatsApp: ₹499 / number / month + ₹0.90 per marketing message
     |
     */
+
+    /*
+    |--------------------------------------------------------------------------
+    | GST / Tax Percentage
+    |--------------------------------------------------------------------------
+    | Set to 0 to disable GST. Change here to apply globally.
+    | This is used as the default fallback if not set in DB (Super Admin Settings).
+    */
+    'gst_percent' => 0,
 
     /*
     |--------------------------------------------------------------------------
@@ -26,7 +35,7 @@ return [
     'rates' => [
         'crm_per_user'             => 699,     // ₹699 per extra CRM user / month
         'crm_per_1k_contacts'      => 12,      // ₹12 per 1000 extra contacts / month
-        'email_per_1k'             => 78,      // ₹78 per 1,000 emails / month
+        'email_per_1k'             => 93,      // ₹93 per 1,000 emails / month
         'whatsapp_per_number'      => 499,     // ₹499 per WhatsApp number / month
         'whatsapp_per_message'     => 0,       // ₹0 (Billed directly by Meta)
     ],
@@ -270,7 +279,7 @@ return [
         'extra_emails' => [
             'name' => 'Extra Email Volume',
             'desc' => 'Increase your monthly email sending limit.',
-            'price_label' => '₹78 / 1,000 emails',
+            'price_label' => '₹93 / 1,000 emails',
             'icon' => 'fa-envelope',
         ],
         'extra_whatsapp_number' => [

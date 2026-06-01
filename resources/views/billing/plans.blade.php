@@ -126,7 +126,7 @@
                         </div>
 
                         <div class="flex items-center justify-between text-white/60">
-                            <span>GST ({{ $pricing['tax_percent'] ?? 18 }}%)</span>
+                            <span>GST ({{ $pricing['tax_percent'] ?? config('plans.gst_percent', 0) }}%)</span>
                             <span class="text-white">₹{{ number_format($details['tax_amount'], 2) }}</span>
                         </div>
                     </div>
