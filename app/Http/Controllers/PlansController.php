@@ -106,9 +106,7 @@ class PlansController extends Controller
         $pricingRules = GlobalSetting::get('pricing_rules') ?: [];
         // GST: config/plans.php 'gst_percent' is the primary source.
         // Super Admin DB setting overrides it only if explicitly saved there.
-        $taxPercent = isset($pricingRules['tax_percent'])
-            ? (float) $pricingRules['tax_percent']
-            : (float) config('plans.gst_percent', 0);
+        $taxPercent = config('plans.gst_percent', 0);
         $rates = config('plans.rates');
 
         if ($planKey !== 'custom') {
