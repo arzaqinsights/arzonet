@@ -61,11 +61,27 @@ class UnsubscribeController extends Controller
             abort(403, 'Invalid request.');
         }
 
+        $duration = $request->input('duration', 'forever');
+        $expiresAt = null;
+        $durationText = 'permanently';
+
+        if ($duration !== 'forever') {
+            $days = (int) $duration;
+            if ($days > 0) {
+                $expiresAt = now()->addDays($days);
+                $durationText = "for {$days} days (until " . $expiresAt->format('F d, Y') . ")";
+            }
+        }
+
         // 1. Mark ONLY this specific record as unsubscribed (Isolated to this list)
         $email->update([
             'subscription_status' => 'unsubscribed',
             'unsubscribed_at' => now(),
+            'unsubscribe_expires_at' => $expiresAt,
         ]);
+
+        // Trigger segment recalculation for this contact
+        \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $email->id);
 
         // 3. Log the Unsubscribe for Analytics
         if ($logId) {
@@ -87,6 +103,6 @@ class UnsubscribeController extends Controller
             }
         }
 
-        return view('auth.unsubscribe-success');
+        return view('auth.unsubscribe-success', compact('email', 'durationText', 'expiresAt'));
     }
 }

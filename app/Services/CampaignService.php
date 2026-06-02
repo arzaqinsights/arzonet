@@ -65,7 +65,10 @@ class CampaignService
                     $query->where('tags', 'LIKE', "%\"{$value}\"%")
                           ->orWhere('tags', 'LIKE', "%{$value}%");
                 } elseif ($type === 'segment') {
-                    $query->where('segment_name', $value);
+                    $query->where(function($q) use ($value) {
+                        $q->where('segment_name', $value)
+                          ->orWhereJsonContains('auto_segments', $value);
+                    });
                 }
             }
         }

@@ -111,6 +111,9 @@ class ProcessEmailListJob implements ShouldQueue
                     // Force completion status first to unlock UI
                     $list->update(['status' => 'completed']);
                     $list->recalculateStats();
+
+                    // Automatically compute segments for the entire imported list
+                    \App\Jobs\UpdateContactSegmentsJob::dispatch(null, $emailListId);
                     
                     if ($logId) {
                         $log = \App\Models\ActivityLog::find($logId);

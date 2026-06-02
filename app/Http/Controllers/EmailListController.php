@@ -264,7 +264,9 @@ class EmailListController extends Controller
         // Match Alpine.js default filter: Active Only (is_archived = false)
         $emails = $emailList->emails()->where('is_archived', false)->orderBy('created_at', 'desc')->paginate(50);
 
-        $segments = $emailList->emails()->whereNotNull('segment_name')->distinct()->pluck('segment_name');
+        $customSegments = $emailList->emails()->whereNotNull('segment_name')->distinct()->pluck('segment_name')->toArray();
+        $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
+        $segments = array_merge($customSegments, $autoSegments);
         $tags = $emailList->emails()->whereNotNull('tags')->distinct()->pluck('tags');
         $sources = $emailList->emails()->whereNotNull('signup_source')->distinct()->pluck('signup_source');
 
@@ -304,7 +306,11 @@ class EmailListController extends Controller
 
         // Segment filter
         if ($request->segment && $request->segment !== 'all') {
-            $query->where('segment_name', $request->segment);
+            $value = $request->segment;
+            $query->where(function($q) use ($value) {
+                $q->where('segment_name', $value)
+                  ->orWhereJsonContains('auto_segments', $value);
+            });
         }
 
         // Source filter
@@ -436,7 +442,11 @@ class EmailListController extends Controller
             $query->where('subscription_status', $request->subscription);
         }
         if ($request->segment && $request->segment !== 'all') {
-            $query->where('segment_name', $request->segment);
+            $value = $request->segment;
+            $query->where(function($q) use ($value) {
+                $q->where('segment_name', $value)
+                  ->orWhereJsonContains('auto_segments', $value);
+            });
         }
         if ($request->source && $request->source !== 'all') {
             $query->where('signup_source', $request->source);
@@ -664,6 +674,28 @@ class EmailListController extends Controller
             }
         }
 
+        // Handle subscription status changes and temporary unsubscribe duration
+        if (isset($data['subscription_status'])) {
+            if ($data['subscription_status'] === 'unsubscribed') {
+                if ($email->subscription_status !== 'unsubscribed') {
+                    $data['unsubscribed_at'] = now();
+                }
+                
+                $duration = $request->input('unsubscribe_duration', 'forever');
+                if ($duration !== 'forever') {
+                    $days = (int) $duration;
+                    if ($days > 0) {
+                        $data['unsubscribe_expires_at'] = now()->addDays($days);
+                    }
+                } else {
+                    $data['unsubscribe_expires_at'] = null;
+                }
+            } else {
+                $data['unsubscribed_at'] = null;
+                $data['unsubscribe_expires_at'] = null;
+            }
+        }
+
         if ($request->has('meta')) {
             $data['meta'] = array_merge($email->meta ?? [], $request->meta);
         }
@@ -717,6 +749,9 @@ class EmailListController extends Controller
             }
         }
 
+        // Recalculate segments for this contact
+        \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $email->id);
+
         return response()->json(['success' => true]);
     }
 
@@ -747,6 +782,10 @@ class EmailListController extends Controller
                     'subscription_status' => 'subscribed',
                     'signup_source' => $request->signup_source ?? $existing->signup_source,
                 ]);
+                
+                // Recalculate segments for this contact
+                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $existing->id);
+
                 return response()->json(['success' => true, 'message' => 'Archived contact restored and updated.']);
             }
 
@@ -784,6 +823,10 @@ class EmailListController extends Controller
         } else {
             $emailList->increment('valid_count');
         }
+
+        // Recalculate segments for this contact
+        \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $email->id);
+
         return response()->json(['success' => true]);
     }
 
@@ -911,7 +954,26 @@ class EmailListController extends Controller
         $count = $emails->count();
 
         if ($request->action === 'unsubscribe') {
-            $emails->update(['subscription_status' => 'unsubscribed', 'unsubscribed_at' => now()]);
+            $duration = $request->input('duration', 'forever');
+            $expiresAt = null;
+            if ($duration !== 'forever') {
+                $days = (int) $duration;
+                if ($days > 0) {
+                    $expiresAt = now()->addDays($days);
+                }
+            }
+
+            $emailIds = $emails->pluck('id')->toArray();
+
+            $emails->update([
+                'subscription_status' => 'unsubscribed',
+                'unsubscribed_at' => now(),
+                'unsubscribe_expires_at' => $expiresAt
+            ]);
+
+            foreach ($emailIds as $id) {
+                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $id);
+            }
         } elseif ($request->action === 'archive') {
             $emails->update(['is_archived' => true, 'archived_at' => now()]);
         } elseif ($request->action === 'unarchive') {

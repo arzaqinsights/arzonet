@@ -76,6 +76,9 @@ class ProcessTrackingEventJob implements ShouldQueue
                 'engagement_score' => max(0, $log->email->engagement_score + $scoreDelta),
                 'last_engaged_at' => now()
             ]);
+
+            // Dispatch segment updates for this contact
+            \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $log->email_id);
         }
     }
 }

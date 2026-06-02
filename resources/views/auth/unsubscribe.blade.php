@@ -18,9 +18,24 @@
             @csrf
             <input type="hidden" name="token" value="{{ $token }}">
             <input type="hidden" name="lid" value="{{ $logId }}">
+            
+            <div class="mb-6 text-left">
+                <label class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-2">Unsubscribe Option</label>
+                <select name="duration" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-brand cursor-pointer">
+                    <option value="forever">Permanently (Forever)</option>
+                    <option value="1">Temporary Unsubscribe (1 Day)</option>
+                    <option value="3">Temporary Unsubscribe (3 Days)</option>
+                    <option value="7">Temporary Unsubscribe (7 Days)</option>
+                    <option value="14">Temporary Unsubscribe (14 Days)</option>
+                    <option value="30">Temporary Unsubscribe (30 Days)</option>
+                    <option value="90">Temporary Unsubscribe (90 Days)</option>
+                    <option value="365">Temporary Unsubscribe (1 Year)</option>
+                </select>
+            </div>
+
             <div class="space-y-3">
                 <button type="submit" class="btn btn-primary w-full py-3">Yes, Unsubscribe Me</button>
-                <a href="/" class="btn btn-ghost w-full py-3">No, Keep Me Subscribed</a>
+                <a href="/" class="btn btn-ghost w-full py-3 text-center block">No, Keep Me Subscribed</a>
             </div>
         </form>
         

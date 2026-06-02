@@ -60,37 +60,19 @@ class TrackingController extends Controller
         return redirect()->away($url ?: '/');
     }
 
-    /**
-     * Handle Unsubscribe
-     */
     public function unsubscribe(Request $request, string $token)
     {
         $log = EmailLog::where('tracking_token', $token)->first();
 
         if ($log && $log->email) {
-            $log->email->update([
-                'subscription_status' => 'unsubscribed',
-                'unsubscribed_at' => now()
-            ]);
+            $email = $log->email;
+            $secureToken = hash_hmac('sha256', $email->id . $email->email, config('app.key'));
 
-            // Record unsubscribe for campaign analytics
-            \App\Models\Unsubscribe::firstOrCreate([
-                'email' => $log->email->email,
-                'campaign_id' => $log->campaign_id,
-            ], [
-                'unsubscribed_at' => now()
+            return redirect()->route('unsubscribe.show', [
+                'id' => $email->id,
+                'token' => $secureToken,
+                'lid' => $log->id
             ]);
-
-            // Log event for granular analytics
-            \App\Models\EmailEvent::create([
-                'email_log_id' => $log->id,
-                'type' => 'unsubscribe',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-                'created_at' => now()
-            ]);
-
-            return view('auth.unsubscribe-success');
         }
 
         return abort(404);

@@ -1,3 +1,48 @@
+@once
+<style>
+.segment-tooltip {
+    position: relative;
+    display: inline-block;
+}
+.segment-tooltip .tooltip-content {
+    visibility: hidden;
+    position: absolute;
+    bottom: 130%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #0f172a; /* slate-900 */
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #334155; /* slate-700 */
+    z-index: 100;
+    width: max-content;
+    max-width: 240px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+.segment-tooltip .tooltip-content::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #0f172a transparent transparent transparent;
+}
+.segment-tooltip:hover .tooltip-content {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px);
+}
+</style>
+@endonce
+
 @php
     $groupedEmails = $emails->groupBy(function ($email) {
         if (!empty(trim($email->name))) {
@@ -44,8 +89,10 @@
                     whatsapp_number: '{{ $email->whatsapp_number ?? '' }}',
                     name: '{{ $email->name ?? '' }}',
                     segment_name: '{{ $email->segment_name ?? '' }}',
+                    auto_segments: @js($email->auto_segments ?? []),
                     tags: '{{ is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '') }}',
                     subscription_status: '{{ $email->subscription_status ?? 'subscribed' }}',
+                    unsubscribe_duration: 'forever',
                     whatsapp_subscription_status: '{{ $email->whatsapp_subscription_status ?? 'subscribed' }}',
                     is_archived: {{ $email->is_archived ? 'true' : 'false' }},
                     meta: @js($email->meta ?? [])
@@ -64,8 +111,8 @@
                     .then(() => {
                         this.saving = false;
                         this.editing = false;
-                        this.fetchEmails();
-                        this.refreshStats();
+                        fetchEmails();
+                        refreshStats();
                     });
                 }
             }" 
@@ -125,14 +172,44 @@
 
             {{-- Segment Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
-                @if($isMaster)
-                    <template x-if="!editing">
-                        <div class="text-[10px] font-bold text-surface-600 uppercase tracking-widest" x-text="row.segment_name || '—'"></div>
-                    </template>
-                    <template x-if="editing">
-                        <input type="text" x-model="row.segment_name" class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[10px] font-bold focus:ring-0 focus:outline-none">
-                    </template>
-                @endif
+                <template x-if="!editing">
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="text-[10px] font-bold text-surface-600 uppercase tracking-widest mb-0.5" x-text="row.segment_name || '—'"></div>
+                        
+                        <!-- Dynamic tooltip for auto segments -->
+                        <template x-if="row.auto_segments && row.auto_segments.length > 0">
+                            <div class="segment-tooltip">
+                                <div class="flex items-center gap-1 justify-center cursor-help">
+                                    <!-- Show the first auto segment -->
+                                    <span class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50" 
+                                          x-text="row.auto_segments[0].replace('Auto: ', '')"></span>
+                                    
+                                    <!-- If there are more, show count badge -->
+                                    <template x-if="row.auto_segments.length > 1">
+                                        <span class="inline-flex px-1 py-0.5 rounded-sm bg-slate-100 text-slate-600 text-[8px] font-bold border border-slate-200" 
+                                              x-text="`+${row.auto_segments.length - 1}`"></span>
+                                    </template>
+                                </div>
+                                
+                                <!-- Tooltip Content -->
+                                <div class="tooltip-content shadow-2xl">
+                                    <p class="text-[8px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-700/50 pb-1 mb-1.5">Dynamic Segments</p>
+                                    <div class="flex flex-col gap-1.5">
+                                        <template x-for="seg in row.auto_segments" :key="seg">
+                                            <div class="flex items-center gap-1.5 text-[9px] font-semibold text-slate-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                                <span x-text="seg.replace('Auto: ', '')"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template x-if="editing">
+                    <input type="text" x-model="row.segment_name" class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[10px] font-bold focus:ring-0 focus:outline-none">
+                </template>
             </td>
 
             {{-- Tag Column --}}
@@ -218,20 +295,41 @@
             {{-- Subscription Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
                 <template x-if="!editing">
-                    <div class="flex items-center justify-center gap-2" :class="{
-                        'text-emerald-500': row.subscription_status === 'subscribed',
-                        'text-red-400': row.subscription_status === 'unsubscribed',
-                        'text-amber-500': row.subscription_status === 'bounced'
-                    }">
-                        <span class="text-[10px] font-black uppercase tracking-tighter" x-text="row.subscription_status"></span>
+                    <div class="flex flex-col items-center justify-center gap-1">
+                        <div class="flex items-center justify-center gap-2" :class="{
+                            'text-emerald-500': row.subscription_status === 'subscribed',
+                            'text-red-400': row.subscription_status === 'unsubscribed',
+                            'text-amber-500': row.subscription_status === 'bounced'
+                        }">
+                            <span class="text-[10px] font-black uppercase tracking-tighter" x-text="row.subscription_status"></span>
+                        </div>
+                        @if($email->subscription_status === 'unsubscribed' && $email->unsubscribe_expires_at)
+                            <span class="text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-100/50 rounded-sm px-1.5 py-0.5 mt-1 block max-w-fit mx-auto" title="Expires at: {{ $email->unsubscribe_expires_at->format('Y-m-d H:i') }}">
+                                Snoozed: {{ $email->unsubscribe_expires_at->diffForHumans() }}
+                            </span>
+                        @endif
                     </div>
                 </template>
                 <template x-if="editing">
-                    <select x-model="row.subscription_status" class="bg-white border border-gray-100 text-[10px] font-black uppercase rounded-sm focus:ring-0 focus:outline-none p-1">
-                        <option value="subscribed">Subscribed</option>
-                        <option value="unsubscribed">Unsubscribed</option>
-                        <option value="bounced">Bounced</option>
-                    </select>
+                    <div class="flex flex-col gap-1 items-center justify-center">
+                        <select x-model="row.subscription_status" class="bg-white border border-gray-100 text-[10px] font-black uppercase rounded-sm focus:ring-0 focus:outline-none p-1">
+                            <option value="subscribed">Subscribed</option>
+                            <option value="unsubscribed">Unsubscribed</option>
+                            <option value="bounced">Bounced</option>
+                        </select>
+                        <template x-if="row.subscription_status === 'unsubscribed'">
+                            <select x-model="row.unsubscribe_duration" class="bg-white border border-gray-150 text-[9px] font-bold rounded-sm focus:ring-0 focus:outline-none p-1 w-24 cursor-pointer mt-1">
+                                <option value="forever">Forever</option>
+                                <option value="1">1 Day</option>
+                                <option value="3">3 Days</option>
+                                <option value="7">7 Days</option>
+                                <option value="14">14 Days</option>
+                                <option value="30">30 Days</option>
+                                <option value="90">90 Days</option>
+                                <option value="365">1 Year</option>
+                            </select>
+                        </template>
+                    </div>
                 </template>
             </td>
 

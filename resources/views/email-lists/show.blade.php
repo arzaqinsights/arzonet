@@ -523,7 +523,7 @@
 
                     {{-- Actions Container --}}
                     <div class="flex items-center gap-1">
-                        <button @click="bulkAction('unsubscribe')"
+                        <button @click="showUnsubscribeModal = true"
                             class="flex items-center gap-2 px-4 py-2.5 hover:bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/80 hover:text-white transition-all cursor-pointer rounded-sm group">
                             <svg class="w-4 h-4 text-white/20 group-hover:text-amber-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -950,7 +950,52 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- Bulk Unsubscribe Modal --}}
+                <div x-show="showUnsubscribeModal" 
+                     class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/80 animate-fade-in" 
+                     x-cloak>
+                    <div class="bg-white rounded-sm w-full max-w-md overflow-hidden shadow-xl" 
+                         @click.away="showUnsubscribeModal = false">
+
+                        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-xl font-black text-surface-900 tracking-tight">Bulk Unsubscribe</h3>
+                                <p class="text-[10px] text-surface-400 font-bold uppercase mt-1 tracking-widest">Select unsubscribe options</p>
+                            </div>
+                            <button @click="showUnsubscribeModal = false" class="text-surface-400 hover:text-surface-900">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                    <div class="p-6 space-y-6">
+                        <p class="text-xs font-bold text-surface-600">
+                            You have selected <span class="text-brand font-black" x-text="globalSelect ? stats.total.toLocaleString() : selectedIds.length"></span> contact(s) to unsubscribe. 
+                            Select how long they should be unsubscribed:
+                        </p>
+
+                        <div>
+                            <label class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2">Duration</label>
+                            <select x-model="unsubscribeDuration" class="w-full p-4 border border-gray-150 rounded-sm bg-gray-50 text-xs font-bold focus:bg-white focus:border-brand focus:ring-0 focus:outline-none cursor-pointer">
+                                <option value="forever">Permanently (Forever)</option>
+                                <option value="1">Temporary Unsubscribe (1 Day)</option>
+                                <option value="3">Temporary Unsubscribe (3 Days)</option>
+                                <option value="7">Temporary Unsubscribe (7 Days)</option>
+                                <option value="14">Temporary Unsubscribe (14 Days)</option>
+                                <option value="30">Temporary Unsubscribe (30 Days)</option>
+                                <option value="90">Temporary Unsubscribe (90 Days)</option>
+                                <option value="365">Temporary Unsubscribe (1 Year)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+                        <button @click="showUnsubscribeModal = false" class="flex-1 py-3.5 text-[10px] font-black text-surface-400 uppercase tracking-widest hover:text-surface-600 transition-colors cursor-pointer">Cancel</button>
+                        <button @click="bulkUnsubscribe()" class="flex-2 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-sm transition-all hover:scale-[1.01]">Confirm Unsubscribe</button>
+                    </div>
+                </div>
             </div>
+            </div> <!-- Closing teleport wrapper div -->
         </template>
 
 
@@ -961,7 +1006,8 @@
         return {
             filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all', wa_status: 'all', cross_duplicate: 'all',
             search: '', searchField: 'all', selectedIds: [], activeTab: 'contacts', globalSelect: false,
-            showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false,
+            showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false, showUnsubscribeModal: false,
+            unsubscribeDuration: 'forever',
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
             consolidate: false,
             adding: false, saving: false, scrubbing: false, importJustCompleted: false,
@@ -1128,6 +1174,39 @@
                 url.searchParams.set('source', this.source); url.searchParams.set('archived', this.archived);
                 url.searchParams.set('consolidate', this.consolidate ? '1' : '0');
                 window.location.href = url.toString(); this.showExportModal = false;
+            },
+
+            bulkUnsubscribe() {
+                const count = this.globalSelect 
+                    ? this.stats.total 
+                    : this.selectedIds.length;
+
+                if (!count) return;
+
+                if (!confirm(`Are you sure you want to unsubscribe ${count.toLocaleString()} contact(s)?`)) return;
+
+                fetch(`{{ route('admin.email-lists.bulk-action', $emailList) }}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify({ 
+                        ids: this.selectedIds, 
+                        action: 'unsubscribe',
+                        duration: this.unsubscribeDuration,
+                        global: this.globalSelect,
+                        filters: {
+                            status: this.filter, search: this.search, search_field: this.searchField, 
+                            segment: this.segment, tag: this.tag, source: this.source, 
+                            archived: this.archived, subscription: this.subscription,
+                            channel: this.channel, wa_status: this.wa_status 
+                        }
+                    })
+                }).then(() => { 
+                    this.selectedIds = []; 
+                    this.globalSelect = false; 
+                    this.showUnsubscribeModal = false;
+                    this.fetchEmails(); 
+                    this.refreshStats(); 
+                });
             },
 
             addManualContact() {

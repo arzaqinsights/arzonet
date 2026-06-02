@@ -63,13 +63,17 @@ class CampaignController extends Controller
             ->filter()
             ->values();
 
-        // Fetch unique segments
-        $allSegments = \DB::table('emails')
+        // Fetch unique segments (including auto_segments)
+        $customSegments = \DB::table('emails')
             ->whereNotNull('segment_name')
             ->distinct()
             ->pluck('segment_name')
             ->filter()
-            ->values();
+            ->values()
+            ->toArray();
+
+        $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
+        $allSegments = array_merge($customSegments, $autoSegments);
 
         $templates = Template::all();
         $senders = Sender::all();
@@ -483,12 +487,16 @@ class CampaignController extends Controller
             ->filter()
             ->values();
 
-        $allSegments = \DB::table('emails')
+        $customSegments = \DB::table('emails')
             ->whereNotNull('segment_name')
             ->distinct()
             ->pluck('segment_name')
             ->filter()
-            ->values();
+            ->values()
+            ->toArray();
+
+        $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
+        $allSegments = array_merge($customSegments, $autoSegments);
 
         $templates = Template::all();
         $senders = Sender::all();

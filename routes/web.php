@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\SESWebhookController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UnsubscribeController;
 /*
 |--------------------------------------------------------------------------
 | Public Routes (main domain: email.test / domain.com)
@@ -20,10 +21,13 @@ Route::domain(config('app.domain'))->group(function () {
     Route::get('/refund-policy', fn() => view('landing.refund'))->name('refund');
 });
 
+
 // 2. Public Tracking & Webhooks (Global)
 Route::get('/t/o/{token}', [TrackingController::class, 'open'])->name('track.open');
 Route::get('/t/c/{token}', [TrackingController::class, 'click'])->name('track.click');
 Route::get('/unsubscribe/{token}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
+Route::get('/unsubscribe/confirm/{id}', [UnsubscribeController::class, 'show'])->name('unsubscribe.show');
+Route::post('/unsubscribe/confirm/{id}', [UnsubscribeController::class, 'confirm'])->name('unsubscribe.confirm');
 Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('webhooks.ses');
 // Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::class, 'handleCashfree'])->name('webhooks.cashfree');
 

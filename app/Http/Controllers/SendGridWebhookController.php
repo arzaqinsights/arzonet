@@ -224,6 +224,10 @@ class SendGridWebhookController extends Controller
                     $log->update(['status' => 'deferred', 'error_message' => 'Deferred: ' . ($event['reason'] ?? 'Temporary failure')]);
                     break;
             }
+
+            if ($log && $log->email_id) {
+                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $log->email_id);
+            }
         }
 
         return response()->json(['status' => 'success']);
