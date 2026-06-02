@@ -372,7 +372,8 @@ class FileParserService
     protected function mapSingleRow(array $row, array $mapping, string $listType = 'dual', ?string $originalRowId = null): array
     {
         // --- Separator Regex (comma, semicolon, pipe, slash, newlines, tabs) ---
-        $sep = '/[,|;\/\n\r\t]+/';
+        $emailSep = '/[,|;\/\n\r\t ]+/';
+        $phoneSep = '/[,|;\/\n\r\t]+/';
 
         $emailRaw = $this->resolveValue($row, $mapping, 'email');
         $phoneRaw = $this->resolveValue($row, $mapping, 'whatsapp_number');
@@ -383,8 +384,8 @@ class FileParserService
                         $this->resolveValue($row, $mapping, 'contact');
         }
 
-        $emails = !empty($emailRaw) ? array_filter(array_map('trim', preg_split($sep, $emailRaw, -1, PREG_SPLIT_NO_EMPTY))) : [];
-        $phonesRawList = !empty($phoneRaw) ? array_filter(array_map('trim', preg_split($sep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY))) : [];
+        $emails = !empty($emailRaw) ? array_filter(array_map('trim', preg_split($emailSep, $emailRaw, -1, PREG_SPLIT_NO_EMPTY))) : [];
+        $phonesRawList = !empty($phoneRaw) ? array_filter(array_map('trim', preg_split($phoneSep, $phoneRaw, -1, PREG_SPLIT_NO_EMPTY))) : [];
 
         // --- WhatsApp Pre-Validation ---
         $waValidator = new \App\Services\WhatsAppValidationService();

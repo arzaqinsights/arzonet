@@ -57,6 +57,7 @@ class SegmentService
             ->leftJoin('email_logs', 'emails.id', '=', 'email_logs.email_id')
             ->select([
                 'emails.id',
+                'emails.email',
                 'emails.status',
                 'emails.email_status',
                 'emails.email_score',
@@ -100,99 +101,101 @@ class SegmentService
                 $segments = [];
 
                 // 1. Sent Status
-                if ((int)$contact->logs_count === 0) {
-                    $segments[] = 'Auto: Never Sent';
-                } else {
-                    if ($contact->last_sent) {
-                        $lastSent = Carbon::parse($contact->last_sent);
-                        if ($lastSent->greaterThanOrEqualTo($sevenDaysAgo)) {
-                            $segments[] = 'Auto: Recently Sent (7d)';
-                        }
-                        if ($lastSent->greaterThanOrEqualTo($thirtyDaysAgo)) {
-                            $segments[] = 'Auto: Recently Sent (30d)';
-                        }
-                    }
-                }
-
-                // 2. Open Status
-                if ((int)$contact->logs_count > 0 && (int)$contact->total_opens === 0) {
-                    $segments[] = 'Auto: Never Opened';
-                } else if ((int)$contact->total_opens > 0) {
-                    if ($contact->last_opened) {
-                        $lastOpened = Carbon::parse($contact->last_opened);
-                        if ($lastOpened->greaterThanOrEqualTo($sevenDaysAgo)) {
-                            $segments[] = 'Auto: Recent Opener (7d)';
-                        }
-                        if ($lastOpened->greaterThanOrEqualTo($thirtyDaysAgo)) {
-                            $segments[] = 'Auto: Active Opener (30d)';
-                        } else {
-                            $segments[] = 'Auto: Inactive Opener';
+                if (!empty($contact->email)) {
+                    if ((int)$contact->logs_count === 0) {
+                        $segments[] = 'Auto: Never Sent';
+                    } else {
+                        if ($contact->last_sent) {
+                            $lastSent = Carbon::parse($contact->last_sent);
+                            if ($lastSent->greaterThanOrEqualTo($sevenDaysAgo)) {
+                                $segments[] = 'Auto: Recently Sent (7d)';
+                            }
+                            if ($lastSent->greaterThanOrEqualTo($thirtyDaysAgo)) {
+                                $segments[] = 'Auto: Recently Sent (30d)';
+                            }
                         }
                     }
-                }
 
-                // 3. Click Status
-                if ((int)$contact->logs_count > 0 && (int)$contact->total_clicks === 0) {
-                    $segments[] = 'Auto: Never Clicked';
-                } else if ((int)$contact->total_clicks > 0) {
-                    if ($contact->last_clicked) {
-                        $lastClicked = Carbon::parse($contact->last_clicked);
-                        if ($lastClicked->greaterThanOrEqualTo($sevenDaysAgo)) {
-                            $segments[] = 'Auto: Recent Clicker (7d)';
-                        }
-                        if ($lastClicked->greaterThanOrEqualTo($thirtyDaysAgo)) {
-                            $segments[] = 'Auto: Active Clicker (30d)';
+                    // 2. Open Status
+                    if ((int)$contact->logs_count > 0 && (int)$contact->total_opens === 0) {
+                        $segments[] = 'Auto: Never Opened';
+                    } else if ((int)$contact->total_opens > 0) {
+                        if ($contact->last_opened) {
+                            $lastOpened = Carbon::parse($contact->last_opened);
+                            if ($lastOpened->greaterThanOrEqualTo($sevenDaysAgo)) {
+                                $segments[] = 'Auto: Recent Opener (7d)';
+                            }
+                            if ($lastOpened->greaterThanOrEqualTo($thirtyDaysAgo)) {
+                                $segments[] = 'Auto: Active Opener (30d)';
+                            } else {
+                                $segments[] = 'Auto: Inactive Opener';
+                            }
                         }
                     }
-                }
 
-                // Highly Engaged
-                if ((int)$contact->total_opens >= 5 || (int)$contact->total_clicks >= 2) {
-                    $segments[] = 'Auto: Highly Engaged';
-                }
+                    // 3. Click Status
+                    if ((int)$contact->logs_count > 0 && (int)$contact->total_clicks === 0) {
+                        $segments[] = 'Auto: Never Clicked';
+                    } else if ((int)$contact->total_clicks > 0) {
+                        if ($contact->last_clicked) {
+                            $lastClicked = Carbon::parse($contact->last_clicked);
+                            if ($lastClicked->greaterThanOrEqualTo($sevenDaysAgo)) {
+                                $segments[] = 'Auto: Recent Clicker (7d)';
+                            }
+                            if ($lastClicked->greaterThanOrEqualTo($thirtyDaysAgo)) {
+                                $segments[] = 'Auto: Active Clicker (30d)';
+                            }
+                        }
+                    }
 
-                // Health/Validation
-                if (in_array($contact->email_status, ['hard_bounce', 'soft_bounce']) || (int)$contact->bounce_count > 0) {
-                    $segments[] = 'Auto: Bounced Contact';
-                }
-                if ($contact->email_status === 'hard_bounce') {
-                    $segments[] = 'Auto: Hard Bounce';
-                }
-                if ($contact->email_status === 'soft_bounce') {
-                    $segments[] = 'Auto: Soft Bounce';
-                }
-                if ($contact->subscription_status === 'unsubscribed') {
-                    $segments[] = 'Auto: Unsubscribed Contact';
-                }
-                if ($contact->email_status === 'complaint' || (int)$contact->complaint_count > 0) {
-                    $segments[] = 'Auto: Spam Reporter';
-                }
-                if ($contact->email_status === 'risky' || $contact->email_risk_level === 'high') {
-                    $segments[] = 'Auto: Risky Contact';
-                }
-                if ($contact->is_disposable) {
-                    $segments[] = 'Auto: Disposable Email';
-                }
-                if ($contact->is_role_based) {
-                    $segments[] = 'Auto: Role-Based Email';
-                }
-                if ($contact->is_catch_all) {
-                    $segments[] = 'Auto: Catch-All Email';
-                }
-                if ($contact->has_typo) {
-                    $segments[] = 'Auto: Typo Email';
-                }
-                if ($contact->status === 'valid') {
-                    $segments[] = 'Auto: Valid Email';
-                }
-                if ($contact->status === 'invalid') {
-                    $segments[] = 'Auto: Invalid Email';
-                }
-                if ($contact->email_score >= 4) {
-                    $segments[] = 'Auto: High Quality Email';
-                }
-                if ($contact->email_score <= 2) {
-                    $segments[] = 'Auto: Low Quality Email';
+                    // Highly Engaged
+                    if ((int)$contact->total_opens >= 5 || (int)$contact->total_clicks >= 2) {
+                        $segments[] = 'Auto: Highly Engaged';
+                    }
+
+                    // Health/Validation
+                    if (in_array($contact->email_status, ['hard_bounce', 'soft_bounce']) || (int)$contact->bounce_count > 0) {
+                        $segments[] = 'Auto: Bounced Contact';
+                    }
+                    if ($contact->email_status === 'hard_bounce') {
+                        $segments[] = 'Auto: Hard Bounce';
+                    }
+                    if ($contact->email_status === 'soft_bounce') {
+                        $segments[] = 'Auto: Soft Bounce';
+                    }
+                    if ($contact->subscription_status === 'unsubscribed') {
+                        $segments[] = 'Auto: Unsubscribed Contact';
+                    }
+                    if ($contact->email_status === 'complaint' || (int)$contact->complaint_count > 0) {
+                        $segments[] = 'Auto: Spam Reporter';
+                    }
+                    if ($contact->email_status === 'risky' || $contact->email_risk_level === 'high') {
+                        $segments[] = 'Auto: Risky Contact';
+                    }
+                    if ($contact->is_disposable) {
+                        $segments[] = 'Auto: Disposable Email';
+                    }
+                    if ($contact->is_role_based) {
+                        $segments[] = 'Auto: Role-Based Email';
+                    }
+                    if ($contact->is_catch_all) {
+                        $segments[] = 'Auto: Catch-All Email';
+                    }
+                    if ($contact->has_typo) {
+                        $segments[] = 'Auto: Typo Email';
+                    }
+                    if ($contact->status === 'valid') {
+                        $segments[] = 'Auto: Valid Email';
+                    }
+                    if ($contact->status === 'invalid') {
+                        $segments[] = 'Auto: Invalid Email';
+                    }
+                    if ($contact->email_score >= 4) {
+                        $segments[] = 'Auto: High Quality Email';
+                    }
+                    if ($contact->email_score <= 2) {
+                        $segments[] = 'Auto: Low Quality Email';
+                    }
                 }
 
                 // WhatsApp

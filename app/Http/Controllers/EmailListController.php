@@ -127,15 +127,68 @@ class EmailListController extends Controller
                 'list_type' => EmailList::TYPE_DUAL,
             ]);
 
+            $tags = null;
+            if ($request->filled('manual_tags')) {
+                $tagsArray = array_map('trim', array_filter(explode(',', $request->manual_tags)));
+                $tags = !empty($tagsArray) ? $tagsArray : null;
+            }
+
+            $validator = app(\App\Services\EmailValidationService::class);
+            $validationResults = $validator->validateBatch([
+                [
+                    'email' => $request->manual_email,
+                    'name' => $request->manual_name,
+                    'whatsapp_number' => $request->manual_whatsapp,
+                    'meta' => [],
+                ]
+            ], $emailList->id, false);
+
+            $processedEntry = null;
+            $finalStatus = 'valid';
+            $finalSubStatus = 'subscribed';
+            
+            foreach (['valid', 'invalid', 'duplicate', 'to_restore', 'to_valid', 'cross_duplicate'] as $cat) {
+                if (!empty($validationResults[$cat])) {
+                    $processedEntry = $validationResults[$cat][0];
+                    if ($cat === 'invalid') {
+                        $finalStatus = 'invalid';
+                        $finalSubStatus = 'unsubscribed';
+                    } elseif ($cat === 'cross_duplicate') {
+                        $finalStatus = 'cross_duplicate';
+                    } elseif ($cat === 'duplicate') {
+                        return back()->withErrors(['manual_email' => 'This contact already exists in the current list.']);
+                    }
+                    break;
+                }
+            }
+
+            if (!$processedEntry) {
+                return back()->withErrors(['manual_email' => 'Failed to process email.']);
+            }
+
             Email::create([
                 'user_id' => auth()->id(),
                 'email_list_id' => $emailList->id,
-                'email' => $request->manual_email,
+                'email' => $processedEntry['email'] ?? $request->manual_email,
                 'name' => $request->manual_name,
-                'whatsapp_number' => $request->manual_whatsapp,
-                'status' => 'valid',
-                'subscription_status' => 'subscribed'
+                'whatsapp_number' => $processedEntry['whatsapp_number'] ?? $request->manual_whatsapp,
+                'whatsapp_opt_in' => $processedEntry['whatsapp_opt_in'] ?? true,
+                'whatsapp_subscription_status' => $processedEntry['whatsapp_subscription_status'] ?? 'subscribed',
+                'tags' => $tags,
+                'status' => $finalStatus,
+                'subscription_status' => $finalSubStatus,
+                'email_status' => $processedEntry['email_status'] ?? 'valid',
+                'email_score' => $processedEntry['email_score'] ?? 5,
+                'email_risk_level' => $processedEntry['email_risk_level'] ?? 'low',
+                'is_role_based' => $processedEntry['is_role_based'] ?? false,
+                'is_disposable' => $processedEntry['is_disposable'] ?? false,
+                'is_catch_all' => $processedEntry['is_catch_all'] ?? false,
+                'has_typo' => $processedEntry['has_typo'] ?? false,
+                'validation_reason' => $processedEntry['validation_reason'] ?? null,
+                'meta' => isset($processedEntry['meta']) && !empty($processedEntry['meta']) ? $processedEntry['meta'] : null,
             ]);
+            
+            $emailList->recalculateStats();
 
             return redirect()->route('admin.email-lists.show', $emailList)->with('success', 'Contact added successfully.');
         }
@@ -539,11 +592,44 @@ class EmailListController extends Controller
         return Excel::download(new ContactsExport($query, $extraFields), $filename);
     }
 
-    public function destroyEmail(EmailList $emailList, int $emailId)
+    public function destroyEmail(Request $request, EmailList $emailList, int $emailId)
     {
         $email = $emailList->emails()->findOrFail($emailId);
         $status = $email->status;
         $is_archived = $email->is_archived;
+        
+        $reason = $request->input('reason', 'User requested permanent deletion');
+        
+        $suppressions = [];
+        $now = now()->toDateTimeString();
+        
+        if (!empty($email->email)) {
+            $suppressions[] = [
+                'email_list_id' => $emailList->id,
+                'identifier' => $email->email,
+                'reason' => $reason,
+                'created_at' => $now,
+                'updated_at' => $now
+            ];
+        }
+        if (!empty($email->whatsapp_number)) {
+            $suppressions[] = [
+                'email_list_id' => $emailList->id,
+                'identifier' => $email->whatsapp_number,
+                'reason' => $reason,
+                'created_at' => $now,
+                'updated_at' => $now
+            ];
+        }
+        
+        if (count($suppressions) > 0) {
+            \App\Models\EmailListSuppression::upsert(
+                $suppressions, 
+                ['email_list_id', 'identifier'], 
+                ['reason', 'updated_at']
+            );
+        }
+
         $email->delete();
 
         if (!$is_archived) {
@@ -830,6 +916,89 @@ class EmailListController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function addAlternateChannel(Request $request, EmailList $emailList)
+    {
+        $request->validate([
+            'original_row_id' => 'required|string',
+            'email' => 'nullable|email',
+            'whatsapp_number' => 'nullable|string|max:20'
+        ]);
+
+        if (!$request->email && !$request->whatsapp_number) {
+            return response()->json(['success' => false, 'message' => 'Provide either an email or WhatsApp number.'], 422);
+        }
+
+        // Get the parent/main contact to inherit basic properties
+        $parentContact = $emailList->emails()
+            ->where(function($q) use ($request) {
+                $q->where('original_row_id', $request->original_row_id)
+                  ->orWhere('id', $request->original_row_id);
+            })
+            ->first();
+            
+        if (!$parentContact) {
+            return response()->json(['success' => false, 'message' => 'Parent contact not found.'], 404);
+        }
+
+        // If parent contact doesn't have an original_row_id, generate one and save it
+        $groupId = $parentContact->original_row_id;
+        if (!$groupId) {
+            $groupId = (string) \Illuminate\Support\Str::uuid();
+            $parentContact->update(['original_row_id' => $groupId]);
+        }
+
+        if ($request->email) {
+            $banned = $emailList->emails()->where('email', $request->email)->where('status', 'permanent_delete')->exists();
+            if ($banned) {
+                return response()->json(['success' => false, 'message' => 'This email has been permanently banished from this list.'], 422);
+            }
+        }
+
+        $newContact = $emailList->emails()->create([
+            'user_id' => auth()->id(),
+            'email' => $request->email ?? '',
+            'whatsapp_number' => $request->whatsapp_number,
+            'name' => $parentContact->name,
+            'segment_name' => $parentContact->segment_name,
+            'tags' => $parentContact->tags,
+            'meta' => $parentContact->meta,
+            'signup_source' => 'Manual Entry',
+            'status' => 'valid',
+            'subscription_status' => 'subscribed',
+            'is_archived' => false,
+            'original_row_id' => $groupId,
+        ]);
+
+        $emailList->increment('total_records');
+        $emailList->increment('valid_count');
+
+        \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $newContact->id);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function addCustomColumn(Request $request, EmailList $emailList)
+    {
+        $request->validate([
+            'column_name' => 'required|string|max:100',
+        ]);
+
+        $mapping = $emailList->column_mapping ?? [];
+        
+        // Generate a machine-readable key (e.g., "custom_industry_type")
+        $key = 'custom_' . strtolower(preg_replace('/[^a-zA-Z0-9]+/', '_', $request->column_name));
+        $key = trim($key, '_');
+        
+        // Add if it doesn't already exist
+        if (!isset($mapping[$key])) {
+            $mapping[$key] = $request->column_name;
+            $emailList->column_mapping = $mapping;
+            $emailList->save();
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     public function scrubList(EmailList $emailList)
     {
         // This is a high-performance, atomic SQL approach.
@@ -912,7 +1081,7 @@ class EmailListController extends Controller
     public function bulkAction(Request $request, EmailList $emailList)
     {
         $request->validate([
-            'action' => 'required|in:unsubscribe,archive,unarchive,permanent_delete'
+            'action' => 'required|in:unsubscribe,subscribe,archive,unarchive,permanent_delete,edit_column,update_column'
         ]);
 
         if ($request->global && $request->filters) {
@@ -974,12 +1143,76 @@ class EmailListController extends Controller
             foreach ($emailIds as $id) {
                 \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $id);
             }
+        } elseif ($request->action === 'subscribe') {
+            $emailIds = $emails->pluck('id')->toArray();
+            $emails->update([
+                'subscription_status' => 'subscribed',
+                'unsubscribed_at' => null,
+                'unsubscribe_expires_at' => null
+            ]);
+            foreach ($emailIds as $id) {
+                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $id);
+            }
         } elseif ($request->action === 'archive') {
             $emails->update(['is_archived' => true, 'archived_at' => now()]);
         } elseif ($request->action === 'unarchive') {
             $emails->update(['is_archived' => false, 'archived_at' => null]);
         } elseif ($request->action === 'permanent_delete') {
+            $reason = $request->input('reason', 'User requested permanent deletion');
+            
+            // Get identifiers before deleting
+            $identifiers = [];
+            $emails->chunkById(500, function ($chunk) use (&$identifiers) {
+                foreach ($chunk as $email) {
+                    if (!empty($email->email)) {
+                        $identifiers[] = $email->email;
+                    }
+                    if (!empty($email->whatsapp_number)) {
+                        $identifiers[] = $email->whatsapp_number;
+                    }
+                }
+            });
+            
+            $identifiers = array_unique(array_filter($identifiers));
+            $suppressions = [];
+            $now = now()->toDateTimeString();
+            foreach ($identifiers as $identifier) {
+                $suppressions[] = [
+                    'email_list_id' => $emailList->id,
+                    'identifier' => $identifier,
+                    'reason' => $reason,
+                    'created_at' => $now,
+                    'updated_at' => $now
+                ];
+            }
+            
+            if (count($suppressions) > 0) {
+                \App\Models\EmailListSuppression::upsert(
+                    $suppressions, 
+                    ['email_list_id', 'identifier'], 
+                    ['reason', 'updated_at']
+                );
+            }
+
             $emails->delete();
+        } elseif ($request->action === 'edit_column' || $request->action === 'update_column') {
+            $column = $request->input('column') ?? $request->input('target_column');
+            $value = $request->input('value') ?? $request->input('new_value');
+            if ($column) {
+                // If value is empty or null, we might want to clear it
+                if ($value === null) $value = '';
+                
+                // standard columns
+                if (in_array($column, ['name', 'company', 'job_title', 'phone', 'city', 'tags', 'country'])) {
+                    $emails->update([$column => $value]);
+                } else if (str_starts_with($column, 'custom_')) {
+                    // Updating JSON column 'meta' in bulk
+                    // We can use JSON_SET in MySQL for better performance and atomicity
+                    $emails->update([
+                        'meta' => DB::raw("JSON_SET(COALESCE(meta, '{}'), '$.$column', " . DB::getPdo()->quote($value) . ")")
+                    ]);
+                }
+            }
         }
 
         $emailList->recalculateStats();

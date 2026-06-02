@@ -12,7 +12,7 @@ use App\Jobs\CheckSenderVerificationStatusJob;
 use App\Jobs\UpdateContactSegmentsJob;
 
 Schedule::job(new CheckSenderVerificationStatusJob)->everyTenSeconds();
-Schedule::job(new UpdateContactSegmentsJob)->hourly();
+Schedule::job(new UpdateContactSegmentsJob)->everyTenMinutes();
 
 Schedule::call(function () {
     $expiredIds = \Illuminate\Support\Facades\DB::table('emails')

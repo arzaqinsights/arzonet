@@ -39,6 +39,8 @@ Route::name('admin.')->group(function () {
         Route::put('/{emailList}/emails/{emailId}', [EmailListController::class, 'updateEmail'])->name('update-email');
         Route::delete('/{emailList}/emails/{emailId}', [EmailListController::class, 'destroyEmail'])->name('destroy-email');
         Route::post('/{emailList}/add-contact', [EmailListController::class, 'addContact'])->name('add-contact');
+        Route::post('/{emailList}/add-alternate-channel', [EmailListController::class, 'addAlternateChannel'])->name('add-alternate-channel');
+        Route::post('/{emailList}/add-custom-column', [EmailListController::class, 'addCustomColumn'])->name('add-custom-column');
         Route::post('/{emailList}/import-more', [EmailListController::class, 'importMore'])->name('import-more');
         Route::post('/{emailList}/undo-import/{logId}', [EmailListController::class, 'undoImport'])->name('undo-import');
         Route::post('/{emailList}/scrub', [EmailListController::class, 'scrubList'])->name('scrub');

@@ -162,6 +162,14 @@ class ImportEmailChunkJob implements ShouldQueue
 
     protected function formatEntry($emailList, $entry, $status): array
     {
+        $tagsRaw = $entry['meta']['tags'] ?? null;
+        $tags = null;
+        if ($tagsRaw) {
+            $tagsArray = array_map('trim', array_filter(explode(',', $tagsRaw)));
+            $tags = !empty($tagsArray) ? json_encode($tagsArray) : null;
+            unset($entry['meta']['tags']);
+        }
+
         return [
             'user_id'             => $emailList->user_id,
             'email_list_id'       => $emailList->id,
@@ -173,9 +181,10 @@ class ImportEmailChunkJob implements ShouldQueue
             'subscription_status' => ($status === 'invalid') ? 'unsubscribed' : 'subscribed',
             'signup_source'       => $emailList->signup_source,
             'segment_name'        => $emailList->segment_name,
+            'tags'                => $tags,
             'reason'              => $entry['reason'] ?? null,
             'original_row_id'     => $entry['original_row_id'] ?? null,
-            'meta'                => isset($entry['meta']) ? json_encode($entry['meta']) : null,
+            'meta'                => isset($entry['meta']) && !empty($entry['meta']) ? json_encode($entry['meta']) : null,
             'created_at'          => now(),
             'updated_at'          => now(),
             // New health columns

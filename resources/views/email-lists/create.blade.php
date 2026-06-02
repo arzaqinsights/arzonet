@@ -172,6 +172,11 @@
                                     <label class="block text-xs font-black text-surface-900 uppercase tracking-[0.2em] mb-2">WhatsApp Number (Optional)</label>
                                     <input type="text" name="manual_whatsapp" x-model="manualWhatsApp" class="w-full bg-white border-2 border-gray-200 rounded-sm px-5 py-4 text-sm font-bold text-surface-900 focus:bg-white focus:border-brand transition-all outline-none" placeholder="e.g. 919876543210">
                                 </div>
+                                <div>
+                                    <label class="block text-xs font-black text-surface-900 uppercase tracking-[0.2em] mb-2">Tags (Optional)</label>
+                                    <input type="text" name="manual_tags" x-model="manualTags" class="w-full bg-white border-2 border-gray-200 rounded-sm px-5 py-4 text-sm font-bold text-surface-900 focus:bg-white focus:border-brand transition-all outline-none" placeholder="e.g. VIP, Customer">
+                                    <p class="text-[10px] text-surface-400 font-bold mt-2">Comma separated values.</p>
+                                </div>
                             </div>
                         </div>
 
@@ -205,6 +210,7 @@ function importWizard() {
         manualEmail: '',
         manualName: '',
         manualWhatsApp: '',
+        manualTags: '',
 
         handleFile(e) {
             if (e.target.files.length) {

@@ -144,6 +144,7 @@
                                         </optgroup>
                                         <optgroup label="Internal" class="bg-white">
                                             <option value="segment_name" :disabled="isOptionDisabled('segment_name', '{{ $header }}')" x-text="getOptionText('segment_name', 'Segment', '{{ $header }}')"></option>
+                                            <option value="tags" :disabled="isOptionDisabled('tags', '{{ $header }}')" x-text="getOptionText('tags', 'Tags', '{{ $header }}')"></option>
                                             <option value="signup_source" :disabled="isOptionDisabled('signup_source', '{{ $header }}')" x-text="getOptionText('signup_source', 'Source', '{{ $header }}')"></option>
                                             @for($i = 1; $i <= 10; $i++)
                                                 <option value="custom_{{ $i }}" :disabled="isOptionDisabled('custom_{{ $i }}', '{{ $header }}')" x-text="getOptionText('custom_{{ $i }}', 'Custom Field {{ $i }}', '{{ $header }}')"></option>

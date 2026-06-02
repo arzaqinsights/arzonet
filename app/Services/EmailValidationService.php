@@ -51,11 +51,21 @@ class EmailValidationService
         $batchNames = collect($emailData)->pluck('name')->filter()->map(fn($n) => trim($n))->unique();
 
         $existingNames = collect();
+        $suppressedIdentifiers = collect();
 
         if (!$currentListId) {
             $existingByEmail = collect();
             $existingByPhone = collect();
         } else {
+            $suppressedIdentifiers = \App\Models\EmailListSuppression::where('email_list_id', $currentListId)
+                ->where(function($q) use ($batchEmails, $batchPhones) {
+                    if ($batchEmails->isNotEmpty()) $q->orWhereIn('identifier', $batchEmails);
+                    if ($batchPhones->isNotEmpty()) $q->orWhereIn('identifier', $batchPhones);
+                })
+                ->pluck('identifier')
+                ->map(fn($id) => strtolower(trim($id)))
+                ->flip();
+
             $existingRows = Email::where('email_list_id', $currentListId)
                 ->where(function($q) use ($batchEmails, $batchPhones) {
                     if ($batchEmails->isNotEmpty()) $q->orWhereIn('email', $batchEmails);
@@ -147,6 +157,14 @@ class EmailValidationService
 
             $email = !empty($rawEmail) ? $this->normalizeEmail($rawEmail) : null;
             $entry['email'] = !empty($rawEmail) ? $rawEmail : null;
+            
+            // ── Suppression Check ──
+            if ($email && $suppressedIdentifiers->has(strtolower($email))) {
+                continue;
+            }
+            if ($whatsappNumber && $suppressedIdentifiers->has(strtolower($whatsappNumber))) {
+                continue;
+            }
             $entry['whatsapp_number'] = $whatsappNumber;
             
             // ── Resolve and align original_row_id by name ──

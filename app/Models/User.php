@@ -157,7 +157,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         if ($this->isSuperAdmin()) {
             return (object) [
-                'total' => $this->emails()->count(),
+                'total' => $this->emails()->where('is_archived', false)->count(),
                 'limit' => 999999,
                 'percent' => 0,
                 'is_exceeded' => false,
@@ -166,7 +166,7 @@ class User extends Authenticatable implements MustVerifyEmail
         
         $hasCrm = $this->hasModule('crm');
         $limit = $hasCrm ? (optional($this->subscription)->contacts_limit ?? 0) : 0;
-        $total = $this->emails()->count();
+        $total = $this->emails()->where('is_archived', false)->count();
         return (object) [
             'total' => $total,
             'limit' => $limit,

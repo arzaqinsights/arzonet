@@ -76,6 +76,11 @@
     <div class="space-y-4 animate-slide-up" x-data="emailListView()"
         @keydown.escape.window="showEditModal = false; showImportMoreModal = false; showExportModal = false"
         @open-import-more.window="showImportMoreModal = true" @open-export-modal.window="showExportModal = true"
+        @open-single-permanent-delete.window="openPermanentDeleteModal($event.detail.id)"
+        @open-permanent-delete.window="openPermanentDeleteModal()"
+        @archive-email.window="archiveEmail($event.detail.id)"
+        @unarchive-email.window="unarchiveEmail($event.detail.id)"
+        @open-add-contact.window="openAddContact($event.detail)"
         x-init="@if($emailList->status === 'processing') pollStatus() @endif">
 
         {{-- Tabs Navigation --}}
@@ -523,31 +528,12 @@
 
                     {{-- Actions Container --}}
                     <div class="flex items-center gap-1">
-                        <button @click="showUnsubscribeModal = true"
-                            class="flex items-center gap-2 px-4 py-2.5 hover:bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/80 hover:text-white transition-all cursor-pointer rounded-sm group">
-                            <svg class="w-4 h-4 text-white/20 group-hover:text-amber-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                            </svg>
-                            Unsubscribe
-                        </button>
-                        
-                        <button @click="bulkAction(archived === 'yes' ? 'unarchive' : 'archive')"
-                            class="flex items-center gap-2 px-4 py-2.5 hover:bg-white/5 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer rounded-sm group"
-                            :class="archived === 'yes' ? 'text-emerald-400 hover:text-emerald-300' : 'text-blue-400 hover:text-blue-300'">
-                            <svg class="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" :d="archived === 'yes' ? 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' : 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4'" />
-                            </svg>
-                            <span x-text="archived === 'yes' ? 'Restore to Active' : 'Move to Archive'"></span>
-                        </button>
-
-                        <div class="w-px h-4 bg-white/10 mx-2"></div>
-
-                        <button @click="bulkAction('permanent_delete')"
-                            class="flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer rounded-sm shadow-lg hover:scale-[1.02] active:scale-95">
+                        <button @click="showBulkActionModal = true; bulkActionType = ''; bulkUpdateColumn = ''; bulkUpdateValue = '';"
+                            class="flex items-center gap-2 px-5 py-2.5 bg-brand hover:bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer rounded-sm shadow-lg hover:scale-[1.02] active:scale-95">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                             </svg>
-                            Delete Permanently
+                            Bulk Actions
                         </button>
                     </div>
                 </div>
@@ -589,7 +575,7 @@
                                 </th>
                                 <th class="px-8 py-4 whitespace-nowrap">Full Name</th>
                                 @foreach($displayedFields as $field)
-                                    <th class="px-8 py-4 whitespace-nowrap">{{ str_replace(['_', 'custom_'], [' ', ''], $field) }}</th>
+                                    <th class="px-8 py-4 whitespace-nowrap">{{ $mapping[$field] ?? str_replace(['_', 'custom_'], [' ', ''], $field) }}</th>
                                 @endforeach
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Segment</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Tag</th>
@@ -598,7 +584,11 @@
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Health</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Email Status</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">WA Status</th>
-                                <th class="px-8 py-4 text-right whitespace-nowrap">Action</th>
+                                <th class="px-8 py-4 text-right">
+                                    <button @click="showAddCustomColumnModal = true; newCustomColumnName = ''" class="p-1 hover:bg-gray-100 rounded-sm text-surface-400 hover:text-brand transition-colors" title="Add Custom Column">
+                                        <svg class="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                    </button>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="email-table-body" class="divide-y divide-gray-200">
@@ -858,7 +848,7 @@
                             </button>
                         </div>
 
-                        <div class="p-6" x-data="{ type: 'upload' }">
+                        <div class="p-6" x-data="{ type: 'upload' }" @change-import-tab.window="type = $event.detail.type">
                             <div class="grid grid-cols-3 gap-2 mb-6">
                                 <button @click="type = 'upload'" :class="type === 'upload' ? 'border-brand bg-brand/5 text-brand' : 'border-gray-100 text-surface-400'" class="p-4 border rounded-sm transition-colors cursor-pointer">
                                     <div class="flex flex-col items-center gap-2">
@@ -995,6 +985,273 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Permanent Delete Modal --}}
+            <div x-show="showPermanentDeleteModal" 
+                 class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-surface-900/90 animate-fade-in" 
+                 x-cloak>
+                <div class="bg-white rounded-sm w-full max-w-md overflow-hidden shadow-2xl border border-red-500/20" 
+                     @click.away="showPermanentDeleteModal = false">
+                    
+                    <div class="p-6 border-b border-gray-100 flex items-center justify-between bg-red-50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black text-red-600 tracking-tight">Permanent Deletion</h3>
+                                <p class="text-[10px] text-red-500/80 font-bold uppercase mt-1 tracking-widest">Irreversible Action</p>
+                            </div>
+                        </div>
+                        <button @click="showPermanentDeleteModal = false" class="text-red-400 hover:text-red-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="p-6 space-y-6">
+                        <div class="p-4 bg-red-50 border border-red-100 rounded-sm">
+                            <p class="text-xs font-bold text-red-700">
+                                <span class="block mb-2 font-black">⚠️ DANGER ZONE</span>
+                                You are about to permanently delete 
+                                <span class="text-red-900 font-black text-sm" x-text="deleteTargetId ? '1 contact' : (globalSelect ? stats.total.toLocaleString() : selectedIds.length) + ' contacts'"></span>.
+                            </p>
+                            <ul class="list-disc list-inside mt-3 text-[11px] text-red-600 space-y-1 font-medium">
+                                <li>These contacts cannot be re-imported later.</li>
+                                <li>They will be added to the suppression list.</li>
+                                <li>This action is completely irreversible.</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 border border-gray-200 rounded-sm">
+                            <p class="text-xs font-bold text-surface-600 mb-2">
+                                <i class="fa-solid fa-lightbulb text-amber-500 mr-1"></i>
+                                Recommendation: Archive Instead
+                            </p>
+                            <p class="text-[10px] text-surface-500 mb-3">
+                                Archiving hides the contact and removes it from billing and active audience counts without losing the data forever.
+                            </p>
+                            <button @click="showPermanentDeleteModal = false; deleteTargetId ? archiveEmail(deleteTargetId) : bulkAction('archive')" class="w-full bg-white border border-gray-300 text-surface-700 text-[10px] font-black uppercase tracking-widest py-3 rounded-sm hover:bg-gray-50 transition-colors">
+                                <i class="fa-solid fa-box-archive mr-2"></i> Archive Contacts Instead
+                            </button>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2">Type "PERMANENT DELETE" to confirm</label>
+                            <input type="text" x-model="permanentDeleteConfirmText" class="w-full px-3 py-2 border border-red-200 rounded-sm bg-red-50/50 text-sm font-bold text-red-900 focus:bg-white focus:border-red-500 focus:ring-0 focus:outline-none mb-3" placeholder="PERMANENT DELETE">
+                            
+                            <label class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2">Deletion Reason (Required)</label>
+                            <input type="text" x-model="permanentDeleteReason" class="w-full px-3 py-2 border border-red-200 rounded-sm bg-red-50/50 text-sm font-bold text-red-900 focus:bg-white focus:border-red-500 focus:ring-0 focus:outline-none" placeholder="e.g. GDPR Request, Invalid Data">
+                        </div>
+
+                        <button @click="confirmPermanentDelete()" class="w-full bg-red-600 text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-sm cursor-pointer shadow-lg hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50" :disabled="permanentDeleteConfirmText !== 'PERMANENT DELETE' || !permanentDeleteReason.trim()">
+                            Yes, Permanently Delete Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Add Alternate Channel Modal --}}
+            <div x-show="showAddChannelModal" 
+                 class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/80 animate-fade-in" 
+                 x-cloak>
+                 <div class="bg-white rounded-sm w-full max-w-sm overflow-hidden shadow-xl" @click.away="showAddChannelModal = false">
+                     <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                         <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest" x-text="'Add ' + (addChannelType === 'email' ? 'Email Address' : 'WhatsApp Number')"></h3>
+                         <button @click="showAddChannelModal = false" class="text-surface-400 hover:text-surface-900">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                         </button>
+                     </div>
+                     <div class="p-6">
+                         <form @submit.prevent="submitAddChannel()">
+                             <div class="mb-4">
+                                 <label class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2" x-text="(addChannelType === 'email' ? 'Email Address' : 'WhatsApp Number') + ' *'"></label>
+                                 <input :type="addChannelType === 'email' ? 'email' : 'text'" x-model="addChannelValue" class="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-sm text-sm font-bold focus:bg-white focus:border-brand" required>
+                             </div>
+                             <button type="submit" class="w-full bg-brand text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-sm cursor-pointer" :disabled="addingChannel">
+                                 <span x-show="!addingChannel">Save Channel</span>
+                                 <span x-show="addingChannel">Saving...</span>
+                             </button>
+                         </form>
+                     </div>
+                 </div>
+            </div>
+
+            {{-- Add Custom Column Modal --}}
+            {{-- Bulk Actions Modal --}}
+            <div x-show="showBulkActionModal" 
+                 class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/80 animate-fade-in" 
+                 x-cloak>
+                 <div class="bg-white rounded-sm w-full max-w-md overflow-hidden shadow-xl flex flex-col max-h-[90vh] border border-surface-200" @click.away="showBulkActionModal = false">
+                     
+                     {{-- Header --}}
+                     <div class="p-5 border-b border-surface-100 bg-surface-50/50 flex items-start justify-between shrink-0">
+                         <div class="flex gap-3">
+                             <div class="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                                 <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                             </div>
+                             <div>
+                                 <h3 class="text-sm font-black text-surface-900 tracking-tight uppercase">Bulk Actions</h3>
+                                 <p class="text-[10px] text-surface-500 mt-1 uppercase font-bold tracking-widest">
+                                     <span class="text-brand" x-text="globalSelect ? (archived === 'yes' ? stats.archived.toLocaleString() : stats.total.toLocaleString()) : selectedIds.length"></span> Contacts Selected
+                                 </p>
+                             </div>
+                         </div>
+                         <button @click="showBulkActionModal = false" class="text-surface-400 hover:text-surface-900 p-1 hover:bg-surface-100 rounded-sm transition-colors">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                         </button>
+                     </div>
+
+                     {{-- Body --}}
+                     <div class="p-6 overflow-y-auto bg-white">
+                         <div class="space-y-5">
+                             
+                             {{-- Action Selector --}}
+                             <div>
+                                 <label class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-2">Select Operation</label>
+                                 <div class="relative">
+                                     <select x-model="bulkActionType" class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-surface-900 text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all appearance-none cursor-pointer">
+                                         <option value="">-- Choose an action --</option>
+                                         <option value="subscribe">Subscribe Contacts</option>
+                                         <option value="unsubscribe">Unsubscribe Contacts</option>
+                                         <option value="archive" x-text="archived === 'yes' ? 'Restore to Active' : 'Move to Archive'"></option>
+                                         <option value="delete">Delete Permanently</option>
+                                         <option value="update_column">Update Column Data</option>
+                                     </select>
+                                     <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-surface-400">
+                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+                                     </div>
+                                 </div>
+                                 
+                                 <template x-if="!bulkActionType">
+                                     <div class="mt-3 p-3 bg-blue-50/50 border border-blue-100 rounded-sm flex gap-2 text-blue-800">
+                                         <svg class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                         <p class="text-[10px] font-semibold">Select an action from the dropdown above to see more options. Updates apply to all selected contacts.</p>
+                                     </div>
+                                 </template>
+                             </div>
+
+                             {{-- Action Specific Fields --}}
+                             <template x-if="bulkActionType === 'unsubscribe'">
+                                 <div class="bg-amber-50 border border-amber-200 p-4 rounded-sm animate-fade-in shadow-sm">
+                                     <div class="flex items-center gap-2 mb-3 text-amber-800">
+                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                         <h4 class="font-bold text-xs">Unsubscribe Config</h4>
+                                     </div>
+                                     <label class="block text-[10px] font-black text-amber-900 uppercase tracking-widest mb-1.5">Duration</label>
+                                     <select x-model="unsubscribeDuration" class="w-full px-3 py-2 bg-white border border-amber-200 rounded-sm text-sm font-bold focus:border-amber-500 focus:ring-0 text-amber-900 transition-all">
+                                         <option value="permanent">Permanent</option>
+                                         <option value="7_days">Temporary (7 Days)</option>
+                                         <option value="30_days">Temporary (30 Days)</option>
+                                     </select>
+                                     <p class="text-[10px] text-amber-700 mt-2 font-semibold">Contacts won't receive campaigns during this period.</p>
+                                 </div>
+                             </template>
+
+                             <template x-if="bulkActionType === 'delete'">
+                                 <div class="bg-red-50 border border-red-200 p-4 rounded-sm animate-fade-in shadow-sm space-y-3">
+                                     <div class="flex items-start gap-2">
+                                         <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                         </div>
+                                         <div>
+                                            <h4 class="font-black text-red-800 text-xs tracking-tight">Warning</h4>
+                                            <p class="text-[10px] text-red-700 font-semibold mt-0.5">Contacts will be permanently deleted and blocked from future imports.</p>
+                                         </div>
+                                     </div>
+                                     
+                                     <div class="space-y-3 pt-3 border-t border-red-200/50">
+                                         <div>
+                                             <label class="block text-[10px] font-black text-red-900 uppercase tracking-widest mb-1.5">Type "PERMANENT DELETE"</label>
+                                             <input type="text" x-model="permanentDeleteConfirmText" class="w-full px-3 py-2 border border-red-300 rounded-sm bg-white text-sm font-bold text-red-900 focus:border-red-500 focus:ring-0 transition-all placeholder:text-red-300" placeholder="PERMANENT DELETE">
+                                         </div>
+                                         
+                                         <div>
+                                             <label class="block text-[10px] font-black text-red-900 uppercase tracking-widest mb-1.5">Deletion Reason</label>
+                                             <input type="text" x-model="permanentDeleteReason" class="w-full px-3 py-2 border border-red-300 rounded-sm bg-white text-sm font-bold text-red-900 focus:border-red-500 focus:ring-0 transition-all placeholder:text-red-300" placeholder="e.g. GDPR Request">
+                                         </div>
+                                     </div>
+                                 </div>
+                             </template>
+
+                             <template x-if="bulkActionType === 'update_column'">
+                                 <div class="bg-blue-50 border border-blue-200 p-4 rounded-sm animate-fade-in shadow-sm space-y-4">
+                                     <div class="flex items-center gap-2 text-blue-800 mb-2">
+                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                         <h4 class="font-bold text-xs">Column Data</h4>
+                                     </div>
+
+                                     <div>
+                                         <label class="block text-[10px] font-black text-blue-900 uppercase tracking-widest mb-1.5">Select Column</label>
+                                         <div class="relative">
+                                            <select x-model="bulkUpdateColumn" class="w-full pl-3 pr-8 py-2 bg-white border border-blue-200 rounded-sm text-sm font-bold focus:border-blue-500 focus:ring-0 text-blue-900 transition-all appearance-none">
+                                                <option value="">-- Select Column --</option>
+                                                <option value="name">Full Name</option>
+                                                <option value="company">Company</option>
+                                                <option value="job_title">Job Title</option>
+                                                <option value="phone">Phone / Landline</option>
+                                                <option value="city">City</option>
+                                                <option value="country">Country</option>
+                                                @foreach($displayedFields as $field)
+                                                    @if(!in_array($field, ['name', 'company', 'job_title', 'phone', 'city', 'country']))
+                                                        <option value="{{ $field }}">{{ $mapping[$field] ?? str_replace(['_', 'custom_'], [' ', ''], $field) }}</option>
+                                                    @endif
+                                                @endforeach
+                                            </select>
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-blue-400">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+                                            </div>
+                                         </div>
+                                     </div>
+                                     <div>
+                                         <label class="block text-[10px] font-black text-blue-900 uppercase tracking-widest mb-1.5">New Value</label>
+                                         <input type="text" x-model="bulkUpdateValue" class="w-full px-3 py-2 border border-blue-300 rounded-sm bg-white text-sm font-bold text-blue-900 focus:border-blue-500 focus:ring-0 transition-all placeholder:text-blue-300" placeholder="Leave blank to clear data">
+                                         <p class="text-[10px] text-blue-700 mt-1.5 font-semibold">Leaving this blank will empty the column.</p>
+                                     </div>
+                                 </div>
+                             </template>
+                         </div>
+                     </div>
+                     
+                     {{-- Footer Actions --}}
+                     <div class="p-5 border-t border-surface-100 bg-surface-50 flex justify-end gap-2 shrink-0">
+                         <button @click="showBulkActionModal = false" class="px-5 py-2 bg-white border border-surface-200 text-surface-600 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-surface-100 transition-colors">
+                             Cancel
+                         </button>
+                         <button @click="executeBulkAction()" 
+                                 class="px-5 py-2 text-white text-[10px] font-black uppercase tracking-widest rounded-sm shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 flex items-center gap-2"
+                                 :class="bulkActionType === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-brand hover:bg-brand-600'"
+                                 :disabled="!bulkActionType || (bulkActionType === 'delete' && (permanentDeleteConfirmText !== 'PERMANENT DELETE' || !permanentDeleteReason.trim())) || (bulkActionType === 'update_column' && !bulkUpdateColumn)">
+                             <span x-text="bulkActionType === 'delete' ? 'Delete Permanently' : 'Apply Action'"></span>
+                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                         </button>
+                     </div>
+                 </div>
+            </div>
+
+            <div x-show="showAddCustomColumnModal" 
+                 class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/80 animate-fade-in" 
+                 x-cloak>
+                 <div class="bg-white rounded-sm w-full max-w-sm overflow-hidden shadow-xl" @click.away="showAddCustomColumnModal = false">
+                     <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                         <h3 class="text-sm font-black text-surface-900 uppercase tracking-widest">Add Custom Column</h3>
+                         <button @click="showAddCustomColumnModal = false" class="text-surface-400 hover:text-surface-900">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                         </button>
+                     </div>
+                     <div class="p-6">
+                         <form @submit.prevent="addCustomColumn()">
+                             <div class="mb-4">
+                                 <label class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2">Column Name *</label>
+                                 <input type="text" x-model="newCustomColumnName" class="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-sm text-sm font-bold focus:bg-white focus:border-brand" placeholder="e.g. Industry, Company Size" required>
+                             </div>
+                             <button type="submit" class="w-full bg-brand text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-sm cursor-pointer" :disabled="addingCustomColumn">
+                                 <span x-show="!addingCustomColumn">Add Column</span>
+                                 <span x-show="addingCustomColumn">Adding...</span>
+                             </button>
+                         </form>
+                     </div>
+                 </div>
+            </div>
             </div> <!-- Closing teleport wrapper div -->
         </template>
 
@@ -1006,8 +1263,30 @@
         return {
             filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all', wa_status: 'all', cross_duplicate: 'all',
             search: '', searchField: 'all', selectedIds: [], activeTab: 'contacts', globalSelect: false,
-            showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false, showUnsubscribeModal: false,
-            unsubscribeDuration: 'forever',
+            showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false, 
+            showAddCustomColumnModal: false, newCustomColumnName: '', addingCustomColumn: false,
+            channel: '{{ request("channel", "all") }}',
+            wa_status: '{{ request("wa_status", "all") }}',
+            
+            showUnsubscribeModal: false,
+            unsubscribeDuration: 'permanent',
+            
+            showPermanentDeleteModal: false,
+            permanentDeleteReason: 'User requested permanent deletion',
+            permanentDeleteConfirmText: '',
+            deleteTargetId: null,
+
+            showBulkActionModal: false,
+            bulkActionType: '', 
+            bulkUpdateColumn: '',
+            bulkUpdateValue: '',
+
+            showAddChannelModal: false,
+            addChannelType: 'email',
+            addChannelValue: '',
+            addChannelOriginalRowId: '',
+            addingChannel: false,
+            
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
             consolidate: false,
             adding: false, saving: false, scrubbing: false, importJustCompleted: false,
@@ -1176,22 +1455,38 @@
                 window.location.href = url.toString(); this.showExportModal = false;
             },
 
-            bulkUnsubscribe() {
+            executeBulkAction() {
                 const count = this.globalSelect 
                     ? this.stats.total 
                     : this.selectedIds.length;
 
                 if (!count) return;
 
-                if (!confirm(`Are you sure you want to unsubscribe ${count.toLocaleString()} contact(s)?`)) return;
+                let actionName = this.bulkActionType;
+                let confirmMsg = `Are you sure you want to ${actionName} ${count.toLocaleString()} contact(s)?`;
+                
+                if (actionName === 'delete') {
+                    if (this.permanentDeleteConfirmText !== 'PERMANENT DELETE' || !this.permanentDeleteReason.trim()) return;
+                    confirmMsg = `WARNING: You are about to PERMANENTLY DELETE ${count.toLocaleString()} contact(s). Proceed?`;
+                } else if (actionName === 'update_column') {
+                    if (!this.bulkUpdateColumn) return;
+                    confirmMsg = `Are you sure you want to update the column '${this.bulkUpdateColumn}' for ${count.toLocaleString()} contact(s)?`;
+                } else if (actionName === 'archive') {
+                    confirmMsg = `Are you sure you want to move ${count.toLocaleString()} contact(s) to archive?`;
+                }
+
+                if (!confirm(confirmMsg)) return;
 
                 fetch(`{{ route('admin.email-lists.bulk-action', $emailList) }}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                     body: JSON.stringify({ 
                         ids: this.selectedIds, 
-                        action: 'unsubscribe',
-                        duration: this.unsubscribeDuration,
+                        action: actionName,
+                        duration: this.unsubscribeDuration, // for unsubscribe
+                        delete_reason: this.permanentDeleteReason, // for delete
+                        target_column: this.bulkUpdateColumn, // for update_column
+                        new_value: this.bulkUpdateValue, // for update_column
                         global: this.globalSelect,
                         filters: {
                             status: this.filter, search: this.search, search_field: this.searchField, 
@@ -1203,7 +1498,15 @@
                 }).then(() => { 
                     this.selectedIds = []; 
                     this.globalSelect = false; 
-                    this.showUnsubscribeModal = false;
+                    this.showBulkActionModal = false;
+                    
+                    // Reset modal state
+                    this.bulkActionType = '';
+                    this.bulkUpdateColumn = '';
+                    this.bulkUpdateValue = '';
+                    this.permanentDeleteConfirmText = '';
+                    this.permanentDeleteReason = 'User requested permanent deletion';
+                    
                     this.fetchEmails(); 
                     this.refreshStats(); 
                 });
@@ -1299,19 +1602,145 @@
                 }, 2000);
             },
 
-            deleteEmail(id) {
-                if (!confirm('Are you sure you want to delete this contact?')) return;
-                fetch(`{{ route('admin.email-lists.destroy-email', [$emailList, ':id']) }}`.replace(':id', id), {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                }).then(r => r.json()).then(data => {
+            singleAction(action, id) {
+                fetch('{{ route("admin.email-lists.bulk-action", $emailList) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify({ 
+                        ids: [id], 
+                        action: action,
+                        global: false,
+                        filters: {}
+                    })
+                }).then(() => { 
+                    this.fetchEmails(); 
+                    this.refreshStats(); 
+                });
+            },
+
+            addCustomColumn() {
+                if (!this.newCustomColumnName.trim()) {
+                    alert('Please enter a column name.');
+                    return;
+                }
+                this.addingCustomColumn = true;
+                fetch('{{ route("admin.email-lists.add-custom-column", $emailList) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify({ column_name: this.newCustomColumnName })
+                }).then(res => res.json()).then(data => {
                     if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error adding column');
+                        this.addingCustomColumn = false;
+                    }
+                }).catch(() => {
+                    alert('Network error');
+                    this.addingCustomColumn = false;
+                });
+            },
+
+            archiveEmail(id) {
+                if (!confirm('Are you sure you want to archive this contact? It will no longer be visible in your active lists or billing counts.')) return;
+                this.singleAction('archive', id);
+            },
+
+            unarchiveEmail(id) {
+                this.singleAction('unarchive', id);
+            },
+
+            openPermanentDeleteModal(id = null) {
+                this.deleteTargetId = id;
+                this.permanentDeleteReason = 'User requested permanent deletion';
+                this.permanentDeleteConfirmText = '';
+                this.showPermanentDeleteModal = true;
+            },
+
+            openAddContact(detail) {
+                if (!detail.original_row_id) {
+                    alert('Cannot add sub-row because main row ID is missing.');
+                    return;
+                }
+                this.addChannelType = detail.type; // 'email' or 'whatsapp'
+                this.addChannelOriginalRowId = detail.original_row_id;
+                this.addChannelValue = '';
+                this.showAddChannelModal = true;
+            },
+
+            submitAddChannel() {
+                this.addingChannel = true;
+                const payload = { original_row_id: this.addChannelOriginalRowId };
+                if (this.addChannelType === 'email') payload.email = this.addChannelValue;
+                else payload.whatsapp_number = this.addChannelValue;
+                
+                fetch('{{ route("admin.email-lists.add-alternate-channel", $emailList) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify(payload)
+                }).then(r => r.json()).then(res => {
+                    this.addingChannel = false;
+                    if(res.success) {
+                        this.showAddChannelModal = false;
                         this.fetchEmails();
                         this.refreshStats();
+                    } else {
+                        alert(res.message || 'An error occurred.');
                     }
-                });
+                }).catch(() => { this.addingChannel = false; });
+            },
+
+            confirmPermanentDelete() {
+                if (this.permanentDeleteConfirmText !== 'PERMANENT DELETE') {
+                    alert('Please type PERMANENT DELETE to confirm.');
+                    return;
+                }
+                if (!this.permanentDeleteReason.trim()) {
+                    alert('Please provide a reason for permanent deletion.');
+                    return;
+                }
+                
+                if (this.deleteTargetId) {
+                    // Single delete
+                    fetch(`{{ route('admin.email-lists.destroy-email', [$emailList, ':id']) }}`.replace(':id', this.deleteTargetId), {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({ reason: this.permanentDeleteReason })
+                    }).then(r => r.json()).then(data => {
+                        this.showPermanentDeleteModal = false;
+                        if (data.success) {
+                            this.fetchEmails();
+                            this.refreshStats();
+                        }
+                    });
+                } else {
+                    // Bulk delete
+                    fetch('{{ route("admin.email-lists.bulk-action", $emailList) }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        body: JSON.stringify({ 
+                            ids: this.selectedIds, 
+                            action: 'permanent_delete',
+                            reason: this.permanentDeleteReason,
+                            global: this.globalSelect,
+                            filters: {
+                                status: this.filter, search: this.search, search_field: this.searchField, 
+                                segment: this.segment, tag: this.tag, source: this.source, 
+                                archived: this.archived, subscription: this.subscription,
+                                channel: this.channel, wa_status: this.wa_status 
+                            }
+                        })
+                    }).then(() => { 
+                        this.selectedIds = []; 
+                        this.globalSelect = false; 
+                        this.showPermanentDeleteModal = false;
+                        this.fetchEmails(); 
+                        this.refreshStats(); 
+                    });
+                }
             },
 
 

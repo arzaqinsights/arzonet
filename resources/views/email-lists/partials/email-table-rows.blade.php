@@ -57,6 +57,7 @@
 
 @foreach($groupedEmails as $groupKey => $groupItems)
     @php
+        $groupItems = $groupItems->sortBy('id')->values();
         $firstItem = $groupItems->first();
         $groupSize = $groupItems->count();
         $mapping = $emailList->column_mapping ?? [];
@@ -95,6 +96,7 @@
                     unsubscribe_duration: 'forever',
                     whatsapp_subscription_status: '{{ $email->whatsapp_subscription_status ?? 'subscribed' }}',
                     is_archived: {{ $email->is_archived ? 'true' : 'false' }},
+                    original_row_id: '{{ $email->original_row_id }}' || '{{ $email->id }}',
                     meta: @js($email->meta ?? [])
                 },
                 save() {
@@ -172,13 +174,18 @@
 
             {{-- Segment Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
-                <template x-if="!editing">
+                <div>
                     <div class="flex flex-col items-center gap-1">
-                        <div class="text-[10px] font-bold text-surface-600 uppercase tracking-widest mb-0.5" x-text="row.segment_name || '—'"></div>
+                        <template x-if="!row.auto_segments || row.auto_segments.length === 0">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase tracking-widest">—</span>
+                        </template>
                         
                         <!-- Dynamic tooltip for auto segments -->
                         <template x-if="row.auto_segments && row.auto_segments.length > 0">
-                            <div class="segment-tooltip">
+                            <div x-data="{ tooltipOpen: false, mouseX: 0, mouseY: 0 }" 
+                                 @mouseenter="tooltipOpen = true" 
+                                 @mouseleave="tooltipOpen = false"
+                                 @mousemove="mouseX = $event.clientX; mouseY = $event.clientY">
                                 <div class="flex items-center gap-1 justify-center cursor-help">
                                     <!-- Show the first auto segment -->
                                     <span class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50" 
@@ -192,36 +199,62 @@
                                 </div>
                                 
                                 <!-- Tooltip Content -->
-                                <div class="tooltip-content shadow-2xl">
-                                    <p class="text-[8px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-700/50 pb-1 mb-1.5">Dynamic Segments</p>
-                                    <div class="flex flex-col gap-1.5">
-                                        <template x-for="seg in row.auto_segments" :key="seg">
-                                            <div class="flex items-center gap-1.5 text-[9px] font-semibold text-slate-200">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                                                <span x-text="seg.replace('Auto: ', '')"></span>
-                                            </div>
-                                        </template>
+                                <template x-teleport="body">
+                                    <div x-show="tooltipOpen" 
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="opacity-0 translate-y-1"
+                                         x-transition:enter-end="opacity-100 translate-y-0"
+                                         x-transition:leave="transition ease-in duration-75"
+                                         x-transition:leave-start="opacity-100 translate-y-0"
+                                         x-transition:leave-end="opacity-0 translate-y-1"
+                                         class="fixed z-[99999] pointer-events-none"
+                                         :style="`top: ${mouseY + 15}px; left: ${mouseX}px; transform: translateX(-50%);`">
+                                         
+                                        <div class="bg-slate-900 text-white p-2.5 rounded-sm border border-slate-700 shadow-2xl min-w-[120px] text-left flex flex-col">
+                                            <template x-if="row.auto_segments.some(s => !s.toLowerCase().includes('whatsapp'))">
+                                                <div class="mb-2">
+                                                    <p class="text-[8px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-700/50 pb-1 mb-1.5">Email Segments</p>
+                                                    <div class="flex flex-col gap-1.5">
+                                                        <template x-for="seg in row.auto_segments.filter(s => !s.toLowerCase().includes('whatsapp'))" :key="seg">
+                                                            <div class="flex items-center gap-1.5 text-[9px] font-semibold text-slate-200">
+                                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
+                                                                <span x-text="seg.replace('Auto: ', '')"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            
+                                            <template x-if="row.auto_segments.some(s => s.toLowerCase().includes('whatsapp'))">
+                                                <div>
+                                                    <p class="text-[8px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-700/50 pb-1 mb-1.5 mt-1">WhatsApp Segments</p>
+                                                    <div class="flex flex-col gap-1.5">
+                                                        <template x-for="seg in row.auto_segments.filter(s => s.toLowerCase().includes('whatsapp'))" :key="seg">
+                                                            <div class="flex items-center gap-1.5 text-[9px] font-semibold text-slate-200">
+                                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                                                                <span x-text="seg.replace('Auto: ', '')"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
                                     </div>
-                                </div>
+                                </template>
                             </div>
                         </template>
                     </div>
-                </template>
-                <template x-if="editing">
-                    <input type="text" x-model="row.segment_name" class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[10px] font-bold focus:ring-0 focus:outline-none">
-                </template>
+                </div>
             </td>
 
             {{-- Tag Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
-                @if($isMaster)
-                    <template x-if="!editing">
-                        <div class="inline-flex px-2 py-0.5 rounded-sm bg-brand/5 text-brand text-[9px] font-black uppercase tracking-widest border border-brand/10" x-text="row.tags || '—'"></div>
-                    </template>
-                    <template x-if="editing">
-                        <input type="text" x-model="row.tags" class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[9px] font-bold uppercase focus:ring-0 focus:outline-none">
-                    </template>
-                @endif
+                <template x-if="!editing">
+                    <div class="inline-flex px-2 py-0.5 rounded-sm bg-brand/5 text-brand text-[9px] font-black uppercase tracking-widest border border-brand/10" x-text="row.tags || '—'"></div>
+                </template>
+                <template x-if="editing">
+                    <input type="text" x-model="row.tags" class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[9px] font-bold uppercase focus:ring-0 focus:outline-none">
+                </template>
             </td>
 
             {{-- Email Column --}}
@@ -366,13 +399,52 @@
             <td class="px-8 py-4 text-right">
                 <div class="flex justify-end gap-1">
                     <template x-if="!editing">
-                        <div class="flex gap-1">
-                            <button @click="editing = true" class="p-2 text-surface-400 hover:text-brand hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <div x-data="{ open: false }" class="relative" @click.outside="open = false">
+                            <button @click="open = !open" class="p-2 text-surface-400 hover:text-brand hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
                             </button>
-                            <button @click="deleteEmail(row.id)" class="p-2 text-surface-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-gray-100 rounded-sm transition-all">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                            </button>
+                            
+                            <!-- Dropdown Menu -->
+                            <div x-show="open" x-transition x-cloak style="display: none;"
+                                 class="absolute right-0 top-full mt-1 w-48 bg-white rounded-sm shadow-lg border border-gray-100 py-1 z-50 text-left">
+                                 
+                                <button @click="editing = true; open = false" class="w-full flex items-center px-4 py-2 text-[10px] font-black uppercase tracking-widest text-surface-600 hover:bg-surface-50 hover:text-brand transition-colors">
+                                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    Edit Profile
+                                </button>
+                                
+                                @if($isMaster)
+                                <button @click="$dispatch('open-add-contact', { original_row_id: row.original_row_id, type: 'email' }); open = false" class="w-full flex items-center px-4 py-2 text-[10px] font-black uppercase tracking-widest text-surface-600 hover:bg-surface-50 transition-colors">
+                                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                    Add Email
+                                </button>
+                                <button @click="$dispatch('open-add-contact', { original_row_id: row.original_row_id, type: 'whatsapp' }); open = false" class="w-full flex items-center px-4 py-2 text-[10px] font-black uppercase tracking-widest text-surface-600 hover:bg-surface-50 transition-colors">
+                                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                                    Add WhatsApp
+                                </button>
+                                @endif
+                                
+                                <template x-if="!row.is_archived">
+                                    <button @click="$dispatch('archive-email', { id: row.id }); open = false" class="w-full flex items-center px-4 py-2 text-[10px] font-black uppercase tracking-widest text-amber-600 hover:bg-amber-50 transition-colors">
+                                        <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                                        Archive
+                                    </button>
+                                </template>
+                                
+                                <template x-if="row.is_archived">
+                                    <button @click="$dispatch('unarchive-email', { id: row.id }); open = false" class="w-full flex items-center px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 transition-colors">
+                                        <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                        Restore Active
+                                    </button>
+                                </template>
+                                
+                                <div class="h-px bg-gray-100 my-1"></div>
+                                
+                                <button @click="$dispatch('open-single-permanent-delete', { id: row.id }); open = false" class="w-full flex items-center px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50 transition-colors">
+                                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    Permanent Delete
+                                </button>
+                            </div>
                         </div>
                     </template>
                     <template x-if="editing">
