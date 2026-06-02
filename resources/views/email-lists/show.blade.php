@@ -1113,7 +1113,7 @@
                                          <option value="">-- Choose an action --</option>
                                          <option value="subscribe">Subscribe Contacts</option>
                                          <option value="unsubscribe">Unsubscribe Contacts</option>
-                                         <option value="archive" x-text="archived === 'yes' ? 'Restore to Active' : 'Move to Archive'"></option>
+                                         <option :value="archived === 'yes' ? 'unarchive' : 'archive'" x-text="archived === 'yes' ? 'Restore to Active' : 'Move to Archive'"></option>
                                          <option value="delete">Delete Permanently</option>
                                          <option value="update_column">Update Column Data</option>
                                      </select>
@@ -1473,6 +1473,8 @@
                     confirmMsg = `Are you sure you want to update the column '${this.bulkUpdateColumn}' for ${count.toLocaleString()} contact(s)?`;
                 } else if (actionName === 'archive') {
                     confirmMsg = `Are you sure you want to move ${count.toLocaleString()} contact(s) to archive?`;
+                } else if (actionName === 'unarchive') {
+                    confirmMsg = `Are you sure you want to restore ${count.toLocaleString()} contact(s) to active?`;
                 }
 
                 if (!confirm(confirmMsg)) return;

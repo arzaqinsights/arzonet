@@ -1157,9 +1157,11 @@ class EmailListController extends Controller
             $emails->update(['is_archived' => true, 'archived_at' => now()]);
         } elseif ($request->action === 'unarchive') {
             $emails->update(['is_archived' => false, 'archived_at' => null]);
-        } elseif ($request->action === 'permanent_delete') {
-            $reason = $request->input('reason', 'User requested permanent deletion');
+        } elseif ($request->action === 'permanent_delete' || $request->action === 'delete') {
+            $reason = $request->input('delete_reason', $request->input('reason', 'User requested permanent deletion'));
             
+            $deleteQuery = clone $emails;
+
             // Get identifiers before deleting
             $identifiers = [];
             $emails->chunkById(500, function ($chunk) use (&$identifiers) {
@@ -1194,7 +1196,7 @@ class EmailListController extends Controller
                 );
             }
 
-            $emails->delete();
+            $deleteQuery->delete();
         } elseif ($request->action === 'edit_column' || $request->action === 'update_column') {
             $column = $request->input('column') ?? $request->input('target_column');
             $value = $request->input('value') ?? $request->input('new_value');

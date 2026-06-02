@@ -105,14 +105,16 @@
                 @forelse($lists as $list)
                     <div
                         class="bg-white border border-gray-100 rounded-sm p-4 hover:border-brand/20 transition-all group relative">
-                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
                             {{-- Identity --}}
-                            <div class="lg:col-span-3">
+                            <div class="lg:col-span-4">
                                 <div class="flex items-start gap-4">
                                     <div x-data="{ 
                                         isEditing: false, 
                                         newName: '{{ addslashes($list->name) }}', 
                                         isSaving: false,
+                                        showDeleteConfirm: false,
+                                        deleteText: '',
                                         updateName() {
                                             if (this.newName.trim() === '' || this.newName === '{{ addslashes($list->name) }}') {
                                                 this.isEditing = false;
@@ -137,11 +139,11 @@
                                                 this.isEditing = false;
                                             });
                                         }
-                                    }" class="w-full">
+                                    }" class="w-full flex-1">
                                         <template x-if="!isEditing">
                                                 <div class="flex items-center gap-2">
                                                     <a href="{{ route('admin.email-lists.show', $list) }}"
-                                                        class="text-lg font-semibold uppercase text-surface-900 hover:text-brand transition-colors block truncate" x-text="newName"></a>
+                                                        class="text-base font-black uppercase tracking-tight text-surface-900 hover:text-brand transition-colors block truncate" x-text="newName"></a>
                                                     
                                                     @if($list->list_type === 'email')
                                                         <span class="bg-primary-50 text-primary-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-sm border border-primary-100 flex items-center gap-1">
@@ -160,89 +162,67 @@
                                                         </span>
                                                     @endif
 
-                                                    <button @click="isEditing = true" class="text-surface-300 hover:text-brand transition-colors opacity-0 group-hover/edit:opacity-100 p-1 flex-shrink-0">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                                    <button @click="isEditing = true" class="text-surface-300 hover:text-brand transition-colors opacity-0 group-hover:opacity-100 p-1 flex-shrink-0">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                                     </button>
                                                 </div>
                                         </template>
                                         <template x-if="isEditing">
                                             <div class="flex items-center gap-2">
-                                                <input type="text" x-model="newName" @keydown.enter="updateName()" @keydown.escape="isEditing = false; newName = '{{ addslashes($list->name) }}'" class="text-lg font-semibold uppercase text-surface-900 border-b-2 border-brand focus:outline-none bg-transparent w-full pb-0.5" :disabled="isSaving" x-init="$el.focus()">
+                                                <input type="text" x-model="newName" @keydown.enter="updateName()" @keydown.escape="isEditing = false; newName = '{{ addslashes($list->name) }}'" class="text-base font-black uppercase tracking-tight text-surface-900 border-b-2 border-brand focus:outline-none bg-transparent w-full pb-0.5" :disabled="isSaving" x-init="$el.focus()">
                                                 <span x-show="isSaving" class="text-brand flex-shrink-0">
                                                     <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                                 </span>
                                             </div>
                                         </template>
-                                        <div class="flex items-center gap-2 mt-1 w-full">
-                                            <span
-                                                class="text-[10px] text-surface-600 uppercase tracking-widest">{{str($list->original_filename ?: 'Manual Intake')->limit(20) }}</span>
+                                        <div class="flex items-center gap-2 mt-1.5 w-full">
+                                            <span class="text-[9px] text-surface-500 uppercase font-bold tracking-widest">{{str($list->original_filename ?: 'Manual Intake')->limit(20) }}</span>
                                             <span class="text-surface-200">•</span>
-                                            <span
-                                                class="text-[10px] text-surface-600 uppercase tracking-widest">{{ $list->created_at->format('M d, Y') }}</span>
+                                            <span class="text-[9px] text-surface-500 uppercase font-bold tracking-widest">{{ $list->created_at->format('M d, Y') }}</span>
+                                        </div>
+
+                                        {{-- Delete Confirmation Modal using Alpine teleport (placed inside the x-data scope but renders relative/absolute) --}}
+                                        <div x-show="showDeleteConfirm" @click.away="showDeleteConfirm = false; deleteText = ''" class="absolute left-4 top-full mt-2 w-72 bg-white border border-red-200 rounded-sm shadow-xl p-4 z-50 animate-fade-in" x-cloak>
+                                            <p class="text-[10px] font-black text-red-600 uppercase tracking-widest mb-2">Irreversible Action</p>
+                                            <p class="text-[10px] font-bold text-red-800 mb-3">Type "DELETE" below to confirm removal of this list and all its contacts.</p>
+                                            <input type="text" x-model="deleteText" class="w-full px-3 py-2 border border-red-200 rounded-sm text-xs font-bold focus:border-red-500 focus:ring-0 mb-3 uppercase text-red-900" placeholder="DELETE">
+                                            <div class="flex gap-2">
+                                                <button @click="showDeleteConfirm = false; deleteText = ''" class="flex-1 px-3 py-2 bg-gray-50 text-surface-600 text-[10px] font-black uppercase tracking-widest rounded-sm border border-gray-200 hover:bg-gray-100">Cancel</button>
+                                                <form action="{{ route('admin.email-lists.destroy', $list) }}" method="POST" class="flex-1">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="w-full px-3 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-sm disabled:opacity-50 hover:bg-red-700 transition-colors" :disabled="deleteText !== 'DELETE'">Confirm</button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {{-- Health Analytics --}}
-                            <div class="lg:col-span-3">
-                                <div class="flex items-center gap-8">
-                                    <div>
-                                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-2">
-                                            Contacts</p>
-                                        <h4 class="text-2xl font-black text-surface-900 leading-none">
-                                            {{ number_format($list->total_records) }}</h4>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-2">Health
-                                            Matrix</p>
-                                        <div
-                                            class="flex h-2 w-full rounded-full overflow-hidden bg-gray-50 border border-gray-100">
-                                            <div class="bg-emerald-500 h-full"
-                                                style="width: {{ $list->total_records > 0 ? ($list->valid_count / $list->total_records * 100) : 0 }}%">
-                                            </div>
-                                            <div class="bg-red-400 h-full"
-                                                style="width: {{ $list->total_records > 0 ? ($list->invalid_count / $list->total_records * 100) : 0 }}%">
-                                            </div>
-                                        </div>
-                                        <div class="flex justify-between mt-1.5">
-                                            <span class="text-[8px] font-black text-emerald-600 uppercase">
-                                                {{ number_format($list->valid_count) }}
-                                                ({{ $list->total_records > 0 ? round(($list->valid_count / $list->total_records) * 100) : 0 }}%)
-                                                Valid
-                                            </span>
-                                            <span class="text-[8px] font-black text-red-500 uppercase">
-                                                {{ number_format($list->invalid_count) }}
-                                                ({{ $list->total_records > 0 ? round(($list->invalid_count / $list->total_records) * 100) : 0 }}%)
-                                                Invalid
-                                            </span>
-                                        </div>
-                                    </div>
+                            {{-- Counts (Original Rows) --}}
+                            <div class="lg:col-span-2">
+                                <div>
+                                    <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5">Contacts</p>
+                                    <h4 class="text-2xl font-black text-surface-900 leading-none tracking-tighter">{{ number_format($list->unique_contacts_count) }}</h4>
+                                    <p class="text-[8px] font-bold text-brand uppercase mt-1.5 tracking-widest">Total Rows: {{ number_format($list->total_records) }}</p>
                                 </div>
                             </div>
 
-                            {{-- Performance --}}
+                            {{-- Stats --}}
                             <div class="lg:col-span-3">
-                                <div class="flex items-center gap-8">
-                                    <div class="">
-                                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-2">
-                                            Performance Risk</p>
-                                        <div class="flex items-center gap-6">
-                                            <div class="flex flex-col">
-                                                <span
-                                                    class="text-[10px] font-black text-red-800">{{ number_format($list->emails()->where('subscription_status', 'bounced')->count()) }}</span>
-                                                <span class="text-[8px] font-bold text-surface-400 uppercase">Bounces</span>
-                                            </div>
-                                            <div class="flex flex-col border-l border-gray-200 pl-4">
-                                                <span
-                                                    class="text-[10px] font-black text-amber-600">{{ number_format($list->emails()->whereNotNull('unsubscribed_at')->count()) }}</span>
-                                                <span class="text-[8px] font-bold text-surface-400 uppercase">Unsubs</span>
-                                            </div>
-                                            <div class="flex flex-col border-l border-gray-200 pl-4">
-                                                <span
-                                                    class="text-[10px] font-black text-emerald-600">{{ $list->total_records > 0 ? round(($list->valid_count / $list->total_records) * 100) : 0 }}%</span>
-                                                <span class="text-[8px] font-bold text-surface-400 uppercase">Reach</span>
-                                            </div>
+                                <div>
+                                    <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-2">Metrics</p>
+                                    <div class="flex items-center gap-5">
+                                        <div class="flex flex-col">
+                                            <span class="text-xs font-black text-emerald-600">{{ number_format($list->valid_count) }}</span>
+                                            <span class="text-[8px] font-bold text-surface-400 uppercase tracking-widest">Valid</span>
+                                        </div>
+                                        <div class="flex flex-col border-l border-surface-100 pl-4">
+                                            <span class="text-xs font-black text-red-500">{{ number_format($list->invalid_count) }}</span>
+                                            <span class="text-[8px] font-bold text-surface-400 uppercase tracking-widest">Invalid</span>
+                                        </div>
+                                        <div class="flex flex-col border-l border-surface-100 pl-4">
+                                            <span class="text-xs font-black text-amber-600">{{ number_format($list->emails()->whereNotNull('unsubscribed_at')->count()) }}</span>
+                                            <span class="text-[8px] font-bold text-surface-400 uppercase tracking-widest">Unsubs</span>
                                         </div>
                                     </div>
                                 </div>
@@ -250,27 +230,20 @@
 
                             {{-- Activity & Actions --}}
                             <div class="lg:col-span-3">
-                                <div class="flex items-center justify-end gap-6">
+                                <div class="flex items-center justify-end gap-5">
                                     <div class="text-right">
-                                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Last
-                                            Updated</p>
-                                        <p class="text-xs font-black text-surface-900 uppercase tracking-tighter">
-                                            {{ $list->updated_at->diffForHumans() }}</p>
+                                        <p class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1">Updated</p>
+                                        <p class="text-[10px] font-black text-surface-900 uppercase tracking-tighter">{{ $list->updated_at->diffForHumans() }}</p>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <a href="{{ route('admin.email-lists.show', $list) }}"
-                                            class="bg-surface-800 text-white p-3 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95">Analytics</a>
-                                        <form action="{{ route('admin.email-lists.destroy', $list) }}" method="POST"
-                                            onsubmit="return confirm('PERMANENT DELETE: This cannot be undone. Proceed?')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit"
-                                                class="p-2 text-surface-600 hover:text-red-600 hover:bg-red-50 rounded-sm transition-all">
-                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </form>
+                                            class="bg-surface-800 text-white px-4 py-2.5 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-brand transition-colors active:scale-95">Analytics</a>
+                                        
+                                        <button @click="showDeleteConfirm = true" class="p-2 text-surface-400 hover:text-red-600 hover:bg-red-50 rounded-sm transition-colors">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
                             </div>

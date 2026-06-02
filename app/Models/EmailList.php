@@ -76,6 +76,17 @@ class EmailList extends Model
     {
         return $this->hasMany(Email::class)->where('status', 'duplicate');
     }
+    public function getUniqueContactsCountAttribute()
+    {
+        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+        
+        return \Illuminate\Support\Facades\DB::table('emails')
+            ->where('email_list_id', $this->id)
+            ->where('is_archived', false)
+            ->distinct()
+            ->count(\Illuminate\Support\Facades\DB::raw($groupExpr));
+    }
+
     public function recalculateStats(): void
     {
         $this->update([
