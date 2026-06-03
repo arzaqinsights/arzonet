@@ -32,8 +32,8 @@
     /* Brand — these mirror the brand color for Tailwind utility classes.
        When you update --color-brand in the :root block below, also update
        these 9 shades to match your chosen color's palette. */
-    --color-brand: #a47148;
-    --color-secondary: #134E8E;
+    --color-brand: #093C5D;
+    --color-secondary: #6FAF4F;
 }
 
 /* ── Single Brand Color Variable ── */
@@ -48,7 +48,7 @@
 
 /* ── Base Styles ── */
 body {
-    background-color: var(--color-surface-50);
+    background: var(--color-surface-100)!important;
     color: var(--color-surface-900);
     font-family: var(--font-sans);
     font-weight: 400 !important;

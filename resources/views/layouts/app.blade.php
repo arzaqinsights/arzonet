@@ -14,12 +14,14 @@
         rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
-        [x-cloak] { display: none !important; }
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
     @stack('head')
 </head>
 
-<body x-data class="min-h-screen flex flex-col" style="background: var(--color-surface-50);">
+<body x-data class="min-h-screen flex flex-col">
 
     {{-- ── Global Navbar ── --}}
     <nav class="sticky top-0 z-50 w-full bg-white border-b border-color py-2 flex items-center justify-between">
@@ -34,7 +36,7 @@
                     </svg>
                 </button>
                 <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2.5">
-                    <img src="{{ asset('images/logo/logo.png') }}" class="h-8 md:h-10 shrink-0 object-contain">
+                    <img src="{{ asset('images/logo/logo.png') }}" class="h-7 md:h-9 shrink-0 object-contain">
                 </a>
             </div>
 
@@ -42,13 +44,13 @@
 
                 {{-- Global Search (mock) --}}
                 <div
-                    class="hidden md:flex items-center bg-gray-50 border border-gray-200 rounded-sm px-3 py-2 w-full focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/30 transition-all">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="hidden md:flex items-center bg-brand/10 rounded-full px-5 py-2 w-full focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/30 transition-all">
+                    <svg class="w-4 h-4 text-brand/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <input type="text" placeholder="Search..."
-                        class="bg-transparent border-none focus:ring-0 text-sm ml-2 w-75 placeholder-gray-400 outline-none text-gray-700">
+                    <input type="text" placeholder="Search here..."
+                        class="bg-transparent border-none focus:ring-0 text-base ml-2 w-75 placeholder-brand/50 outline-none text-brand">
                     <!-- <span class="text-[10px] text-gray-400 border border-gray-200 rounded-sm px-1.5 py-0.5 ml-2 font-bold tracking-widest">CTRL+K</span> -->
                 </div>
 
@@ -57,7 +59,7 @@
                     <button
                         class="p-2 px-3 hover:bg-gray-100 transition-colors tooltip-trigger border-r border-gray-200 cursor-pointer"
                         title="Help & Documentation">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -65,7 +67,7 @@
                     <button
                         class="p-2 px-3 hover:bg-gray-100 transition-colors tooltip-trigger border-r border-gray-200 relative cursor-pointer"
                         title="Notifications">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
@@ -75,7 +77,7 @@
                     <a href="{{ route('admin.settings.index') }}"
                         class="p-2 pl-3 hover:bg-gray-100 transition-colors tooltip-trigger hidden sm:block cursor-pointer"
                         title="Settings">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -89,11 +91,11 @@
                     <button @click="open = !open" @click.away="open = false"
                         class="flex items-center gap-3 hover:bg-gray-50 p-1.5 rounded-sm transition-colors text-left cursor-pointer">
                         <div class="hidden md:block text-right">
-                            <p class="text-sm font-bold text-gray-900 leading-tight">
+                            <p class="text-sm font-semibold text-gray-900 leading-tight text-nowrap">
                                 {{ app()->has('team_user') ? app('team_user')->name : auth()->user()->name }}
                             </p>
-                            <p class="text-[10px] font-semibold text-gray-500 tracking-wider">
-                                {{ app()->has('team_user') ? app('team_user')->email : (auth()->user()->email ?? 'Admin') }}
+                            <p class="text-xs text-gray-500 tracking-wider">
+                                {{ Str::limit(app()->has('team_user') ? app('team_user')->email : (auth()->user()->email ?? 'Admin'), 15) }}
                             </p>
                         </div>
                         <div class="w-9 h-9 rounded-sm flex items-center justify-center text-lg font-black text-white shadow-sm"
@@ -109,23 +111,32 @@
                         x-transition:leave="transition ease-in duration-75"
                         x-transition:leave-start="transform opacity-100 scale-100"
                         x-transition:leave-end="transform opacity-0 scale-95"
-                        class="absolute right-0 mt-2 w-70 bg-white border border-gray-200 rounded-sm shadow-lg py-1 z-50"
+                        class="absolute right-0 mt-2 min-w-70 bg-white border border-gray-200 rounded-sm shadow-lg py-1 z-50"
                         style="display: none;">
 
-                        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Signed in as</p>
-                            <p class="text-sm font-bold text-gray-900 truncate mt-0.5">
-                                {{ app()->has('team_user') ? app('team_user')->email : auth()->user()->email }}
-                            </p>
+                        <div
+                            class="px-4 py-3 border-b border-gray-200 bg-gray-50/50 flex items-center gap-3 hover:bg-gray-50 p-1.5 rounded-sm transition-colors text-left cursor-pointer">
+                            <div class="w-9 h-9 rounded-sm flex items-center justify-center text-lg font-black text-white shadow-sm"
+                                style="background: var(--color-brand);">
+                                {{ strtoupper(substr(app()->has('team_user') ? app('team_user')->name : auth()->user()->name, 0, 1)) }}
+                            </div>
+                            <div class="">
+                                <p class="text-base font-semibold text-gray-900 leading-tight">
+                                    {{ app()->has('team_user') ? app('team_user')->name : auth()->user()->name }}
+                                </p>
+                                <p class="text-xs text-gray-500 tracking-wider">
+                                    {{ app()->has('team_user') ? app('team_user')->email : (auth()->user()->email ?? 'Admin') }}
+                                </p>
+                            </div>
                         </div>
 
                         <div class="py-1">
                             @if(auth()->user()->isSuperAdmin())
-                            <a href="{{ route('admin.super.dashboard') }}"
-                                class="flex items-center px-4 py-2 text-sm text-brand font-black hover:bg-brand/5 transition-colors border-b border-brand/10">
-                                <i class="fa-solid fa-shield-halved mr-3"></i>
-                                Super Admin Panel
-                            </a>
+                                <a href="{{ route('admin.super.dashboard') }}"
+                                    class="flex items-center px-4 py-2 text-sm text-brand font-black hover:bg-brand/5 transition-colors border-b border-brand/10">
+                                    <i class="fa-solid fa-shield-halved mr-3"></i>
+                                    Super Admin Panel
+                                </a>
                             @endif
                             <a href="{{ route('admin.profile.index') }}"
                                 class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
@@ -173,26 +184,56 @@
             x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
             x-transition:leave="transition-transform duration-300" x-transition:leave-start="translate-x-0"
             x-transition:leave-end="-translate-x-full"
-            class="fixed left-0 z-40 w-[260px] h-full pb-20 flex flex-col justify-between border-r border-color bg-white">
+            class="fixed left-0 z-40 w-[260px] h-full pb-16 flex flex-col border-r border-color bg-white">
 
-            {{-- Workspace Selector (Top) --}}
-            <!-- <div class="px-4 py-4 border-b border-gray-100 flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-sm bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100">
-                        A
-                    </div>
-                    <div class="overflow-hidden">
-                        <p class="text-sm font-bold text-gray-900 truncate">Arzonet Workspace</p>
-                        <p class="text-[10px] text-gray-500 font-semibold tracking-wider uppercase">Pro Plan</p>
-                    </div>
+            {{-- Create Button --}}
+            <div class="p-3.25 border-b border-gray-300 mb-3 relative" x-data="{ openCreate: false }">
+                <button @click="openCreate = !openCreate" @click.away="openCreate = false"
+                    class="bg-brand text-white p-3 text-xs rounded-sm w-full flex items-center justify-between gap-2 cursor-pointer transition-colors hover:bg-brand/90">
+                    <span class="tracking-wider uppercase">Create New</span>
+                    <svg class="w-4 h-4 transition-transform duration-200" :class="openCreate ? 'rotate-45' : ''"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+
+                {{-- Dropdown Menu --}}
+                <div x-show="openCreate" x-cloak x-transition:enter="transition ease-out duration-100"
+                    x-transition:enter-start="transform opacity-0 -translate-y-2"
+                    x-transition:enter-end="transform opacity-100 translate-y-0"
+                    x-transition:leave="transition ease-in duration-75"
+                    x-transition:leave-start="transform opacity-100 translate-y-0"
+                    x-transition:leave-end="transform opacity-0 -translate-y-2"
+                    class="absolute left-3 right-3 top-14 mt-1 bg-white border border-gray-200 rounded-sm shadow-lg py-1 z-50">
+
+                    <a href="{{ route('admin.email-lists.create') }}"
+                        class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors group">
+                        <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-brand transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                        Create New List
+                    </a>
+
+                    <a href="{{ route('admin.campaigns.create') }}"
+                        class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors group border-t border-gray-50">
+                        <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-brand transition-colors" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                        </svg>
+                        Create New Campaign
+                    </a>
                 </div>
-                <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
-            </div> -->
+            </div>
+
 
             {{-- Navigation --}}
-            <nav class="p-3 overflow-y-auto scrollbar">
+            <nav class="px-3 flex-1 overflow-y-auto scrollbar">
                 @php
-                    $can = function($permission) {
+                    $can = function ($permission) {
                         return \App\Models\User::canAccess($permission);
                     };
 
@@ -205,92 +246,102 @@
                         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />',
                     ];
 
-                    $campaignsSub = [];
-                    if ($can('campaigns.view')) {
-                        $campaignsSub[] = ['title' => 'Email Campaigns', 'route' => 'admin.campaigns.index', 'active' => 'admin.campaigns.*'];
-                    }
-                    if ($can('whatsapp.view')) {
-                        $campaignsSub[] = ['title' => 'WhatsApp Campaigns', 'route' => 'admin.whatsapp.campaigns.index', 'active' => 'admin.whatsapp.campaigns.*'];
-                    }
-                    if (!empty($campaignsSub)) {
-                        $sidebarMenu[] = [
-                            'title' => 'Campaigns',
-                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />',
-                            'active' => 'admin.*campaigns*',
-                            'submenu' => $campaignsSub
-                        ];
-                    }
-
-                    $templatesSub = [];
-                    if ($can('templates.view')) {
-                        $templatesSub[] = ['title' => 'Email Templates', 'route' => 'admin.templates.index', 'active' => 'admin.templates.*'];
-                    }
-                    if ($can('whatsapp.view')) {
-                        $templatesSub[] = ['title' => 'WhatsApp Templates', 'route' => 'admin.whatsapp.templates.index', 'active' => 'admin.whatsapp.templates.*'];
-                    }
-                    if (!empty($templatesSub)) {
-                        $sidebarMenu[] = [
-                            'title' => 'Templates',
-                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />',
-                            'active' => 'admin.*templates*',
-                            'submenu' => $templatesSub
-                        ];
-                    }
-
                     $audienceSub = [];
                     if ($can('crm.view')) {
-                        $audienceSub[] = ['title' => 'Contacts List', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'];
+                        $audienceSub[] = ['title' => 'Contacts', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'];
                         $audienceSub[] = ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'];
                     }
                     if (!empty($audienceSub)) {
                         $sidebarMenu[] = [
                             'title' => 'Audience',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
-                            'active' => 'admin.*list*',
+                            'active' => ['admin.email-lists.*', 'admin.blacklist.*'],
                             'submenu' => $audienceSub
+                        ];
+                    }
+
+                    $campaignsSub = [];
+                    if ($can('campaigns.view')) {
+                        $campaignsSub[] = ['title' => 'Email', 'route' => 'admin.campaigns.index', 'active' => 'admin.campaigns.*'];
+                    }
+                    if ($can('whatsapp.view')) {
+                        $campaignsSub[] = ['title' => 'WhatsApp', 'route' => 'admin.whatsapp.campaigns.index', 'active' => 'admin.whatsapp.campaigns.*'];
+                    }
+                    if (!empty($campaignsSub)) {
+                        $sidebarMenu[] = [
+                            'title' => 'Campaigns',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />',
+                            'active' => ['admin.campaigns.*', 'admin.whatsapp.campaigns.*'],
+                            'submenu' => $campaignsSub
+                        ];
+                    }
+
+                    $templatesSub = [];
+                    if ($can('templates.view')) {
+                        $templatesSub[] = ['title' => 'Email', 'route' => 'admin.templates.index', 'active' => 'admin.templates.*'];
+                    }
+                    if ($can('whatsapp.view')) {
+                        $templatesSub[] = ['title' => 'WhatsApp', 'route' => 'admin.whatsapp.templates.index', 'active' => 'admin.whatsapp.templates.*'];
+                    }
+                    if (!empty($templatesSub)) {
+                        $sidebarMenu[] = [
+                            'title' => 'Templates',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />',
+                            'active' => ['admin.templates.*', 'admin.whatsapp.templates.*'],
+                            'submenu' => $templatesSub
                         ];
                     }
 
                     $waSub = [];
                     if ($can('whatsapp.view')) {
-                        $waSub[] = ['title' => 'Live Chat', 'route' => 'admin.whatsapp.conversations.index', 'active' => 'admin.whatsapp.conversations.*'];
-                        $waSub[] = ['title' => 'Phone Numbers', 'route' => 'admin.whatsapp.accounts.index', 'active' => 'admin.whatsapp.accounts.*'];
-                        $waSub[] = ['title' => 'Engagement', 'route' => 'admin.whatsapp.analytics', 'active' => 'admin.whatsapp.analytics'];
-                        $waSub[] = ['title' => 'WA Settings', 'route' => 'admin.whatsapp.settings', 'active' => 'admin.whatsapp.settings'];
+                        $waSub[] = ['title' => 'Chats', 'route' => 'admin.whatsapp.conversations.index', 'active' => 'admin.whatsapp.conversations.*'];
+                        $waSub[] = ['title' => 'Numbers', 'route' => 'admin.whatsapp.accounts.index', 'active' => 'admin.whatsapp.accounts.*'];
+                        $waSub[] = ['title' => 'Analytics', 'route' => 'admin.whatsapp.analytics', 'active' => 'admin.whatsapp.analytics'];
+                        $waSub[] = ['title' => 'Settings', 'route' => 'admin.whatsapp.settings', 'active' => 'admin.whatsapp.settings'];
                     }
                     if (!empty($waSub)) {
                         $sidebarMenu[] = [
-                            'title' => 'WhatsApp Ops',
+                            'title' => 'WhatsApp',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />',
                             'active' => 'admin.whatsapp.*',
                             'submenu' => $waSub
                         ];
                     }
 
-                    $systemSub = [];
+                    $sendersSub = [];
                     if ($can('senders.view')) {
-                        $systemSub[] = ['title' => 'Verified Domains', 'route' => 'admin.domains.index', 'active' => 'admin.domains.*'];
-                        $systemSub[] = ['title' => 'Active Senders', 'route' => 'admin.senders.index', 'active' => 'admin.senders.*'];
+                        $sendersSub[] = ['title' => 'Domains', 'route' => 'admin.domains.index', 'active' => 'admin.domains.*'];
+                        $sendersSub[] = ['title' => 'Sender Emails', 'route' => 'admin.senders.index', 'active' => 'admin.senders.*'];
                     }
+                    if (!empty($sendersSub)) {
+                        $sidebarMenu[] = [
+                            'title' => 'Senders',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />',
+                            'active' => ['admin.domains.*', 'admin.senders.*'],
+                            'submenu' => $sendersSub
+                        ];
+                    }
+
+                    $settingsSub = [];
                     if ($can('settings.view')) {
-                        $systemSub[] = ['title' => 'General Settings', 'route' => 'admin.settings.index', 'active' => 'admin.settings.index'];
+                        $settingsSub[] = ['title' => 'Settings', 'route' => 'admin.settings.index', 'active' => 'admin.settings.index'];
                     }
                     if (!app()->has('team_user')) {
-                        $systemSub[] = ['title' => 'Team Members', 'route' => 'admin.users.index', 'active' => 'admin.users.*'];
+                        $settingsSub[] = ['title' => 'Team', 'route' => 'admin.users.index', 'active' => 'admin.users.*'];
                     }
-                    if (!empty($systemSub)) {
+                    if (!empty($settingsSub)) {
                         $sidebarMenu[] = [
                             'title' => 'System',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />',
-                            'active' => 'admin.settings.*',
-                            'submenu' => $systemSub
+                            'active' => ['admin.settings.*', 'admin.users.*'],
+                            'submenu' => $settingsSub
                         ];
                     }
 
                     $billingSub = [];
                     if ($can('billing.view')) {
-                        $billingSub[] = ['title' => 'Current Plan', 'route' => 'admin.billing.plans', 'active' => 'admin.billing.plans'];
-                        $billingSub[] = ['title' => 'Invoice History', 'route' => 'admin.billing.invoices.index', 'active' => 'admin.billing.invoices.*'];
+                        $billingSub[] = ['title' => 'Plan', 'route' => 'admin.billing.plans', 'active' => 'admin.billing.plans'];
+                        $billingSub[] = ['title' => 'Invoices', 'route' => 'admin.billing.invoices.index', 'active' => 'admin.billing.invoices.*'];
                     }
                     if (!empty($billingSub)) {
                         $sidebarMenu[] = [
@@ -306,22 +357,27 @@
                     @if(isset($item['submenu']))
                         <div x-data="{ open: {{ request()->routeIs($item['active']) ? 'true' : 'false' }} }" class="mb-1">
                             <button @click="open = !open"
-                                class="flex items-center justify-between w-full p-2 rounded-sm text-sm transition-colors group cursor-pointer {{ request()->routeIs($item['active']) ? 'text-black font-bold' : 'text-surface-700 hover:bg-surface-100 hover:text-black' }}">
+                                class="flex items-center justify-between w-full p-2 rounded-sm text-sm transition-colors group cursor-pointer {{ request()->routeIs($item['active']) ? 'text-black bg-brand/10' : 'text-surface-700 hover:bg-surface-100 hover:text-black' }}">
                                 <div class="flex items-center gap-2.5">
-                                    <svg class="w-4 h-4 shrink-0 {{ request()->routeIs($item['active']) ? 'text-brand' : 'text-gray-400 group-hover:text-black' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-4 h-4 shrink-0 {{ request()->routeIs($item['active']) ? 'text-brand' : 'text-gray-400 group-hover:text-black' }}"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         {!! $item['icon'] !!}
                                     </svg>
                                     {{ $item['title'] }}
                                 </div>
-                                <svg class="w-3.5 h-3.5 transform transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-3.5 h-3.5 transform transition-transform duration-200"
+                                    :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
-                            
-                            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 -translate-y-2" x-transition:enter-end="transform opacity-100 translate-y-0" class="mt-1 ml-4 pl-2.5 border-l-2 border-gray-100 space-y-1">
+
+                            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="transform opacity-0 -translate-y-2"
+                                x-transition:enter-end="transform opacity-100 translate-y-0"
+                                class="mt-1 ml-4 pl-2.5 border-l-2 border-brand/20 space-y-1">
                                 @foreach($item['submenu'] as $sub)
                                     <a href="{{ route($sub['route']) }}"
-                                        class="block py-1.5 px-2 rounded-sm text-[13px] transition-colors {{ request()->routeIs($sub['active']) ? 'text-brand font-bold' : 'text-surface-600 hover:text-black hover:bg-surface-50' }}">
+                                        class="block py-1.5 px-2 rounded-sm text-[13px] transition-colors {{ request()->routeIs($sub['active']) ? 'text-brand font-semibold' : 'text-surface-600 hover:text-black hover:bg-surface-50' }}">
                                         {{ $sub['title'] }}
                                     </a>
                                 @endforeach
@@ -329,8 +385,9 @@
                         </div>
                     @else
                         <a href="{{ route($item['route']) }}"
-                            class="flex items-center p-2 mb-1 rounded-sm text-sm gap-2.5 transition-colors group {{ request()->routeIs($item['active']) ? 'bg-surface-100 text-black font-bold' : 'text-surface-700 hover:bg-surface-50 hover:text-black' }}">
-                            <svg class="w-4 h-4 shrink-0 {{ request()->routeIs($item['active']) ? 'text-brand' : 'text-gray-400 group-hover:text-black' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="flex items-center p-2 mb-1 rounded-sm text-sm gap-2.5 transition-colors group {{ request()->routeIs($item['active']) ? 'bg-brand/10 text-black' : 'text-surface-700 hover:bg-surface-100 hover:text-black' }}">
+                            <svg class="w-4 h-4 shrink-0 {{ request()->routeIs($item['active']) ? 'text-brand' : 'text-gray-400 group-hover:text-black' }}"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 {!! $item['icon'] !!}
                             </svg>
                             {{ $item['title'] }}
@@ -340,25 +397,45 @@
             </nav>
 
             {{-- Sidebar Footer --}}
-            <div class="p-4 border-t border-gray-100 bg-gray-50/50">
-                <div
-                    class="bg-linear-to-r from-surface-50 to-surface-100 border rounded-sm p-3 relative overflow-hidden">
-                    <div class="absolute -right-4 -top-4 w-12 h-12 bg-surface-800 rounded-full opacity-50"></div>
-                    <p class="text-sm font-bold text-surface-900">Need more features?</p>
-                    <p class="text-[10px] text-surface-700 mt-0.5 mb-3">Upgrade to enterprise for unlimited sending.</p>
-                    <a href="{{ route('admin.billing.plans') }}"
-                        class="text-xs font-bold text-white bg-surface-900 hover:bg-surface-800 px-2.5 py-2 rounded-sm inline-block transition-colors shadow-sm">Upgrade
-                        Plan</a>
-                </div>
-                <div class="flex items-center justify-between mt-3 text-[10px] text-gray-400 font-medium px-1">
-                    <span>Arzonet v2.1.0</span>
-                    <a href="#" class="hover:text-gray-600 transition-colors">Changelog</a>
-                </div>
+            <div class="p-3 border-t border-gray-300 bg-white mt-auto">
+                <!-- <div
+                    class="relative overflow-hidden bg-gradient-to-br from-brand/10 via-white to-brand/20 border border-brand rounded-sm p-3 mb-2 group hover:border-brand/40 transition-all duration-300">
+                    <div
+                        class="absolute -right-4 -top-4 w-16 h-16 bg-brand/20 blur-2xl rounded-full group-hover:scale-150 transition-transform duration-500">
+                    </div>
+                    <div
+                        class="absolute right-0 bottom-0 w-full h-1/2 bg-gradient-to-t from-brand/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                    </div>
+
+                    <div class="relative z-10 flex items-start gap-3">
+                        <div class="p-1.5 bg-white rounded-sm border border-brand/10 text-brand shrink-0">
+                            <svg class="w-7 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-[12px] font-semibold text-gray-900 tracking-wide">Pro Plan</h4>
+                            <p class="text-[10px] text-gray-500 leading-snug font-medium">Unlock unlimited
+                                sending & premium features.</p>
+
+                        </div>
+                    </div>
+                </div> -->
+                <a href="{{ route('admin.billing.plans') }}"
+                    class="flex items-center justify-between w-full border-2 border-brand text-xs text-white bg-brand hover:bg-brand/90 p-3 rounded-sm transition-all uppercase tracking-wider">
+                    Upgrade Plan
+                    <svg class="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                </a>
             </div>
         </aside>
 
         {{-- ── Main Content ── --}}
-        <main class="w-full ml-[260px] overflow-y-auto bg-surface-0">
+        <main class="w-full ml-[260px] overflow-y-auto">
             {{-- Limit Warning Banner --}}
             @php
                 $cUsage = auth()->user()->getContactsUsage();
@@ -366,22 +443,26 @@
             @endphp
 
             @if($cUsage->is_exceeded || $eUsage->is_exceeded)
-            <div class="bg-red-600 text-white px-6 py-3 flex items-center justify-between shadow-lg sticky top-0 z-[60]">
-                <div class="flex items-center gap-3 text-left">
-                    <i class="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
-                    <div class="text-sm font-bold">
-                        @if($cUsage->is_exceeded)
-                            You have exceeded your contact limit ({{ number_format($cUsage->total) }} / {{ number_format($cUsage->limit) }}). 
-                        @elseif($eUsage->is_exceeded)
-                            You have exceeded your email sending limit ({{ number_format($eUsage->total) }} / {{ number_format($eUsage->limit) }}).
-                        @endif
-                        Campaigns and Imports are currently blocked.
+                <div
+                    class="bg-red-600 text-white px-6 py-3 flex items-center justify-between shadow-lg sticky top-0 z-[60]">
+                    <div class="flex items-center gap-3 text-left">
+                        <i class="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
+                        <div class="text-sm font-bold">
+                            @if($cUsage->is_exceeded)
+                                You have exceeded your contact limit ({{ number_format($cUsage->total) }} /
+                                {{ number_format($cUsage->limit) }}).
+                            @elseif($eUsage->is_exceeded)
+                                You have exceeded your email sending limit ({{ number_format($eUsage->total) }} /
+                                {{ number_format($eUsage->limit) }}).
+                            @endif
+                            Campaigns and Imports are currently blocked.
+                        </div>
                     </div>
+                    <a href="{{ route('admin.dashboard') }}"
+                        class="px-4 py-1.5 bg-white text-red-600 text-xs font-black rounded-sm uppercase tracking-widest hover:bg-red-50 transition-all shrink-0">
+                        Upgrade Now
+                    </a>
                 </div>
-                <a href="{{ route('admin.dashboard') }}" class="px-4 py-1.5 bg-white text-red-600 text-xs font-black rounded-sm uppercase tracking-widest hover:bg-red-50 transition-all shrink-0">
-                    Upgrade Now
-                </a>
-            </div>
             @endif
 
             @if(View::hasSection('heading') || View::hasSection('header-actions'))

@@ -67,6 +67,19 @@ class Email extends Model
         ];
     }
 
+    protected static function booted()
+    {
+        static::created(function ($email) {
+            \App\Jobs\UpdateContactSegmentsJob::dispatch($email->id);
+        });
+
+        static::updated(function ($email) {
+            if ($email->isDirty(['status', 'email_status', 'email_score', 'subscription_status', 'bounce_count', 'complaint_count', 'whatsapp_number', 'whatsapp_opt_in', 'whatsapp_subscription_status', 'email'])) {
+                \App\Jobs\UpdateContactSegmentsJob::dispatch($email->id);
+            }
+        });
+    }
+
     /**
      * Legacy unsubscribe method. 
      * @deprecated Use the tracking_token from EmailLog instead.

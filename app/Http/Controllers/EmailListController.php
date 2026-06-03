@@ -1160,43 +1160,29 @@ class EmailListController extends Controller
         } elseif ($request->action === 'permanent_delete' || $request->action === 'delete') {
             $reason = $request->input('delete_reason', $request->input('reason', 'User requested permanent deletion'));
             
-            $deleteQuery = clone $emails;
+            \App\Jobs\BulkPermanentDeleteJob::dispatch(
+                $emailList->id,
+                $request->global ? true : false,
+                $request->global ? $request->filters : null,
+                $request->global ? [] : $request->ids,
+                $reason
+            );
 
-            // Get identifiers before deleting
-            $identifiers = [];
-            $emails->chunkById(500, function ($chunk) use (&$identifiers) {
-                foreach ($chunk as $email) {
-                    if (!empty($email->email)) {
-                        $identifiers[] = $email->email;
-                    }
-                    if (!empty($email->whatsapp_number)) {
-                        $identifiers[] = $email->whatsapp_number;
-                    }
-                }
-            });
-            
-            $identifiers = array_unique(array_filter($identifiers));
-            $suppressions = [];
-            $now = now()->toDateTimeString();
-            foreach ($identifiers as $identifier) {
-                $suppressions[] = [
-                    'email_list_id' => $emailList->id,
-                    'identifier' => $identifier,
-                    'reason' => $reason,
-                    'created_at' => $now,
-                    'updated_at' => $now
-                ];
-            }
-            
-            if (count($suppressions) > 0) {
-                \App\Models\EmailListSuppression::upsert(
-                    $suppressions, 
-                    ['email_list_id', 'identifier'], 
-                    ['reason', 'updated_at']
-                );
-            }
+            $emailList->activityLogs()->create([
+                'user_id' => auth()->id(),
+                'type' => 'bulk_action',
+                'details' => [
+                    'action' => 'permanent_delete',
+                    'count' => $count,
+                    'scope' => $request->global ? 'global' : 'selection',
+                    'filters' => $request->global ? $request->filters : null
+                ]
+            ]);
 
-            $deleteQuery->delete();
+            return response()->json([
+                'success' => true,
+                'message' => 'The permanent delete process has started in the background. Depending on the size, it may take a few minutes.'
+            ]);
         } elseif ($request->action === 'edit_column' || $request->action === 'update_column') {
             $column = $request->input('column') ?? $request->input('target_column');
             $value = $request->input('value') ?? $request->input('new_value');
