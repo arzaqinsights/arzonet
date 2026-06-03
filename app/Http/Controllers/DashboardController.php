@@ -66,7 +66,7 @@ class DashboardController extends Controller
         // ── 3. ISP HEALTH & DOMAIN PERFORMANCE ──
         $ispPerformance = EmailLog::select(\DB::raw('SUBSTRING_INDEX(email_address, "@", -1) as domain'), 
                                 \DB::raw('count(*) as total'),
-                                \DB::raw('count(CASE WHEN status = "sent" THEN 1 END) as delivered'))
+                                \DB::raw('count(CASE WHEN status IN ("sent", "delivered", "processed", "opened", "clicked") THEN 1 END) as delivered'))
             ->groupBy('domain')
             ->orderByDesc('total')
             ->take(5)
@@ -115,11 +115,30 @@ class DashboardController extends Controller
         $validPercent = $totalContacts > 0 ? round(($validContacts / $totalContacts) * 100) : 0;
         $invalidPercent = 100 - $validPercent;
 
+        // ── 7. ADVANCED STATS (WHATSAPP & TEAM) ──
+        $waTotalContacts = \App\Models\Email::whereNotNull('whatsapp_number')->count();
+        $waSubscribed = \App\Models\Email::whereNotNull('whatsapp_number')->where('whatsapp_subscription_status', 'subscribed')->count();
+        $teamMembersCount = \App\Models\User::count();
+
+        // ── 8. SENDER REPUTATION & COMPLAINTS ──
+        $totalComplaints = EmailLog::where('status', 'complaint')->count();
+        $complaintRate = $totalSent > 0 ? ($totalComplaints / $totalSent) * 100 : 0;
+        // Formula: 100 - (BounceRate * 2) - (ComplaintRate * 5)
+        $emailReputation = max(0, min(100, round(100 - ($bounceRate * 2) - ($complaintRate * 5))));
+
+        // WhatsApp Reputation
+        $waTotalSent = \App\Models\WhatsAppMessage::where('direction', 'outbound')->count();
+        $waFailed = \App\Models\WhatsAppMessage::where('direction', 'outbound')->whereIn('status', ['failed', 'undelivered'])->count();
+        $waBounceRate = $waTotalSent > 0 ? ($waFailed / $waTotalSent) * 100 : 0;
+        $waReputation = max(0, min(100, round(100 - ($waBounceRate * 2))));
+
         return view('dashboard.index', compact(
             'totalSent', 'totalDelivered', 'totalBounced', 'totalOpens', 'totalClicks',
             'totalContacts', 'totalUnsubscribed', 'globalOpenRate', 'globalClickRate',
             'bounceRate', 'chartData', 'ispPerformance', 'hourlyStats', 'recentCampaigns',
-            'topLinks', 'usageStats', 'validPercent', 'invalidPercent'
+            'topLinks', 'usageStats', 'validPercent', 'invalidPercent',
+            'waTotalContacts', 'waSubscribed', 'teamMembersCount',
+            'totalComplaints', 'complaintRate', 'emailReputation', 'waTotalSent', 'waFailed', 'waBounceRate', 'waReputation'
         ));
     }
 }

@@ -39,6 +39,7 @@ class EmailValidationService
         $crossDuplicates = [];
         $seen = [];
         $seenNames = [];
+        $seenGroupPhones = [];
         
         $blacklisted = array_flip($this->getBlacklistedEmails());
         $waValidator = new WhatsAppValidationService();
@@ -189,6 +190,23 @@ class EmailValidationService
                 }
             } else {
                 $entry['original_row_id'] = $entry['original_row_id'] ?? null;
+            }
+
+            // ── Group-level WhatsApp Deduplication ──
+            $groupId = $entry['original_row_id'];
+            if ($whatsappNumber && $groupId) {
+                if (isset($seenGroupPhones[$groupId][$whatsappNumber])) {
+                    $entry['meta'] = array_merge($entry['meta'] ?? [], ['duplicate_phone_removed' => $whatsappNumber]);
+                    $whatsappNumber = null;
+                    $entry['whatsapp_number'] = null;
+                } else {
+                    $seenGroupPhones[$groupId][$whatsappNumber] = true;
+                }
+                
+                // If removing the duplicate phone leaves the entry empty, skip it entirely
+                if (empty($entry['email']) && empty($whatsappNumber)) {
+                    continue;
+                }
             }
 
             

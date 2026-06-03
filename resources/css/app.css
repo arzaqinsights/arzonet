@@ -48,7 +48,8 @@
 
 /* ── Base Styles ── */
 body {
-    background: var(--color-surface-100)!important;
+    @apply bg-brand/5 ;
+    /* background: var(--color-surface-50)!important; */
     color: var(--color-surface-900);
     font-family: var(--font-sans);
     font-weight: 400 !important;

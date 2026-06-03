@@ -750,6 +750,17 @@ class EmailListController extends Controller
             'signup_source', 'subscription_status', 'whatsapp_subscription_status', 'tags'
         ]);
 
+        if (!empty($data['whatsapp_number']) && $email->original_row_id) {
+            $phoneExistsInGroup = $emailList->emails()
+                ->where('original_row_id', $email->original_row_id)
+                ->where('id', '!=', $email->id)
+                ->where('whatsapp_number', $data['whatsapp_number'])
+                ->exists();
+            if ($phoneExistsInGroup) {
+                $data['whatsapp_number'] = null; // Clear it to avoid duplicating within the group
+            }
+        }
+
         // Sync WhatsApp Opt-in based on status
         if (isset($data['whatsapp_subscription_status'])) {
             $data['whatsapp_opt_in'] = ($data['whatsapp_subscription_status'] === 'subscribed');
@@ -954,10 +965,25 @@ class EmailListController extends Controller
             }
         }
 
+        $whatsappNumber = $request->whatsapp_number;
+        if ($whatsappNumber) {
+            $phoneExistsInGroup = $emailList->emails()
+                ->where('original_row_id', $groupId)
+                ->where('whatsapp_number', $whatsappNumber)
+                ->exists();
+            if ($phoneExistsInGroup) {
+                $whatsappNumber = null;
+            }
+        }
+
+        if (!$request->email && empty($whatsappNumber)) {
+            return response()->json(['success' => false, 'message' => 'This WhatsApp number already exists in this contact group.'], 422);
+        }
+
         $newContact = $emailList->emails()->create([
             'user_id' => auth()->id(),
             'email' => $request->email ?? '',
-            'whatsapp_number' => $request->whatsapp_number,
+            'whatsapp_number' => $whatsappNumber,
             'name' => $parentContact->name,
             'segment_name' => $parentContact->segment_name,
             'tags' => $parentContact->tags,

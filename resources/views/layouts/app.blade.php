@@ -397,34 +397,45 @@
             </nav>
 
             {{-- Sidebar Footer --}}
-            <div class="p-3 border-t border-gray-300 bg-white mt-auto">
-                <!-- <div
-                    class="relative overflow-hidden bg-gradient-to-br from-brand/10 via-white to-brand/20 border border-brand rounded-sm p-3 mb-2 group hover:border-brand/40 transition-all duration-300">
-                    <div
-                        class="absolute -right-4 -top-4 w-16 h-16 bg-brand/20 blur-2xl rounded-full group-hover:scale-150 transition-transform duration-500">
-                    </div>
-                    <div
-                        class="absolute right-0 bottom-0 w-full h-1/2 bg-gradient-to-t from-brand/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    </div>
+            <div class="p-3 border-t border-gray-300 bg-white mt-auto space-y-3">
+                @php
+                    $globalTotalSent = \App\Models\EmailLog::count();
+                    $globalTotalComplaints = \App\Models\EmailLog::where('status', 'complaint')->count();
+                    $globalTotalBounced = \App\Models\EmailLog::where('status', 'bounced')->count();
+                    $globalComplaintRate = $globalTotalSent > 0 ? ($globalTotalComplaints / $globalTotalSent) * 100 : 0;
+                    $globalBounceRate = $globalTotalSent > 0 ? ($globalTotalBounced / $globalTotalSent) * 100 : 0;
+                    $globalReputation = max(0, min(100, round(100 - ($globalBounceRate * 2) - ($globalComplaintRate * 5))));
+                @endphp
 
-                    <div class="relative z-10 flex items-start gap-3">
-                        <div class="p-1.5 bg-white rounded-sm border border-brand/10 text-brand shrink-0">
-                            <svg class="w-7 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="text-[12px] font-semibold text-gray-900 tracking-wide">Pro Plan</h4>
-                            <p class="text-[10px] text-gray-500 leading-snug font-medium">Unlock unlimited
-                                sending & premium features.</p>
-
-                        </div>
+                <div class="bg-surface-50 border border-gray-200 rounded-sm p-3 relative overflow-hidden group hover:border-brand/30 transition-colors">
+                    <p class="text-[9px] font-bold text-surface-500 uppercase tracking-widest mb-1 flex items-center justify-between">
+                        Sender Reputation
+                        @if($globalReputation >= 90)
+                            <span class="text-emerald-500">Excellent</span>
+                        @elseif($globalReputation >= 70)
+                            <span class="text-yellow-500">Average</span>
+                        @else
+                            <span class="text-red-500">Poor</span>
+                        @endif
+                    </p>
+                    <div class="flex items-baseline gap-1">
+                        <h3 class="text-2xl font-black text-surface-900 tracking-tight" style="font-family:'Outfit',sans-serif;">{{ $globalReputation }}</h3>
+                        <span class="text-[10px] font-bold text-surface-400">/ 100</span>
                     </div>
-                </div> -->
+                    <div class="mt-2 w-full h-1 bg-surface-200 rounded-sm flex overflow-hidden">
+                        <div class="bg-emerald-500 h-full" style="width: {{ $globalReputation >= 90 ? $globalReputation : ($globalReputation > 70 ? 70 : $globalReputation) }}%"></div>
+                        @if($globalReputation < 90 && $globalReputation > 0)
+                            <div class="bg-yellow-400 h-full" style="width: {{ $globalReputation >= 70 ? $globalReputation - 70 : 0 }}%"></div>
+                        @endif
+                        @if($globalReputation < 70 && $globalReputation > 0)
+                            <div class="bg-red-500 h-full" style="width: {{ $globalReputation }}%"></div>
+                        @endif
+                    </div>
+                </div>
+
                 <a href="{{ route('admin.billing.plans') }}"
-                    class="flex items-center justify-between w-full border-2 border-brand text-xs text-white bg-brand hover:bg-brand/90 p-3 rounded-sm transition-all uppercase tracking-wider">
-                    Upgrade Plan
+                    class="flex items-center justify-between w-full border-2 border-brand text-xs text-white bg-brand hover:bg-brand/90 p-3 rounded-sm transition-all uppercase tracking-wider group">
+                    Need More Access?
                     <svg class="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
