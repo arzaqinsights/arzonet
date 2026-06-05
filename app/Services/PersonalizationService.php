@@ -47,6 +47,12 @@ class PersonalizationService
             $val = $value ?? '';
             if ($escapeHtml && is_string($val)) {
                 $val = htmlspecialchars($val, ENT_QUOTES, 'UTF-8');
+            } elseif (!$escapeHtml && is_string($val)) {
+                while (str_contains($val, '&')) {
+                    $decoded = html_entity_decode($val, ENT_QUOTES, 'UTF-8');
+                    if ($decoded === $val) break;
+                    $val = $decoded;
+                }
             }
             
             // Matches {{key}}, {{ key }}, {{  key  }} etc. (case-insensitive)
@@ -56,6 +62,14 @@ class PersonalizationService
 
         // Fallback for old style @{{name}} if any
         $result = str_ireplace('@{{name}}', $variables['full_name'], $result);
+
+        if (!$escapeHtml) {
+            while (str_contains($result, '&')) {
+                $decoded = html_entity_decode($result, ENT_QUOTES, 'UTF-8');
+                if ($decoded === $result) break;
+                $result = $decoded;
+            }
+        }
 
         return $result;
     }
