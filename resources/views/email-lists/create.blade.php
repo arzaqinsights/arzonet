@@ -23,7 +23,6 @@
         @endif
 
         <input type="hidden" name="import_type" :value="method">
-        <input type="hidden" name="name" value="Audience List - {{ now()->format('Y-m-d h:i A') }}">
         <input type="hidden" name="signup_source" value="Direct Import">
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
@@ -31,6 +30,35 @@
             <div class="lg:col-span-4 space-y-4">
                 {{-- Hidden List Intent --}}
                 <input type="hidden" name="list_type" value="dual">
+
+                <div class="bg-white p-6 rounded-sm border border-gray-100 space-y-4 shadow-sm">
+                    <div>
+                        <label class="form-label uppercase tracking-widest text-[9px] font-black">List Name *</label>
+                        <input type="text" name="name" class="form-input text-xs font-bold" value="Audience List - {{ now()->format('Y-m-d h:i A') }}" required>
+                    </div>
+
+                    <div>
+                        <label class="form-label uppercase tracking-widest text-[9px] font-black">Sharing Visibility</label>
+                        <div class="flex flex-col gap-2 mt-2">
+                            <label class="inline-flex items-center text-xs font-semibold cursor-pointer">
+                                <input type="radio" name="is_public" value="1" checked class="form-radio text-brand focus:ring-brand border-gray-300 w-4 h-4 mr-2">
+                                Public (All Team Members)
+                            </label>
+                            <label class="inline-flex items-center text-xs font-semibold cursor-pointer">
+                                <input type="radio" name="is_public" value="0" class="form-radio text-brand focus:ring-brand border-gray-300 w-4 h-4 mr-2">
+                                Private (Creator Only)
+                            </label>
+                        </div>
+                    </div>
+
+                    {{-- Advanced settings link --}}
+                    <div class="pt-2">
+                        <button type="button" @click="showAdvanced = true" class="text-brand hover:text-brand/80 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            Advanced Settings
+                        </button>
+                    </div>
+                </div>
 
                 <div class="mb-4">
                     <h2 class="text-base font-black text-surface-800 uppercase">Import Method</h2>
@@ -199,6 +227,35 @@
             </div>
         </div>
     </form>
+    {{-- Advanced Settings Modal --}}
+    <div x-show="showAdvanced" x-cloak class="fixed inset-0 bg-black/30 z-[100] flex items-center justify-center p-4" @click.self="showAdvanced = false">
+        <div class="bg-white rounded-sm shadow-2xl w-full max-w-md animate-slide-up" @keydown.escape.window="showAdvanced = false">
+            <div class="p-6 border-b border-surface-100">
+                <h3 class="text-base font-black text-surface-900 uppercase tracking-widest">Advanced List Settings</h3>
+                <p class="text-xs text-surface-500 mt-1">Configure permissions for other team members on this list.</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest">Allowed Actions for Team</p>
+                <div class="space-y-3">
+                    <label class="flex items-center text-xs font-semibold cursor-pointer">
+                        <input type="checkbox" name="team_permissions[add_contact]" value="1" checked class="form-checkbox text-brand focus:ring-brand border-gray-300 w-4 h-4 mr-2">
+                        Add New Contacts (Manual & Imports)
+                    </label>
+                    <label class="flex items-center text-xs font-semibold cursor-pointer">
+                        <input type="checkbox" name="team_permissions[edit_contact]" value="1" checked class="form-checkbox text-brand focus:ring-brand border-gray-300 w-4 h-4 mr-2">
+                        Edit Existing Contacts
+                    </label>
+                    <label class="flex items-center text-xs font-semibold cursor-pointer">
+                        <input type="checkbox" name="team_permissions[delete_contact]" value="1" checked class="form-checkbox text-brand focus:ring-brand border-gray-300 w-4 h-4 mr-2">
+                        Delete Contacts
+                    </label>
+                </div>
+            </div>
+            <div class="p-6 border-t border-surface-100 flex justify-end">
+                <button type="button" @click="showAdvanced = false" class="btn btn-primary btn-sm uppercase tracking-widest text-[9px]">Apply & Save</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -211,6 +268,7 @@ function importWizard() {
         manualName: '',
         manualWhatsApp: '',
         manualTags: '',
+        showAdvanced: false,
 
         handleFile(e) {
             if (e.target.files.length) {

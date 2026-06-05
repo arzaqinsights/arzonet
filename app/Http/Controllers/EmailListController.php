@@ -20,7 +20,15 @@ class EmailListController extends Controller
 {
     public function index()
     {
-        $lists = EmailList::latest()->paginate(15);
+        $query = EmailList::query();
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            $query->where(function($q) use ($teamUserId) {
+                $q->where('is_public', true)
+                  ->orWhere('created_by_id', $teamUserId);
+            });
+        }
+        $lists = $query->latest()->paginate(15);
 
         $globalStats = [
             'total' => \App\Models\Email::count(),
@@ -52,15 +60,27 @@ class EmailListController extends Controller
 
         $request->validate([
             'import_type' => 'required|in:upload,manual,paste',
+            'name' => 'required|string|max:255',
+            'is_public' => 'nullable',
         ]);
 
-        $listName = $request->name ?? 'Audience List - ' . now()->format('Y-m-d h:i A');
+        $listName = $request->name;
+        $isPublic = $request->has('is_public') ? (bool) $request->is_public : true;
+
+        $teamPermissions = [
+            'add_contact' => $request->has('team_permissions.add_contact'),
+            'edit_contact' => $request->has('team_permissions.edit_contact'),
+            'delete_contact' => $request->has('team_permissions.delete_contact'),
+        ];
 
         $emailList = EmailList::create([
             'name' => $listName,
             'list_type' => EmailList::TYPE_DUAL,
             'signup_source' => $request->signup_source ?? 'Direct Import',
             'status' => 'pending',
+            'is_public' => $isPublic,
+            'created_by_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
+            'team_permissions' => $teamPermissions,
         ]);
 
         // 1. Handling File Upload
@@ -196,6 +216,13 @@ class EmailListController extends Controller
 
     public function updateName(Request $request, EmailList $emailList)
     {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if ($emailList->created_by_id !== $teamUserId) {
+                abort(403, 'Only the creator can rename this list.');
+            }
+        }
+
         $request->validate([
             'name' => 'required|string|max:255'
         ]);
@@ -280,6 +307,13 @@ class EmailListController extends Controller
 
     public function show(EmailList $emailList)
     {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'This list is private.');
+            }
+        }
+
         $emailList->recalculateStats();
 
         $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
@@ -315,7 +349,7 @@ class EmailListController extends Controller
         ];
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
-        $emails = $emailList->emails()->where('is_archived', false)->orderBy('created_at', 'desc')->paginate(50);
+        $emails = $emailList->emails()->with(['deals.stage.pipeline'])->where('is_archived', false)->orderBy('created_at', 'desc')->paginate(50);
 
         $customSegments = $emailList->emails()->whereNotNull('segment_name')->distinct()->pluck('segment_name')->toArray();
         $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
@@ -328,7 +362,7 @@ class EmailListController extends Controller
 
     public function filterEmails(Request $request, EmailList $emailList)
     {
-        $query = $emailList->emails()->orderBy('created_at', 'desc');
+        $query = $emailList->emails()->with(['deals.stage.pipeline'])->orderBy('created_at', 'desc');
 
         // Health filter
         if ($request->status && $request->status !== 'all') {
@@ -594,6 +628,16 @@ class EmailListController extends Controller
 
     public function destroyEmail(Request $request, EmailList $emailList, int $emailId)
     {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'This list is private.');
+            }
+        }
+        if (!$emailList->canPerformAction('delete_contact')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to delete contacts from this list.'], 403);
+        }
+
         $email = $emailList->emails()->findOrFail($emailId);
         $status = $email->status;
         $is_archived = $email->is_archived;
@@ -646,6 +690,13 @@ class EmailListController extends Controller
 
     public function destroy(EmailList $emailList)
     {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if ($emailList->created_by_id !== $teamUserId) {
+                abort(403, 'Only the creator can delete this list.');
+            }
+        }
+
         if ($emailList->file_path)
             Storage::disk('local')->delete($emailList->file_path);
         $emailList->delete();
@@ -738,6 +789,16 @@ class EmailListController extends Controller
 
     public function updateEmail(Request $request, EmailList $emailList, int $emailId)
     {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'This list is private.');
+            }
+        }
+        if (!$emailList->canPerformAction('edit_contact')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to edit contacts in this list.'], 403);
+        }
+
         $email = $emailList->emails()->findOrFail($emailId);
         $request->validate([
             'email' => 'required|email', 
@@ -854,6 +915,16 @@ class EmailListController extends Controller
 
     public function addContact(Request $request, EmailList $emailList)
     {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'This list is private.');
+            }
+        }
+        if (!$emailList->canPerformAction('add_contact')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to add contacts to this list.'], 403);
+        }
+
         $request->validate([
             'email' => 'required|email', 
             'name' => 'nullable|string|max:255',
@@ -1531,5 +1602,90 @@ class EmailListController extends Controller
 
         return redirect()->route('admin.email-lists.show', $emailList)
             ->with('success', 'Duplicates resolved successfully.');
+    }
+
+    public function transferContact(Request $request, EmailList $emailList, int $emailId)
+    {
+        $request->validate([
+            'target_list_id' => 'required|exists:email_lists,id',
+        ]);
+
+        $targetList = EmailList::findOrFail($request->target_list_id);
+
+        // Visibility check
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'Source list is private.');
+            }
+            if (!$targetList->is_public && $targetList->created_by_id !== $teamUserId) {
+                abort(403, 'Target list is private.');
+            }
+        }
+
+        // Action permissions check
+        if (!$emailList->canPerformAction('delete_contact')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to remove contacts from this list.'], 403);
+        }
+        if (!$targetList->canPerformAction('add_contact')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to add contacts to the target list.'], 403);
+        }
+
+        $email = $emailList->emails()->findOrFail($emailId);
+
+        // Move contact
+        $email->update([
+            'email_list_id' => $targetList->id,
+        ]);
+
+        // Recalculate stats
+        $emailList->recalculateStats();
+        $targetList->recalculateStats();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function sendToPipeline(Request $request, EmailList $emailList, int $emailId)
+    {
+        $request->validate([
+            'pipeline_id' => 'required|exists:pipelines,id',
+            'pipeline_stage_id' => 'required|exists:pipeline_stages,id',
+            'title' => 'required|string|max:255',
+            'value' => 'nullable|numeric|min:0',
+        ]);
+
+        $pipeline = \App\Models\Pipeline::findOrFail($request->pipeline_id);
+
+        // Visibility check
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'List is private.');
+            }
+            if (!$pipeline->is_public && $pipeline->created_by_id !== $teamUserId) {
+                abort(403, 'Pipeline is private.');
+            }
+        }
+
+        // Action permissions check
+        if (!$pipeline->canPerformAction('add_deal')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to add deals to this pipeline.'], 403);
+        }
+
+        $email = $emailList->emails()->findOrFail($emailId);
+
+        // Create deal
+        \App\Models\Deal::create([
+            'pipeline_stage_id' => $request->pipeline_stage_id,
+            'email_id' => $email->id,
+            'title' => $request->title,
+            'value' => $request->value ?? 0,
+            'currency' => 'INR',
+            'status' => 'open',
+            'user_id' => auth()->id(), // admin user id
+            'order' => \App\Models\Deal::where('pipeline_stage_id', $request->pipeline_stage_id)->count(),
+        ]);
+
+        return response()->json(['success' => true]);
     }
 }

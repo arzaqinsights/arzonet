@@ -20,7 +20,7 @@ trait BelongsToUser
 
         static::addGlobalScope('user_id', function (Builder $builder) {
             if (Auth::check()) {
-                $builder->where('user_id', Auth::id());
+                $builder->where($builder->getModel()->getTable() . '.user_id', Auth::id());
             }
         });
     }

@@ -4,21 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Segment extends Model
+class CustomField extends Model
 {
     use \App\Traits\BelongsToUser;
 
     protected $fillable = [
-        'user_id',
         'name',
-        'description',
-        'rules',
+        'label',
+        'type',
+        'choices',
+        'user_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'rules' => 'array',
+            'choices' => 'array',
         ];
     }
 }

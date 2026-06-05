@@ -12,6 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=Righteous&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
         rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         [x-cloak] {
@@ -249,13 +250,17 @@
                     $audienceSub = [];
                     if ($can('crm.view')) {
                         $audienceSub[] = ['title' => 'Contacts', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'];
+                        $audienceSub[] = ['title' => 'Deals Pipeline', 'route' => 'admin.pipelines.index', 'active' => 'admin.pipelines.*'];
+                        $audienceSub[] = ['title' => 'Segments', 'route' => 'admin.segments.index', 'active' => 'admin.segments.*'];
+                        $audienceSub[] = ['title' => 'Tasks & Calendar', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*'];
+                        $audienceSub[] = ['title' => 'Custom Fields', 'route' => 'admin.custom-fields.index', 'active' => 'admin.custom-fields.*'];
                         $audienceSub[] = ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'];
                     }
                     if (!empty($audienceSub)) {
                         $sidebarMenu[] = [
                             'title' => 'Audience',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
-                            'active' => ['admin.email-lists.*', 'admin.blacklist.*'],
+                            'active' => ['admin.email-lists.*', 'admin.blacklist.*', 'admin.pipelines.*', 'admin.segments.*', 'admin.tasks.*', 'admin.custom-fields.*'],
                             'submenu' => $audienceSub
                         ];
                     }

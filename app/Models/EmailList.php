@@ -29,12 +29,38 @@ class EmailList extends Model
         'duplicate_count',
         'cross_duplicate_count',
         'status',
+        'is_public',
+        'created_by_id',
+        'team_permissions',
     ];
 
     // --- Helper Methods ---
     public function isEmailList(): bool    { return in_array($this->list_type, [self::TYPE_EMAIL, self::TYPE_DUAL]); }
     public function isWhatsAppList(): bool { return in_array($this->list_type, [self::TYPE_WHATSAPP, self::TYPE_DUAL]); }
     public function isDualList(): bool     { return $this->list_type === self::TYPE_DUAL; }
+
+    public function canPerformAction(string $action): bool
+    {
+        // Admin has full access
+        if (!app()->has('team_user')) {
+            return true;
+        }
+
+        $teamUserId = app('team_user')->id;
+        // Creator has full access
+        if ($this->created_by_id === $teamUserId) {
+            return true;
+        }
+
+        // If list is private, other team members have no access
+        if (!$this->is_public) {
+            return false;
+        }
+
+        // Check overrides
+        $perms = $this->team_permissions ?? [];
+        return (bool) ($perms[$action] ?? true);
+    }
 
     // --- Scopes for Campaign Dropdowns ---
     public function scopeForEmail($query)    { return $query->whereIn('list_type', [self::TYPE_EMAIL, self::TYPE_DUAL]); }
@@ -44,6 +70,7 @@ class EmailList extends Model
     {
         return [
             'column_mapping' => 'array',
+            'team_permissions' => 'array',
         ];
     }
 

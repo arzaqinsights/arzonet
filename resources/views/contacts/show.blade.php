@@ -53,6 +53,67 @@
                     <p class="text-xl font-black text-indigo-600">{{ $stats['total_clicks'] }}</p>
                 </div>
             </div>
+
+            {{-- ── AI Lead Score Gauge ── --}}
+            @php
+                $leadScore = $email->engagement_score ?? 0;
+                $scorePercent = $leadScore / 100;
+                $circumference = 2 * 3.14159 * 45; // radius = 45
+                $dashOffset = $circumference * (1 - $scorePercent);
+
+                if ($leadScore > 80) {
+                    $tempLabel = 'Hot';
+                    $tempEmoji = '🔥';
+                    $gradientFrom = '#ef4444';
+                    $gradientTo = '#f97316';
+                    $bgColor = 'bg-red-50';
+                    $textColor = 'text-red-600';
+                } elseif ($leadScore >= 40) {
+                    $tempLabel = 'Warm';
+                    $tempEmoji = '⚡';
+                    $gradientFrom = '#f59e0b';
+                    $gradientTo = '#eab308';
+                    $bgColor = 'bg-amber-50';
+                    $textColor = 'text-amber-600';
+                } else {
+                    $tempLabel = 'Cold';
+                    $tempEmoji = '❄️';
+                    $gradientFrom = '#3b82f6';
+                    $gradientTo = '#06b6d4';
+                    $bgColor = 'bg-blue-50';
+                    $textColor = 'text-blue-600';
+                }
+            @endphp
+            <div class="glass-card p-6 {{ $bgColor }} relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r" style="background: linear-gradient(90deg, {{ $gradientFrom }}, {{ $gradientTo }})"></div>
+                <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-4 text-center">AI Lead Score</p>
+                <div class="flex justify-center">
+                    <div class="relative w-32 h-32">
+                        <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                            <defs>
+                                <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:{{ $gradientFrom }}"/>
+                                    <stop offset="100%" style="stop-color:{{ $gradientTo }}"/>
+                                </linearGradient>
+                            </defs>
+                            <circle cx="50" cy="50" r="45" fill="none" stroke-width="6" class="stroke-surface-200"/>
+                            <circle cx="50" cy="50" r="45" fill="none" stroke-width="6"
+                                stroke="url(#scoreGradient)"
+                                stroke-linecap="round"
+                                stroke-dasharray="{{ $circumference }}"
+                                stroke-dashoffset="{{ $dashOffset }}"
+                                class="transition-all duration-1000"/>
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-3xl font-black {{ $textColor }}">{{ $leadScore }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="text-lg">{{ $tempEmoji }}</span>
+                    <span class="text-sm font-black {{ $textColor }} ml-1">{{ $tempLabel }} Lead</span>
+                </div>
+            </div>
         </div>
 
         {{-- ── Activity Timeline & Notes ── --}}

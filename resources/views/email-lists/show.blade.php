@@ -1,6 +1,28 @@
 @extends('layouts.app')
 @section('title', $emailList->name)
 @section('heading')
+    @php
+        $switcherQuery = \App\Models\EmailList::query();
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            $switcherQuery->where(function($q) use ($teamUserId) {
+                $q->where('is_public', true)
+                  ->orWhere('created_by_id', $teamUserId);
+            });
+        }
+        $switcherLists = $switcherQuery->orderBy('name')->get();
+        $destinationLists = $switcherLists->where('id', '!=', $emailList->id);
+
+        $pipelinesQuery = \App\Models\Pipeline::with('stages');
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            $pipelinesQuery->where(function($q) use ($teamUserId) {
+                $q->where('is_public', true)
+                  ->orWhere('created_by_id', $teamUserId);
+            });
+        }
+        $pipelines = $pipelinesQuery->orderBy('name')->get();
+    @endphp
     <div x-data="{ 
         isEditing: false, 
         newName: '{{ addslashes($emailList->name) }}', 
@@ -30,25 +52,43 @@
                 this.isEditing = false;
             });
         }
-    }" class="flex items-center gap-2">
-        <template x-if="!isEditing">
-            <div class="flex items-center gap-2 cursor-pointer group" @click="isEditing = true">
-                <span class="hover:text-brand" x-text="newName"></span>
-                <button class="text-surface-400 hover:text-brand opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                    </svg>
-                </button>
+    }" class="flex items-center gap-4">
+        @if($emailList->canPerformAction('edit_contact'))
+            <template x-if="!isEditing">
+                <div class="flex items-center gap-2 cursor-pointer group" @click="isEditing = true">
+                    <span class="hover:text-brand" x-text="newName"></span>
+                    <button class="text-surface-400 hover:text-brand opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                        </svg>
+                    </button>
+                </div>
+            </template>
+            <template x-if="isEditing">
+                <div class="flex items-center gap-2">
+                    <input type="text" x-model="newName" @keydown.enter="updateName()" @keydown.escape="isEditing = false; newName = '{{ addslashes($emailList->name) }}'" class="border-b-2 border-brand focus:outline-none bg-transparent pb-0.5 text-lg font-black uppercase" :disabled="isSaving" x-init="$el.focus()">
+                    <span x-show="isSaving" class="text-brand">
+                        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </span>
+                </div>
+            </template>
+        @else
+            <span class="hover:text-brand" x-text="newName"></span>
+        @endif
+
+        <div class="relative ml-2">
+            <select onchange="if(this.value) window.location.href = this.value" class="appearance-none bg-white/80 border border-gray-200 rounded-sm px-3 py-1.5 pr-8 text-xs font-bold text-surface-700 focus:outline-none focus:ring-0 focus:border-brand cursor-pointer">
+                <option value="">Switch List...</option>
+                @foreach($switcherLists as $list)
+                    <option value="{{ route('admin.email-lists.show', $list) }}" {{ $list->id === $emailList->id ? 'selected' : '' }}>
+                        {{ $list->name }}
+                    </option>
+                @endforeach
+            </select>
+            <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-surface-400">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
             </div>
-        </template>
-        <template x-if="isEditing">
-            <div class="flex items-center gap-2">
-                <input type="text" x-model="newName" @keydown.enter="updateName()" @keydown.escape="isEditing = false; newName = '{{ addslashes($emailList->name) }}'" class="border-b-2 border-brand focus:outline-none bg-transparent pb-0.5 text-lg font-black uppercase" :disabled="isSaving" x-init="$el.focus()">
-                <span x-show="isSaving" class="text-brand">
-                    <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                </span>
-            </div>
-        </template>
+        </div>
     </div>
 @endsection
 
@@ -62,6 +102,7 @@
             </svg>
             Export Contacts
         </button>
+        @if($emailList->canPerformAction('add_contact'))
         <button @click="$dispatch('open-import-more')"
             class="px-5 py-3 flex items-center rounded-sm bg-brand hover:bg-brand/90 text-white text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
             <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,18 +110,21 @@
             </svg>
             Import Contacts
         </button>
+        @endif
     </div>
 @endsection
 
 @section('content')
     <div class="space-y-4 animate-slide-up" x-data="emailListView()"
-        @keydown.escape.window="showEditModal = false; showImportMoreModal = false; showExportModal = false"
+        @keydown.escape.window="showEditModal = false; showImportMoreModal = false; showExportModal = false; showTransferModal = false; showSendPipelineModal = false"
         @open-import-more.window="showImportMoreModal = true" @open-export-modal.window="showExportModal = true"
         @open-single-permanent-delete.window="openPermanentDeleteModal($event.detail.id)"
         @open-permanent-delete.window="openPermanentDeleteModal()"
         @archive-email.window="archiveEmail($event.detail.id)"
         @unarchive-email.window="unarchiveEmail($event.detail.id)"
         @open-add-contact.window="openAddContact($event.detail)"
+        @open-transfer-contact.window="openTransferContact($event.detail.contact)"
+        @open-send-pipeline.window="openSendPipeline($event.detail.contact)"
         x-init="@if($emailList->status === 'processing') pollStatus() @endif">
 
         {{-- Tabs Navigation --}}
@@ -584,6 +628,8 @@
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Health</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Email Status</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">WA Status</th>
+                                <th class="px-8 py-4 whitespace-nowrap">Pipeline / Stage</th>
+                                <th class="px-8 py-4 whitespace-nowrap">Deal Notes</th>
                                 <th class="px-8 py-4 text-right">
                                     <button @click="showAddCustomColumnModal = true; newCustomColumnName = ''" class="p-1 hover:bg-gray-100 rounded-sm text-surface-400 hover:text-brand transition-colors" title="Add Custom Column">
                                         <svg class="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
@@ -1111,11 +1157,17 @@
                                  <div class="relative">
                                      <select x-model="bulkActionType" class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-surface-900 text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all appearance-none cursor-pointer">
                                          <option value="">-- Choose an action --</option>
-                                         <option value="subscribe">Subscribe Contacts</option>
-                                         <option value="unsubscribe">Unsubscribe Contacts</option>
-                                         <option :value="archived === 'yes' ? 'unarchive' : 'archive'" x-text="archived === 'yes' ? 'Restore to Active' : 'Move to Archive'"></option>
-                                         <option value="delete">Delete Permanently</option>
-                                         <option value="update_column">Update Column Data</option>
+                                         @if($emailList->canPerformAction('edit_contact'))
+                                             <option value="subscribe">Subscribe Contacts</option>
+                                         @endif
+                                         @if($emailList->canPerformAction('delete_contact'))
+                                             <option value="unsubscribe">Unsubscribe Contacts</option>
+                                             <option :value="archived === 'yes' ? 'unarchive' : 'archive'" x-text="archived === 'yes' ? 'Restore to Active' : 'Move to Archive'"></option>
+                                             <option value="delete">Delete Permanently</option>
+                                         @endif
+                                         @if($emailList->canPerformAction('edit_contact'))
+                                             <option value="update_column">Update Column Data</option>
+                                         @endif
                                      </select>
                                      <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-surface-400">
                                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
@@ -1250,6 +1302,146 @@
                              </button>
                          </form>
                      </div>
+                </div>
+            </div>
+
+            {{-- Transfer Contact Modal --}}
+            <div x-show="showTransferModal" 
+                 class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/80 animate-fade-in" 
+                 x-cloak>
+                 <div class="bg-white rounded-sm w-full max-w-md overflow-hidden shadow-xl flex flex-col border border-surface-200" @click.away="showTransferModal = false">
+                     
+                     {{-- Header --}}
+                     <div class="p-5 border-b border-surface-100 bg-surface-50/50 flex items-start justify-between shrink-0">
+                         <div class="flex gap-3">
+                             <div class="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                                 <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                 </svg>
+                             </div>
+                             <div>
+                                 <h3 class="text-sm font-black text-surface-900 tracking-tight uppercase">Transfer Contact</h3>
+                                 <p class="text-[10px] text-surface-500 mt-1 uppercase font-bold tracking-widest" x-text="transferContact.name || transferContact.email"></p>
+                             </div>
+                         </div>
+                         <button @click="showTransferModal = false" class="text-surface-400 hover:text-surface-900 p-1 hover:bg-surface-100 rounded-sm transition-colors">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                         </button>
+                     </div>
+
+                     {{-- Body --}}
+                     <div class="p-6 bg-white space-y-4">
+                         <div>
+                             <label class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-2">Select Target List</label>
+                             <div class="relative">
+                                 <select x-model="transferContact.target_list_id" class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-surface-900 text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all appearance-none cursor-pointer">
+                                     <option value="">-- Select Destination List --</option>
+                                     @foreach($destinationLists as $list)
+                                         <option value="{{ $list->id }}">{{ $list->name }}</option>
+                                     @endforeach
+                                 </select>
+                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-surface-400">
+                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+                                 </div>
+                             </div>
+                             <p class="text-[10px] text-surface-500 mt-2 font-medium">This contact will be moved out of the current list and added to the selected list. Statistics for both lists will be updated automatically.</p>
+                         </div>
+                     </div>
+
+                     {{-- Footer --}}
+                     <div class="p-5 border-t border-surface-100 bg-surface-50 flex justify-end gap-2 shrink-0">
+                         <button @click="showTransferModal = false" class="px-5 py-2 bg-white border border-surface-200 text-surface-600 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-surface-100 transition-colors">
+                             Cancel
+                         </button>
+                         <button @click="submitTransferContact()" 
+                                 class="px-5 py-2 bg-brand hover:bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-sm shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                                 :disabled="transferring || !transferContact.target_list_id">
+                             <span x-show="!transferring">Transfer Contact</span>
+                             <span x-show="transferring">Transferring...</span>
+                         </button>
+                     </div>
+                 </div>
+            </div>
+
+            {{-- Send to Pipeline Modal --}}
+            <div x-show="showSendPipelineModal" 
+                 class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-900/80 animate-fade-in" 
+                 x-cloak>
+                 <div class="bg-white rounded-sm w-full max-w-md overflow-hidden shadow-xl flex flex-col border border-surface-200" @click.away="showSendPipelineModal = false">
+                     
+                     {{-- Header --}}
+                     <div class="p-5 border-b border-surface-100 bg-surface-50/50 flex items-start justify-between shrink-0">
+                         <div class="flex gap-3">
+                             <div class="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                                 <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                                 </svg>
+                             </div>
+                             <div>
+                                 <h3 class="text-sm font-black text-surface-900 tracking-tight uppercase">Send to Pipeline</h3>
+                                 <p class="text-[10px] text-surface-500 mt-1 uppercase font-bold tracking-widest" x-text="sendPipelineContact.name || sendPipelineContact.email"></p>
+                             </div>
+                         </div>
+                         <button @click="showSendPipelineModal = false" class="text-surface-400 hover:text-surface-900 p-1 hover:bg-surface-100 rounded-sm transition-colors">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                         </button>
+                     </div>
+
+                     {{-- Body --}}
+                     <div class="p-6 bg-white space-y-4">
+                         <div>
+                             <label class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Deal Title *</label>
+                             <input type="text" x-model="sendPipelineContact.title" class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all">
+                         </div>
+
+                         <div>
+                             <label class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Select Pipeline *</label>
+                             <div class="relative">
+                                 <select x-model="sendPipelineContact.pipeline_id" @change="sendPipelineContact.pipeline_stage_id = ''" class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-surface-900 text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all appearance-none cursor-pointer">
+                                     <option value="">-- Choose Pipeline --</option>
+                                     <template x-for="pipe in pipelines" :key="pipe.id">
+                                         <option :value="pipe.id" x-text="pipe.name"></option>
+                                     </template>
+                                 </select>
+                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-surface-400">
+                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <div>
+                             <label class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Select Stage *</label>
+                             <div class="relative">
+                                 <select x-model="sendPipelineContact.pipeline_stage_id" :disabled="!sendPipelineContact.pipeline_id" class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-surface-900 text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                                     <option value="">-- Choose Stage --</option>
+                                     <template x-for="stage in selectedPipelineStages" :key="stage.id">
+                                         <option :value="stage.id" x-text="stage.name"></option>
+                                     </template>
+                                 </select>
+                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-surface-400">
+                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <div>
+                             <label class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Deal Value (INR)</label>
+                             <input type="number" step="0.01" min="0" x-model="sendPipelineContact.value" class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all">
+                         </div>
+                     </div>
+
+                     {{-- Footer --}}
+                     <div class="p-5 border-t border-surface-100 bg-surface-50 flex justify-end gap-2 shrink-0">
+                         <button @click="showSendPipelineModal = false" class="px-5 py-2 bg-white border border-surface-200 text-surface-600 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-surface-100 transition-colors">
+                             Cancel
+                         </button>
+                         <button @click="submitSendPipeline()" 
+                                 class="px-5 py-2 bg-brand hover:bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-sm shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                                 :disabled="sendingToPipeline || !sendPipelineContact.pipeline_id || !sendPipelineContact.pipeline_stage_id || !sendPipelineContact.title.trim()">
+                             <span x-show="!sendingToPipeline">Create Deal</span>
+                             <span x-show="sendingToPipeline">Creating...</span>
+                         </button>
+                     </div>
                  </div>
             </div>
             </div> <!-- Closing teleport wrapper div -->
@@ -1286,6 +1478,17 @@
             addChannelValue: '',
             addChannelOriginalRowId: '',
             addingChannel: false,
+
+            // Transfer Contact state
+            showTransferModal: false,
+            transferContact: { id: null, name: '', email: '', target_list_id: '' },
+            transferring: false,
+
+            // Send to Pipeline state
+            showSendPipelineModal: false,
+            sendPipelineContact: { id: null, name: '', email: '', title: '', value: 0, pipeline_id: '', pipeline_stage_id: '' },
+            sendingToPipeline: false,
+            pipelines: @js($pipelines),
             
             exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
             consolidate: false,
@@ -1690,6 +1893,84 @@
                         alert(res.message || 'An error occurred.');
                     }
                 }).catch(() => { this.addingChannel = false; });
+            },
+
+            openTransferContact(contact) {
+                this.transferContact = {
+                    id: contact.id,
+                    name: contact.name || '',
+                    email: contact.email || '',
+                    target_list_id: ''
+                };
+                this.showTransferModal = true;
+            },
+
+            submitTransferContact() {
+                if (!this.transferContact.target_list_id) {
+                    alert('Please select a destination list.');
+                    return;
+                }
+                this.transferring = true;
+                fetch(`{{ route('admin.email-lists.transfer-contact', [$emailList, ':id']) }}`.replace(':id', this.transferContact.id), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify({ target_list_id: this.transferContact.target_list_id })
+                })
+                .then(r => r.json())
+                .then(res => {
+                    this.transferring = false;
+                    if(res.success) {
+                        this.showTransferModal = false;
+                        this.fetchEmails();
+                        this.refreshStats();
+                    } else {
+                        alert(res.message || 'An error occurred during transfer.');
+                    }
+                })
+                .catch(() => { this.transferring = false; alert('Failed to transfer contact.'); });
+            },
+
+            openSendPipeline(contact) {
+                this.sendPipelineContact = {
+                    id: contact.id,
+                    name: contact.name || '',
+                    email: contact.email || '',
+                    title: (contact.name || contact.email || 'Contact') + ' Deal',
+                    value: 0,
+                    pipeline_id: '',
+                    pipeline_stage_id: ''
+                };
+                this.showSendPipelineModal = true;
+            },
+
+            submitSendPipeline() {
+                if (!this.sendPipelineContact.pipeline_id || !this.sendPipelineContact.pipeline_stage_id) {
+                    alert('Please select a pipeline and stage.');
+                    return;
+                }
+                this.sendingToPipeline = true;
+                fetch(`{{ route('admin.email-lists.send-to-pipeline', [$emailList, ':id']) }}`.replace(':id', this.sendPipelineContact.id), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify(this.sendPipelineContact)
+                })
+                .then(r => r.json())
+                .then(res => {
+                    this.sendingToPipeline = false;
+                    if(res.success) {
+                        this.showSendPipelineModal = false;
+                        alert('Deal created successfully in the pipeline stage!');
+                    } else {
+                        alert(res.message || 'An error occurred while creating the deal.');
+                    }
+                })
+                .catch(() => { this.sendingToPipeline = false; alert('Failed to send contact to pipeline.'); });
+            },
+
+            get selectedPipelineStages() {
+                if (!this.sendPipelineContact.pipeline_id) return [];
+                const p = this.pipelines.find(x => x.id == this.sendPipelineContact.pipeline_id);
+                return p ? (p.stages || []) : [];
             },
 
             confirmPermanentDelete() {

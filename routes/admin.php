@@ -51,6 +51,8 @@ Route::name('admin.')->group(function () {
         Route::post('/{emailList}/save-invalid', [EmailListController::class, 'saveInvalid'])->name('save-invalid');
         Route::get('/{emailList}/duplicates', [EmailListController::class, 'resolveDuplicates'])->name('duplicates.index');
         Route::post('/{emailList}/duplicates/resolve', [EmailListController::class, 'resolveDuplicatesAction'])->name('duplicates.resolve');
+        Route::post('/{emailList}/transfer/{emailId}', [EmailListController::class, 'transferContact'])->name('transfer-contact');
+        Route::post('/{emailList}/send-to-pipeline/{emailId}', [EmailListController::class, 'sendToPipeline'])->name('send-to-pipeline');
         Route::patch('/{emailList}/update-name', [EmailListController::class, 'updateName'])->name('update-name');
         Route::get('/check-mx', [EmailListController::class, 'checkMX'])->name('check-mx');
         Route::delete('/{emailList}', [EmailListController::class, 'destroy'])->name('destroy');
@@ -199,6 +201,85 @@ Route::name('admin.')->group(function () {
 
         // Settings
         Route::get('/settings', [\App\Http\Controllers\WhatsAppSettingsController::class, 'index'])->name('settings');
+    });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Pipelines (Deals Board)
+    // ──────────────────────────────────────────────────────
+    Route::prefix('pipelines')->name('pipelines.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PipelineController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\PipelineController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\PipelineController::class, 'store'])->name('store');
+        Route::get('/{pipeline}', [\App\Http\Controllers\PipelineController::class, 'show'])->name('show');
+        Route::put('/{pipeline}/settings', [\App\Http\Controllers\PipelineController::class, 'updateSettings'])->name('update-settings');
+        Route::put('/{pipeline}/transfer', [\App\Http\Controllers\PipelineController::class, 'transferOwnership'])->name('transfer-ownership');
+        Route::delete('/{pipeline}', [\App\Http\Controllers\PipelineController::class, 'destroy'])->name('destroy');
+
+        // Stage Management
+        Route::post('/{pipeline}/stages', [\App\Http\Controllers\PipelineController::class, 'addStage'])->name('stages.store');
+        Route::put('/stages/{stage}', [\App\Http\Controllers\PipelineController::class, 'updateStage'])->name('stages.update');
+        Route::delete('/stages/{stage}', [\App\Http\Controllers\PipelineController::class, 'deleteStage'])->name('stages.destroy');
+        Route::post('/{pipeline}/stages/reorder', [\App\Http\Controllers\PipelineController::class, 'reorderStages'])->name('stages.reorder');
+
+        // Deals
+        Route::post('/deals/move', [\App\Http\Controllers\PipelineController::class, 'updateDealStage'])->name('deals.move');
+        Route::post('/{pipeline}/deals', [\App\Http\Controllers\PipelineController::class, 'storeDeal'])->name('deals.store');
+        Route::put('/deals/{deal}', [\App\Http\Controllers\PipelineController::class, 'updateDeal'])->name('deals.update');
+        Route::delete('/deals/{deal}', [\App\Http\Controllers\PipelineController::class, 'destroyDeal'])->name('deals.destroy');
+
+        // Deal Activities
+        Route::get('/deals/{deal}/activities', [\App\Http\Controllers\PipelineController::class, 'dealActivities'])->name('deals.activities');
+
+        // Deal Tasks & Comments
+        Route::get('/deals/{deal}/tasks', [\App\Http\Controllers\PipelineController::class, 'dealTasks'])->name('deals.tasks');
+        Route::post('/deals/{deal}/tasks', [\App\Http\Controllers\PipelineController::class, 'storeDealTask'])->name('deals.tasks.store');
+        Route::post('/deals/tasks/{task}/toggle', [\App\Http\Controllers\PipelineController::class, 'toggleDealTask'])->name('deals.tasks.toggle');
+        Route::delete('/deals/tasks/{task}', [\App\Http\Controllers\PipelineController::class, 'destroyDealTask'])->name('deals.tasks.destroy');
+        Route::post('/deals/{deal}/comments', [\App\Http\Controllers\PipelineController::class, 'storeDealComment'])->name('deals.comments.store');
+
+        // Analytics
+        Route::get('/{pipeline}/analytics', [\App\Http\Controllers\PipelineController::class, 'analytics'])->name('analytics');
+    });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Segment Builder
+    // ──────────────────────────────────────────────────────
+    Route::prefix('segments')->name('segments.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SegmentBuilderController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\SegmentBuilderController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\SegmentBuilderController::class, 'store'])->name('store');
+        Route::post('/preview', [\App\Http\Controllers\SegmentBuilderController::class, 'preview'])->name('preview');
+        Route::get('/{segment}', [\App\Http\Controllers\SegmentBuilderController::class, 'show'])->name('show');
+        Route::delete('/{segment}', [\App\Http\Controllers\SegmentBuilderController::class, 'destroy'])->name('destroy');
+    });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Tasks & Calendar
+    // ──────────────────────────────────────────────────────
+    Route::prefix('tasks')->name('tasks.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\TaskController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\TaskController::class, 'store'])->name('store');
+        Route::put('/{task}', [\App\Http\Controllers\TaskController::class, 'update'])->name('update');
+        Route::post('/{task}/toggle', [\App\Http\Controllers\TaskController::class, 'toggle'])->name('toggle');
+        Route::delete('/{task}', [\App\Http\Controllers\TaskController::class, 'destroy'])->name('destroy');
+        Route::get('/calendar-events', [\App\Http\Controllers\TaskController::class, 'calendarEvents'])->name('calendar-events');
+    });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Custom Fields
+    // ──────────────────────────────────────────────────────
+    Route::prefix('custom-fields')->name('custom-fields.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CustomFieldController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\CustomFieldController::class, 'store'])->name('store');
+        Route::delete('/{customField}', [\App\Http\Controllers\CustomFieldController::class, 'destroy'])->name('destroy');
+    });
+
+    // CRM: Contacts Profile
+    Route::prefix('contacts')->name('contacts.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ContactController::class, 'index'])->name('index');
+        Route::get('/{email}', [\App\Http\Controllers\ContactController::class, 'show'])->name('show');
+        Route::post('/{email}/notes', [\App\Http\Controllers\ContactController::class, 'addNote'])->name('notes.store');
+        Route::post('/{email}/tags', [\App\Http\Controllers\ContactController::class, 'updateTags'])->name('tags.update');
     });
 
     // Profile

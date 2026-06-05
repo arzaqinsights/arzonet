@@ -123,6 +123,16 @@ class Email extends Model
         return $this->hasMany(ContactNote::class)->latest();
     }
 
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class, 'email_id');
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(ContactTask::class, 'email_id');
+    }
+
     public function scopeValid($query)
     {
         return $query->where('status', 'valid');
