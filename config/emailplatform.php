@@ -17,8 +17,8 @@ return [
     */
     'profiles' => [
         'bulk' => [
-            'emails_per_second' => 50,
-            'emails_per_minute' => 3000,
+            'emails_per_second' => 100,
+            'emails_per_minute' => 6000,
             'daily_limit' => 500000,
         ],
         'normal' => [

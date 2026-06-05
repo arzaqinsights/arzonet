@@ -14,6 +14,49 @@ class PricingTest extends TestCase
     {
         parent::setUp();
         $this->controller = new PlansController();
+
+        config([
+            'plans.gst_percent' => 18,
+            'plans.rates' => [
+                'crm_per_user'             => 600,
+                'crm_per_1k_contacts'      => 10,
+                'email_per_1k'             => 100,
+                'whatsapp_per_number'      => 500,
+                'whatsapp_per_message'     => 0,
+            ],
+            'plans.plans' => [
+                'starter' => [
+                    'price' => 2200,
+                    'limits' => [
+                        'crm_users'          => 1,
+                        'crm_contacts'       => 5000,
+                        'emails_per_month'   => 10000,
+                        'whatsapp_numbers'   => 1,
+                        'whatsapp_messages'  => 1000,
+                    ],
+                ],
+                'growth' => [
+                    'price' => 10000,
+                    'limits' => [
+                        'crm_users'          => 5,
+                        'crm_contacts'       => 25000,
+                        'emails_per_month'   => 50000,
+                        'whatsapp_numbers'   => 3,
+                        'whatsapp_messages'  => 10000,
+                    ],
+                ],
+                'business' => [
+                    'price' => 33000,
+                    'limits' => [
+                        'crm_users'          => 10,
+                        'crm_contacts'       => 100000,
+                        'emails_per_month'   => 200000,
+                        'whatsapp_numbers'   => 10,
+                        'whatsapp_messages'  => 50000,
+                    ],
+                ],
+            ],
+        ]);
     }
 
     /**

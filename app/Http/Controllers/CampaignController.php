@@ -283,9 +283,23 @@ class CampaignController extends Controller
             return back()->with('error', 'Campaign cannot be sent in its current state.');
         }
 
-        $campaignService->dispatch($campaign);
+        // Validate upfront (fast checks only)
+        $usage = $campaign->user->getEmailsUsage();
+        if ($usage->is_exceeded) {
+            return back()->with('error', 'Email sending limit exceeded. Please upgrade your plan.');
+        }
+        if (!$campaign->emailList) {
+            return back()->with('error', 'Campaign has no email list attached.');
+        }
+        if (!$campaign->sender) {
+            return back()->with('error', 'Campaign has no sender configured.');
+        }
 
-        return redirect()->route('admin.campaigns.show', $campaign)->with('success', 'Campaign is now sending! Mission launched.');
+        $campaign->update(['status' => 'preparing']);
+        \App\Jobs\PrepareCampaignDispatchJob::dispatch($campaign->id)->onQueue('high');
+
+        return redirect()->route('admin.campaigns.show', $campaign)
+            ->with('success', 'Campaign is being prepared for sending...');
     }
 
     public function pause(Campaign $campaign, CampaignService $campaignService)
@@ -331,30 +345,46 @@ class CampaignController extends Controller
     {
         $campaign->load(['emailList', 'template', 'sender']);
         
+        $logStats = \DB::table('email_logs')
+            ->where('campaign_id', $campaign->id)
+            ->selectRaw("
+                COUNT(*) as total_logs,
+                SUM(CASE WHEN status IN ('sent','delivered') THEN 1 ELSE 0 END) as sent,
+                SUM(CASE WHEN status = 'bounced' THEN 1 ELSE 0 END) as bounced,
+                SUM(CASE WHEN status IN ('complaint','spamreport') THEN 1 ELSE 0 END) as spam_reports,
+                SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocks,
+                SUM(CASE WHEN status = 'dropped' THEN 1 ELSE 0 END) as drops,
+                SUM(CASE WHEN status = 'deferred' THEN 1 ELSE 0 END) as deferred,
+                SUM(CASE WHEN error_message LIKE '%invalid%' THEN 1 ELSE 0 END) as invalid,
+                SUM(open_count) as total_opens,
+                SUM(click_count) as total_clicks,
+                SUM(CASE WHEN open_count > 0 OR click_count > 0 THEN 1 ELSE 0 END) as unique_opens,
+                SUM(CASE WHEN click_count > 0 THEN 1 ELSE 0 END) as unique_clicks
+            ")->first();
+
         $stats = [
             'total'         => $campaign->total_recipients,
-            'sent'          => $campaign->logs()->whereIn('status', ['delivered', 'sent'])->count(),
-            'delivered'     => $campaign->logs()->whereIn('status', ['delivered', 'sent'])->count(),
+            'sent'          => (int) $logStats->sent,
+            'delivered'     => (int) $logStats->sent,
             'failed'        => $campaign->failed_count,
-            'opens'         => $campaign->logs()->sum('open_count'),
-            'unique_opens'  => $campaign->logs()->where(function($q) {
-                $q->where('open_count', '>', 0)
-                  ->orWhere('click_count', '>', 0);
-            })->count(),
-            'clicks'        => $campaign->logs()->sum('click_count'),
-            'unique_clicks' => $campaign->logs()->where('click_count', '>', 0)->count(),
+            'opens'         => (int) $logStats->total_opens,
+            'unique_opens'  => (int) $logStats->unique_opens,
+            'clicks'        => (int) $logStats->total_clicks,
+            'unique_clicks' => (int) $logStats->unique_clicks,
             'unsubscribes'  => $campaign->unsubscribes()->count(),
-            'bounces'       => $campaign->logs()->where('status', 'bounced')->count(),
-            'spam_reports'  => $campaign->logs()->whereIn('status', ['complaint', 'spamreport'])->count(),
-            'blocks'        => $campaign->logs()->where('status', 'blocked')->count(),
-            'drops'         => $campaign->logs()->where('status', 'dropped')->count(),
-            'invalid'       => $campaign->logs()->where('error_message', 'LIKE', '%invalid%')->count(),
-            'deferred'      => $campaign->logs()->where('status', 'deferred')->count(),
+            'bounces'       => (int) $logStats->bounced,
+            'spam_reports'  => (int) $logStats->spam_reports,
+            'blocks'        => (int) $logStats->blocks,
+            'drops'         => (int) $logStats->drops,
+            'invalid'       => (int) $logStats->invalid,
+            'deferred'      => (int) $logStats->deferred,
         ];
 
-        // Provider-wise breakdown
-        $providerStats = $campaign->logs()
-            ->join('senders', 'email_logs.sender_id', '=', 'senders.id')
+        // Provider-wise breakdown (Fixed JOIN on campaigns.sender_id instead of email_logs.sender_id)
+        $providerStats = \DB::table('email_logs')
+            ->where('email_logs.campaign_id', $campaign->id)
+            ->join('campaigns', 'email_logs.campaign_id', '=', 'campaigns.id')
+            ->join('senders', 'campaigns.sender_id', '=', 'senders.id')
             ->select('senders.type as provider', 'senders.email as sender_email')
             ->selectRaw('count(*) as total')
             ->selectRaw('count(case when email_logs.status = "sent" or email_logs.status = "delivered" then 1 end) as sent')

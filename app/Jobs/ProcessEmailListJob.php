@@ -50,31 +50,104 @@ class ProcessEmailListJob implements ShouldQueue
             $mapping = $emailList->column_mapping;
             $emailListId = $this->emailListId;
             $listType = $emailList->list_type;
+            $logId = $this->activityLogId;
             
-            // Larger chunk size = fewer jobs = less Redis/DB overhead
-            // 100 rows/job is still fast but reduces total jobs by 2x
             $chunkSize = 100;
             $currentChunk = [];
             $totalInFile = 0;
-            $allJobs = [];
 
+            // Create the batch FIRST with an empty jobs array, then add them incrementally
+            $batch = Bus::batch([])
+                ->name("Import List: {$emailList->name}")
+                ->finally(function (Batch $batch) use ($emailListId, $logId) {
+                    $list = EmailList::find($emailListId);
+                    if ($list && $list->status !== 'failed') {
+                        // Force completion status first to unlock UI
+                        $list->update(['status' => 'completed']);
+                        $list->recalculateStats();
+
+                        // Automatically compute segments for the entire imported list
+                        \App\Jobs\UpdateContactSegmentsJob::dispatch(null, $emailListId);
+                        
+                        if ($logId) {
+                            $log = \App\Models\ActivityLog::find($logId);
+                            if ($log) {
+                                // Read the atomic session counters accumulated by chunks
+                                $log->refresh();
+                                $sValid       = (int) $log->session_valid_count;
+                                $sInvalid     = (int) $log->session_invalid_count;
+                                $sDuplicate   = (int) $log->session_duplicate_count;
+                                $sCrossDuplicate = (int) $log->session_cross_duplicate_count;
+                                $sRisky       = (int) $log->session_risky_count;
+                                $sRole        = (int) $log->session_role_based_count;
+                                $sDisposable  = (int) $log->session_disposable_count;
+                                $sCatchAll    = (int) $log->session_catch_all_count;
+                                $sTypo        = (int) $log->session_typo_count;
+
+                                $log->update([
+                                    'details' => array_merge($log->details ?? [], [
+                                        'status'      => 'completed',
+                                        'processed'   => $sValid + $sInvalid + $sDuplicate + $sCrossDuplicate,
+                                        'valid'       => $sValid,
+                                        'duplicate'   => $sDuplicate,
+                                        'invalid'     => $sInvalid,
+                                        'cross_duplicate' => $sCrossDuplicate,
+                                        'risky'       => $sRisky,
+                                        'role_based'  => $sRole,
+                                        'disposable'  => $sDisposable,
+                                        'catch_all'   => $sCatchAll,
+                                        'typo'        => $sTypo,
+                                        'finished_at' => now()->toDateTimeString(),
+                                    ]),
+                                    // Reset counters after finalizing
+                                    'session_valid_count'     => 0,
+                                    'session_invalid_count'   => 0,
+                                    'session_duplicate_count' => 0,
+                                    'session_cross_duplicate_count' => 0,
+                                    'session_risky_count'      => 0,
+                                    'session_role_based_count' => 0,
+                                    'session_disposable_count' => 0,
+                                    'session_catch_all_count'  => 0,
+                                    'session_typo_count'       => 0,
+                                ]);
+                            }
+                        }
+                    }
+                })
+                ->dispatch();
+
+            if ($logId) {
+                \App\Models\ActivityLog::where('id', $logId)->update(['batch_id' => $batch->id]);
+            }
+
+            $pendingJobs = [];
             foreach ($parser->streamStoredFile($emailList->file_path, $mapping, $listType) as $row) {
                 $currentChunk[] = $row;
                 $totalInFile++;
 
                 if (count($currentChunk) >= $chunkSize) {
-                    $allJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
+                    $pendingJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
                     $currentChunk = [];
+
+                    // Flush to batch every 10 jobs to prevent memory buildup
+                    if (count($pendingJobs) >= 10) {
+                        $batch->add($pendingJobs);
+                        $pendingJobs = [];
+                    }
                 }
             }
 
             if (!empty($currentChunk)) {
-                $allJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
+                $pendingJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
+            }
+
+            if (!empty($pendingJobs)) {
+                $batch->add($pendingJobs);
             }
 
             // Update total rows in log if we have it
-            if ($this->activityLogId) {
-                $log = \App\Models\ActivityLog::find($this->activityLogId);
+            if ($logId) {
+                $log = \App\Models\ActivityLog::find($logId);
                 if ($log) {
                     $log->update([
                         'details' => array_merge($log->details ?? [], ['total_in_file' => $totalInFile])
@@ -82,9 +155,8 @@ class ProcessEmailListJob implements ShouldQueue
                 }
             }
 
-            if (!empty($allJobs)) {
-                $this->dispatchBatch($allJobs, $emailList);
-            } else {
+            // If no jobs were added to the batch, we should mark completion
+            if ($totalInFile === 0) {
                 $emailList->update(['status' => 'completed']);
             }
 
@@ -95,75 +167,6 @@ class ProcessEmailListJob implements ShouldQueue
             
             $emailList->update(['status' => 'failed']);
             throw $e;
-        }
-    }
-
-    protected function dispatchBatch(array $jobs, EmailList $emailList): void
-    {
-        $emailListId = $emailList->id;
-        $logId = $this->activityLogId;
-        
-        $batch = Bus::batch($jobs)
-            ->name("Import List: {$emailList->name}")
-            ->finally(function (Batch $batch) use ($emailListId, $logId) {
-                $list = EmailList::find($emailListId);
-                if ($list && $list->status !== 'failed') {
-                    // Force completion status first to unlock UI
-                    $list->update(['status' => 'completed']);
-                    $list->recalculateStats();
-
-                    // Automatically compute segments for the entire imported list
-                    \App\Jobs\UpdateContactSegmentsJob::dispatch(null, $emailListId);
-                    
-                    if ($logId) {
-                        $log = \App\Models\ActivityLog::find($logId);
-                        if ($log) {
-                            // Read the atomic session counters accumulated by chunks
-                            $log->refresh();
-                            $sValid       = (int) $log->session_valid_count;
-                            $sInvalid     = (int) $log->session_invalid_count;
-                            $sDuplicate   = (int) $log->session_duplicate_count;
-                            $sCrossDuplicate = (int) $log->session_cross_duplicate_count;
-                            $sRisky       = (int) $log->session_risky_count;
-                            $sRole        = (int) $log->session_role_based_count;
-                            $sDisposable  = (int) $log->session_disposable_count;
-                            $sCatchAll    = (int) $log->session_catch_all_count;
-                            $sTypo        = (int) $log->session_typo_count;
-
-                            $log->update([
-                                'details' => array_merge($log->details ?? [], [
-                                    'status'      => 'completed',
-                                    'processed'   => $sValid + $sInvalid + $sDuplicate + $sCrossDuplicate,
-                                    'valid'       => $sValid,
-                                    'duplicate'   => $sDuplicate,
-                                    'invalid'     => $sInvalid,
-                                    'cross_duplicate' => $sCrossDuplicate,
-                                    'risky'       => $sRisky,
-                                    'role_based'  => $sRole,
-                                    'disposable'  => $sDisposable,
-                                    'catch_all'   => $sCatchAll,
-                                    'typo'        => $sTypo,
-                                    'finished_at' => now()->toDateTimeString(),
-                                ]),
-                                // Reset counters after finalizing
-                                'session_valid_count'     => 0,
-                                'session_invalid_count'   => 0,
-                                'session_duplicate_count' => 0,
-                                'session_cross_duplicate_count' => 0,
-                                'session_risky_count'      => 0,
-                                'session_role_based_count' => 0,
-                                'session_disposable_count' => 0,
-                                'session_catch_all_count'  => 0,
-                                'session_typo_count'       => 0,
-                            ]);
-                        }
-                    }
-                }
-            })
-            ->dispatch();
-
-        if ($logId) {
-            \App\Models\ActivityLog::where('id', $logId)->update(['batch_id' => $batch->id]);
         }
     }
 }

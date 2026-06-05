@@ -10,9 +10,11 @@ Artisan::command('inspire', function () {
 use Illuminate\Support\Facades\Schedule;
 use App\Jobs\CheckSenderVerificationStatusJob;
 use App\Jobs\UpdateContactSegmentsJob;
+use App\Jobs\ProcessWebhookBatchJob;
 
 Schedule::job(new CheckSenderVerificationStatusJob)->everyTenSeconds();
 Schedule::job(new UpdateContactSegmentsJob)->everyTenMinutes();
+Schedule::job(new ProcessWebhookBatchJob)->everyFiveSeconds();
 
 Schedule::call(function () {
     $expiredIds = \Illuminate\Support\Facades\DB::table('emails')

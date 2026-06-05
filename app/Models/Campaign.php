@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\DB;
 
 class Campaign extends Model
 {
@@ -74,10 +76,39 @@ class Campaign extends Model
         return $this->hasManyThrough(EmailEvent::class, EmailLog::class);
     }
 
+    public function getCachedStats(): object
+    {
+        $key = "campaign_stats:{$this->id}";
+        $cached = Redis::get($key);
+        if ($cached) {
+            $decoded = json_decode($cached);
+            if ($decoded) {
+                return $decoded;
+            }
+        }
+
+        $stats = DB::table('email_logs')
+            ->where('campaign_id', $this->id)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status IN ('sent','delivered') THEN 1 ELSE 0 END) as sent,
+                SUM(CASE WHEN status IN ('failed') THEN 1 ELSE 0 END) as failed,
+                SUM(CASE WHEN status = 'bounced' THEN 1 ELSE 0 END) as bounced,
+                SUM(CASE WHEN status IN ('complaint','spamreport') THEN 1 ELSE 0 END) as complaints,
+                SUM(CASE WHEN open_count > 0 OR click_count > 0 THEN 1 ELSE 0 END) as unique_opens,
+                SUM(CASE WHEN click_count > 0 THEN 1 ELSE 0 END) as unique_clicks,
+                SUM(CASE WHEN status IN ('sent','delivered','failed','bounced','complaint','spamreport','dropped') THEN 1 ELSE 0 END) as processed
+            ")->first();
+
+        Redis::setex($key, 30, json_encode($stats));
+        return $stats;
+    }
+
     public function successRate(): float
     {
-        $sent = $this->logs()->where('status', 'sent')->count();
-        $failed = $this->logs()->whereIn('status', ['failed', 'bounced'])->count();
+        $stats = $this->getCachedStats();
+        $sent = (int) $stats->sent;
+        $failed = (int) $stats->failed + (int) $stats->bounced;
         
         if ($sent + $failed === 0) return 0;
         return round(($sent / ($sent + $failed)) * 100, 1);
@@ -85,8 +116,9 @@ class Campaign extends Model
 
     public function failureRate(): float
     {
-        $sent = $this->logs()->where('status', 'sent')->count();
-        $failed = $this->logs()->whereIn('status', ['failed', 'bounced'])->count();
+        $stats = $this->getCachedStats();
+        $sent = (int) $stats->sent;
+        $failed = (int) $stats->failed + (int) $stats->bounced;
         
         if ($sent + $failed === 0) return 0;
         return round(($failed / ($sent + $failed)) * 100, 1);
@@ -96,7 +128,8 @@ class Campaign extends Model
     {
         if ($this->total_recipients === 0) return 0;
         
-        $reached = $this->logs()->whereIn('status', ['sent', 'failed', 'bounced', 'delivered'])->count();
+        $stats = $this->getCachedStats();
+        $reached = (int) $stats->processed;
         return round(($reached / $this->total_recipients) * 100, 1);
     }
 
@@ -112,44 +145,37 @@ class Campaign extends Model
 
     public function openRate(): float
     {
-        // Get actual delivered count from logs for accuracy
-        $deliveredCount = $this->logs()->whereIn('status', ['sent', 'delivered'])->count();
+        $stats = $this->getCachedStats();
+        $deliveredCount = (int) $stats->sent;
         if ($deliveredCount === 0) return 0;
 
-        // Smart Open: Count unique logs where either open_count > 0 OR click_count > 0
-        // (If they clicked, they definitely opened, even if the pixel was blocked)
-        $uniqueOpens = $this->logs()
-            ->where(function($q) {
-                $q->where('open_count', '>', 0)
-                  ->orWhere('click_count', '>', 0);
-            })
-            ->count();
-
+        $uniqueOpens = (int) $stats->unique_opens;
         return round(($uniqueOpens / $deliveredCount) * 100, 1);
     }
 
     public function clickRate(): float
     {
-        $deliveredCount = $this->logs()->whereIn('status', ['sent', 'delivered'])->count();
+        $stats = $this->getCachedStats();
+        $deliveredCount = (int) $stats->sent;
         if ($deliveredCount === 0) return 0;
 
-        // Unique Clicks
-        $uniqueClicks = $this->logs()->where('click_count', '>', 0)->count();
-
+        $uniqueClicks = (int) $stats->unique_clicks;
         return round(($uniqueClicks / $deliveredCount) * 100, 1);
     }
 
     public function bounceRate(): float
     {
         if ($this->total_recipients === 0) return 0;
-        $bounces = $this->logs()->where('status', 'bounced')->count();
+        $stats = $this->getCachedStats();
+        $bounces = (int) $stats->bounced;
         return round(($bounces / $this->total_recipients) * 100, 1);
     }
 
     public function complaintRate(): float
     {
         if ($this->total_recipients === 0) return 0;
-        $complaints = $this->logs()->where('status', 'complaint')->count();
+        $stats = $this->getCachedStats();
+        $complaints = (int) $stats->complaints;
         return round(($complaints / $this->total_recipients) * 100, 1);
     }
 

@@ -25,7 +25,7 @@ class SendEmailBatchJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries;
-    public int $timeout = 600;
+    public int $timeout = 120;
 
     // Retry with exponential backoff (e.g., 10s, 30s, 90s, 270s, etc.)
     public function backoff()
@@ -78,9 +78,15 @@ class SendEmailBatchJob implements ShouldQueue
         $template = $campaign->template;
         
         // ── 2. PRELOAD LOGS & EMAILS (Zero DB inside loop) ──
-        $emails = Email::whereIn('id', $this->emailIds)->subscribed()->get()->keyBy('id');
+        $emails = Email::whereIn('id', $this->emailIds)
+            ->subscribed()
+            ->select('id', 'email', 'name', 'first_name', 'full_name', 'meta')
+            ->get()
+            ->keyBy('id');
+
         $logs = EmailLog::where('campaign_id', $campaign->id)
             ->whereIn('email_id', $this->emailIds)
+            ->select('id', 'campaign_id', 'email_id', 'email_address', 'tracking_token', 'status', 'open_count', 'click_count')
             ->get()
             ->keyBy('email_id');
 
@@ -123,7 +129,6 @@ class SendEmailBatchJob implements ShouldQueue
                 $this->saveBatchResults($results, $campaign, $usageTracker);
                 
                 // Re-dispatch remaining emails instead of releasing the whole job
-                // because we've already processed and saved some emails in this chunk.
                 $remainingIds = array_slice($this->emailIds, array_search($emailId, $this->emailIds));
                 if (!empty($remainingIds)) {
                     self::dispatch($this->campaignId, $remainingIds)
@@ -149,8 +154,6 @@ class SendEmailBatchJob implements ShouldQueue
                 if ($senderIndex === 0) {
                     \Log::info("Sample Processed HTML Snippet: " . substr($html, 0, 200));
                 }
-                // Note: DNS pre-flight check removed — emails are already validated at import.
-                // Invalid domains will bounce naturally and are handled by the bounce webhook.
 
                 $subjectSource = $campaign->subject;
                 $subject = $mailService->replaceVariables($subjectSource, $recipientData, false);
@@ -161,7 +164,7 @@ class SendEmailBatchJob implements ShouldQueue
 
                 // ── CENTRALIZED GLOBAL RATE LIMITER (Non-Blocking) ──
                 $limitKey = "sender_rate_limit:{$currentSender->id}";
-                $maxPerMinute = $currentSender->emails_per_minute ?: ($providerType === 'sendgrid' ? 3000 : 60);
+                $maxPerMinute = $currentSender->emails_per_minute ?: ($providerType === 'sendgrid' ? 6000 : 60);
                 
                 if (!\Illuminate\Support\Facades\RateLimiter::attempt($limitKey, $maxPerMinute, function() {}, 60)) {
                     $this->saveBatchResults($results, $campaign, $usageTracker);
@@ -212,7 +215,7 @@ class SendEmailBatchJob implements ShouldQueue
     }
 
     /**
-     * Save batch results to the database
+     * Save batch results to the database using bulk updates
      */
     protected function saveBatchResults(array $results, Campaign $campaign, UsageTrackingService $usageTracker)
     {
@@ -221,19 +224,42 @@ class SendEmailBatchJob implements ShouldQueue
         }
 
         DB::transaction(function() use ($results, $campaign, $usageTracker) {
-            foreach ($results['sent'] as $sent) {
-                EmailLog::where('id', $sent['id'])->update([
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                    'message_id' => $sent['message_id']
-                ]);
+            if (!empty($results['sent'])) {
+                $sentIds = array_column($results['sent'], 'id');
+                $cases = [];
+                $bindings = [];
+                foreach ($results['sent'] as $s) {
+                    $cases[] = "WHEN id = ? THEN ?";
+                    $bindings[] = $s['id'];
+                    $bindings[] = $s['message_id'];
+                }
+                $caseStr = implode(' ', $cases);
+                $idPlaceholders = implode(',', array_fill(0, count($sentIds), '?'));
+                DB::update(
+                    "UPDATE email_logs SET status='sent', sent_at=NOW(), updated_at=NOW(), 
+                     message_id = CASE {$caseStr} END 
+                     WHERE id IN ({$idPlaceholders})",
+                    array_merge($bindings, $sentIds)
+                );
             }
 
-            foreach ($results['failed'] as $failed) {
-                EmailLog::where('id', $failed['id'])->update([
-                    'status' => 'failed',
-                    'error_message' => substr($failed['error'], 0, 255)
-                ]);
+            if (!empty($results['failed'])) {
+                $failedIds = array_column($results['failed'], 'id');
+                $cases = [];
+                $bindings = [];
+                foreach ($results['failed'] as $f) {
+                    $cases[] = "WHEN id = ? THEN ?";
+                    $bindings[] = $f['id'];
+                    $bindings[] = substr($f['error'], 0, 255);
+                }
+                $caseStr = implode(' ', $cases);
+                $idPlaceholders = implode(',', array_fill(0, count($failedIds), '?'));
+                DB::update(
+                    "UPDATE email_logs SET status='failed', updated_at=NOW(),
+                     error_message = CASE {$caseStr} END
+                     WHERE id IN ({$idPlaceholders})",
+                    array_merge($bindings, $failedIds)
+                );
             }
 
             if ($results['sent_count'] > 0) {
@@ -250,7 +276,6 @@ class SendEmailBatchJob implements ShouldQueue
     protected function shouldAutoPause(Campaign $campaign): bool
     {
         if ($campaign->sent_count < 50) return false;
-        // Increased threshold to 15% to allow campaign completion with higher bounce rates
         return ($campaign->bounceRate() > 15.0) || ($campaign->complaintRate() > 0.1);
     }
 
@@ -268,36 +293,29 @@ class SendEmailBatchJob implements ShouldQueue
 
     protected function checkCompletion(Campaign $campaign)
     {
-        $campaign->refresh();
-        
-        // Decrement the Redis counter for this campaign
         $key = "campaign_{$campaign->id}_jobs_count";
-        $remainingJobs = (int) Redis::decr($key);
+        $remainingJobs = Redis::decr($key);
 
-        $processedCount = $campaign->logs()
-            ->whereIn('status', ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])
-            ->count();
-
-        $isActuallyFinished = $processedCount >= $campaign->total_recipients;
-
-        if ($isActuallyFinished) {
-            $campaign->update([
-                'status'       => 'completed',
-                'completed_at' => now(),
-            ]);
-            Redis::del($key); // Cleanup
-            return;
-        }
-
-        // SMART CHECK: If NO MORE JOBS are in the queue (Redis count <= 0) 
-        // but campaign is NOT finished, it means it's STALLED.
-        // We mark it as completed so the campaign does not remain stuck in paused/sending state.
         if ($remainingJobs <= 0) {
-            $campaign->update([
-                'status'       => 'completed',
-                'completed_at' => now(),
-                'error_message' => 'Campaign finished. Some emails could not be sent.'
-            ]);
+            // Check if there are any remaining pending logs
+            $pendingCount = DB::table('email_logs')
+                ->where('campaign_id', $campaign->id)
+                ->where('status', 'pending')
+                ->count();
+
+            if ($pendingCount === 0) {
+                $campaign->update([
+                    'status'       => 'completed',
+                    'completed_at' => now(),
+                ]);
+            } else {
+                // Stalled or partially failed
+                $campaign->update([
+                    'status'       => 'completed',
+                    'completed_at' => now(),
+                    'error_message' => 'Campaign finished with pending/stalled emails.'
+                ]);
+            }
             Redis::del($key); // Cleanup
         }
     }

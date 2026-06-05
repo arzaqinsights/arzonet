@@ -304,6 +304,7 @@ class CrossListDuplicateImportTest extends TestCase
         $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.store', [], false);
         
         $response = $this->post($url, [
+            'name' => 'Test List',
             'import_type' => 'upload',
             'file' => $file,
         ], [
@@ -335,6 +336,7 @@ class CrossListDuplicateImportTest extends TestCase
         $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.store', [], false);
 
         $response = $this->post($url, [
+            'name' => 'Test List',
             'import_type' => 'upload',
             'file' => $file,
         ], [

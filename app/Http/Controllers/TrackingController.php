@@ -16,16 +16,14 @@ class TrackingController extends Controller
      */
     public function open(Request $request, string $token)
     {
-        Log::info("Tracking Open Request: token={$token}, IP=" . $request->ip());
-        $log = EmailLog::where('tracking_token', $token)->first();
+        // Select only id column to prevent wide row reads
+        $log = EmailLog::where('tracking_token', $token)->select('id')->first();
         
         if ($log) {
             ProcessTrackingEventJob::dispatch($log->id, 'open', [
                 'ip' => $request->ip(),
                 'ua' => $request->userAgent(),
             ]);
-        } else {
-            Log::warning("Tracking Open Failed: Invalid Token {$token}");
         }
 
         // Return 1x1 transparent PNG
@@ -44,8 +42,7 @@ class TrackingController extends Controller
     public function click(Request $request, string $token)
     {
         $url = base64_decode($request->query('url'));
-        Log::info("Tracking Click Request: token={$token}, URL={$url}, IP=" . $request->ip());
-        $log = EmailLog::where('tracking_token', $token)->first();
+        $log = EmailLog::where('tracking_token', $token)->select('id')->first();
 
         if ($log) {
             ProcessTrackingEventJob::dispatch($log->id, 'click', [
@@ -53,8 +50,6 @@ class TrackingController extends Controller
                 'ua' => $request->userAgent(),
                 'url' => $url
             ]);
-        } else {
-            Log::warning("Tracking Click Failed: Invalid Token {$token}");
         }
 
         return redirect()->away($url ?: '/');
@@ -62,7 +57,7 @@ class TrackingController extends Controller
 
     public function unsubscribe(Request $request, string $token)
     {
-        $log = EmailLog::where('tracking_token', $token)->first();
+        $log = EmailLog::where('tracking_token', $token)->select('id', 'email_id', 'email_address', 'campaign_id')->first();
 
         if ($log && $log->email) {
             $email = $log->email;

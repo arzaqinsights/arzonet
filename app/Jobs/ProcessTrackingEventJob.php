@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 
 class ProcessTrackingEventJob implements ShouldQueue
 {
@@ -77,8 +78,11 @@ class ProcessTrackingEventJob implements ShouldQueue
                 'last_engaged_at' => now()
             ]);
 
-            // Dispatch segment updates for this contact
-            \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $log->email_id);
+            // Dispatch segment updates for this contact (debounced)
+            $lockKey = "webhook:segment_lock:{$log->email_id}";
+            if (Redis::set($lockKey, '1', 'EX', 60, 'NX')) {
+                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $log->email_id)->onQueue('segments');
+            }
         }
     }
 }

@@ -129,7 +129,7 @@ return [
     |
     */
 
-    'memory_limit' => 512,
+    'memory_limit' => 256,
 
     /*
     |--------------------------------------------------------------------------
@@ -179,9 +179,9 @@ return [
                 'connection' => 'redis',
                 'queue' => ['high', 'default'],
                 'balance' => 'auto',
-                'maxProcesses' => 10,
+                'maxProcesses' => 4,
                 'memory' => 256,
-                'tries' => 5,
+                'tries' => 3,
                 'timeout' => 600, // Large import chunk jobs need up to 600s
             ],
 
@@ -189,30 +189,50 @@ return [
                 'connection' => 'redis',
                 'queue' => ['bulk-ses'],
                 'balance' => 'auto',
-                'maxProcesses' => 50,
+                'maxProcesses' => 1,
                 'memory' => 256,
                 'tries' => 1,
-                'timeout' => 900,
+                'timeout' => 120,
             ],
 
             'supervisor-sendgrid' => [
                 'connection' => 'redis',
                 'queue' => ['bulk-sendgrid'],
                 'balance' => 'auto',
-                'maxProcesses' => 20,
+                'maxProcesses' => 15,
                 'memory' => 256,
                 'tries' => 1,
-                'timeout' => 900,
+                'timeout' => 120,
             ],
 
             'supervisor-smtp' => [
                 'connection' => 'redis',
                 'queue' => ['bulk-smtp'],
                 'balance' => 'auto',
-                'maxProcesses' => 5,
+                'maxProcesses' => 1,
                 'memory' => 256,
                 'tries' => 1,
-                'timeout' => 900,
+                'timeout' => 120,
+            ],
+
+            'supervisor-webhooks' => [
+                'connection' => 'redis',
+                'queue' => ['webhooks'],
+                'balance' => 'auto',
+                'maxProcesses' => 2,
+                'memory' => 128,
+                'tries' => 1,
+                'timeout' => 300,
+            ],
+
+            'supervisor-segments' => [
+                'connection' => 'redis',
+                'queue' => ['segments'],
+                'balance' => 'auto',
+                'maxProcesses' => 1,
+                'memory' => 256,
+                'tries' => 1,
+                'timeout' => 300,
             ],
 
         ],
@@ -233,7 +253,7 @@ return [
                 'connection' => 'redis',
                 'queue' => ['bulk-ses'],
                 'balance' => false,
-                'maxProcesses' => 5,
+                'maxProcesses' => 1,
                 'memory' => 256,
                 'tries' => 1,
                 'timeout' => 900,
@@ -243,7 +263,7 @@ return [
                 'connection' => 'redis',
                 'queue' => ['bulk-sendgrid'],
                 'balance' => false,
-                'maxProcesses' => 2,
+                'maxProcesses' => 4,
                 'memory' => 256,
                 'tries' => 1,
                 'timeout' => 900,
@@ -257,6 +277,26 @@ return [
                 'memory' => 256,
                 'tries' => 1,
                 'timeout' => 900,
+            ],
+
+            'supervisor-webhooks' => [
+                'connection' => 'redis',
+                'queue' => ['webhooks'],
+                'balance' => false,
+                'maxProcesses' => 1,
+                'memory' => 128,
+                'tries' => 1,
+                'timeout' => 300,
+            ],
+
+            'supervisor-segments' => [
+                'connection' => 'redis',
+                'queue' => ['segments'],
+                'balance' => false,
+                'maxProcesses' => 1,
+                'memory' => 256,
+                'tries' => 1,
+                'timeout' => 300,
             ],
 
         ],
