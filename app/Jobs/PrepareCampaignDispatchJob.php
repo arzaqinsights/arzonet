@@ -130,7 +130,7 @@ class PrepareCampaignDispatchJob implements ShouldQueue
         $jobCount = 0;
 
         // Use chunkById on emails to process without heavy memory overhead
-        $query->chunkById(1000, function ($emails) use ($campaign, $batchSize, $queueName, &$jobCount) {
+        $query->chunkById(1000, function ($emails) use ($campaign, $batchSize, $queueName, &$jobCount, $providerType) {
             $logEntries = [];
             $emailIds = [];
 
