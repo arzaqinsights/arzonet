@@ -80,7 +80,7 @@ class SendEmailBatchJob implements ShouldQueue
         // ── 2. PRELOAD LOGS & EMAILS (Zero DB inside loop) ──
         $emails = Email::whereIn('id', $this->emailIds)
             ->subscribed()
-            ->select('id', 'email', 'name', 'first_name', 'full_name', 'meta')
+            ->select('id', 'email', 'name', 'meta')
             ->get()
             ->keyBy('id');
 
