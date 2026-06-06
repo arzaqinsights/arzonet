@@ -103,11 +103,14 @@ class CampaignController extends Controller
             }
         }
 
+        $estimatedRecipients = $campaign->getEstimatedRecipientCount();
+
         return response()->json([
             'success' => true,
             'campaign' => $campaign,
             'sample_contact' => $sampleContact,
-            'personalized_subject' => $personalizedSubject
+            'personalized_subject' => $personalizedSubject,
+            'estimated_recipients' => $estimatedRecipients
         ]);
     }
 

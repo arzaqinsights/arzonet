@@ -216,4 +216,78 @@ class Campaign extends Model
     {
         return $this->total_recipients * config('emailplatform.cost_per_email');
     }
+
+    public function getAudienceQueryBuilder()
+    {
+        if (!$this->emailList) {
+            return null;
+        }
+
+        $query = $this->emailList->emails()
+            ->valid()
+            ->subscribed()
+            ->where(function($q) {
+                $q->where('is_archived', false)->orWhereNull('is_archived');
+            })
+            ->whereNotNull('email')
+            ->where('email', '!=', '');
+
+        if ($this->audience_config) {
+            $config = $this->audience_config;
+            
+            if (isset($config['exclude_unhealthy']) && $config['exclude_unhealthy']) {
+                $query->where(function($q) {
+                    $q->whereNotIn('email_status', ['hard_bounce', 'complaint', 'invalid', 'blocked'])
+                      ->orWhereNull('email_status');
+                });
+                $query->where('email_score', '>', 1);
+            }
+
+            if (isset($config['exclude_risky']) && $config['exclude_risky']) {
+                $query->where('email_status', '!=', 'risky')
+                      ->orWhereNull('email_status');
+                $query->where('email_score', '>', 2);
+            }
+            if (isset($config['exclude_disposable']) && $config['exclude_disposable']) {
+                $query->where('is_disposable', false);
+            }
+            if (isset($config['exclude_role_based']) && $config['exclude_role_based']) {
+                $query->where('is_role_based', false);
+            }
+
+            if (isset($config['type']) && $config['type'] === 'segment' && !empty($config['tag'])) {
+                [$type, $value] = explode(':', $config['tag'], 2);
+                if ($type === 'tag') {
+                    $query->where('tags', 'LIKE', "%\"{$value}\"%")
+                          ->orWhere('tags', 'LIKE', "%{$value}%");
+                } elseif ($type === 'segment') {
+                    $query->where(function($q) use ($value) {
+                        $q->where('segment_name', $value)
+                          ->orWhereJsonContains('auto_segments', $value);
+                    });
+                }
+            }
+        }
+
+        return $query;
+    }
+
+    public function getEstimatedRecipientCount(): int
+    {
+        $query = $this->getAudienceQueryBuilder();
+        if (!$query) {
+            return 0;
+        }
+
+        $count = $query->count();
+        $limit = isset($this->audience_config['limit']) && (int) $this->audience_config['limit'] > 0 
+            ? (int) $this->audience_config['limit'] 
+            : null;
+
+        if ($limit) {
+            $count = min($count, $limit);
+        }
+
+        return $count;
+    }
 }

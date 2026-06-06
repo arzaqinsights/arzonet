@@ -69,6 +69,11 @@
                                 </div>
                                 <div x-show="editing !== 'to'">
                                     <p class="text-gray-500 text-lg" x-text="getAudienceSummary() || 'Who are you sending this campaign to?'"></p>
+                                    <template x-if="estimatedRecipients !== null && campaign.email_list_id">
+                                        <p class="text-sm font-bold text-gray-900 mt-2">
+                                            Estimated Recipients: <span class="text-blue-600" x-text="estimatedRecipients.toLocaleString()"></span>
+                                        </p>
+                                    </template>
                                 </div>
 
                                 <div x-show="editing === 'to'" class="mt-8 space-y-8" x-transition>
@@ -190,8 +195,13 @@
                                         </div>
                                     </div>
 
-                                    <div class="pt-4">
+                                    <div class="pt-4 flex items-center justify-between">
                                         <button @click="editing = null" class="px-8 py-3 bg-gray-900 text-white rounded font-bold text-sm hover:bg-black transition-colors">Save Audience</button>
+                                        <template x-if="estimatedRecipients !== null && campaign.email_list_id">
+                                            <div class="text-sm font-bold text-gray-500">
+                                                Estimated count: <span class="text-gray-900 text-lg" x-text="estimatedRecipients.toLocaleString()"></span>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
@@ -384,6 +394,7 @@ function mailchimpWizard() {
         limit_enabled: @json(isset($campaign->audience_config['limit']) && $campaign->audience_config['limit'] > 0),
         limit: @json($campaign->audience_config['limit'] ?? ''),
         
+        estimatedRecipients: null,
         personalizedSubject: '',
         sampleContact: null,
         lists: @json($emailLists),
@@ -454,6 +465,9 @@ function mailchimpWizard() {
                 if(data.sample_contact) {
                     this.sampleContact = data.sample_contact;
                     this.personalizedSubject = data.personalized_subject;
+                }
+                if(data.estimated_recipients !== undefined) {
+                    this.estimatedRecipients = data.estimated_recipients;
                 }
             })
             .catch(err => {

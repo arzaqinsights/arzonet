@@ -48,66 +48,15 @@ class PrepareCampaignDispatchJob implements ShouldQueue
             return;
         }
 
-        $emailList = $campaign->emailList;
-        if (!$emailList) {
+        $query = $campaign->getAudienceQueryBuilder();
+
+        if (!$query) {
             $campaign->update(['status' => 'failed']);
             return;
         }
 
-        $query = $emailList->emails()
-            ->valid()
-            ->subscribed()
-            ->where('is_archived', false)
-            ->whereNotNull('email')
-            ->where('email', '!=', '');
-
-        // Apply Advanced Audience Config (Segments/Tags/Health)
-        if ($campaign->audience_config) {
-            $config = $campaign->audience_config;
-            
-            // Exclude unhealthy emails
-            if (isset($config['exclude_unhealthy']) && $config['exclude_unhealthy']) {
-                $query->where(function($q) {
-                    $q->whereNotIn('email_status', ['hard_bounce', 'complaint', 'invalid', 'blocked'])
-                      ->orWhereNull('email_status');
-                });
-                $query->where('email_score', '>', 1);
-            }
-
-            // Optional health filters
-            if (isset($config['exclude_risky']) && $config['exclude_risky']) {
-                $query->where('email_status', '!=', 'risky')
-                      ->orWhereNull('email_status');
-                $query->where('email_score', '>', 2);
-            }
-            if (isset($config['exclude_disposable']) && $config['exclude_disposable']) {
-                $query->where('is_disposable', false);
-            }
-            if (isset($config['exclude_role_based']) && $config['exclude_role_based']) {
-                $query->where('is_role_based', false);
-            }
-
-            // Segments and Tags
-            if (isset($config['type']) && $config['type'] === 'segment' && !empty($config['tag'])) {
-                [$type, $value] = explode(':', $config['tag'], 2);
-                if ($type === 'tag') {
-                    $query->where('tags', 'LIKE', "%\"{$value}\"%")
-                          ->orWhere('tags', 'LIKE', "%{$value}%");
-                } elseif ($type === 'segment') {
-                    $query->where(function($q) use ($value) {
-                        $q->where('segment_name', $value)
-                          ->orWhereJsonContains('auto_segments', $value);
-                    });
-                }
-            }
-        }
-
-        $limit = isset($config['limit']) && (int) $config['limit'] > 0 ? (int) $config['limit'] : null;
-
-        $totalRecipients = $query->count();
-        if ($limit) {
-            $totalRecipients = min($totalRecipients, $limit);
-        }
+        $totalRecipients = $campaign->getEstimatedRecipientCount();
+        
         if ($totalRecipients === 0) {
             $campaign->update([
                 'total_recipients' => 0,
@@ -116,6 +65,10 @@ class PrepareCampaignDispatchJob implements ShouldQueue
             ]);
             return;
         }
+
+        $limit = isset($campaign->audience_config['limit']) && (int) $campaign->audience_config['limit'] > 0 
+            ? (int) $campaign->audience_config['limit'] 
+            : null;
 
         $campaign->update([
             'total_recipients' => $totalRecipients,
