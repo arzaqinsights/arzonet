@@ -84,6 +84,8 @@
                         {{ $list->name }}
                     </option>
                 @endforeach
+                <option value="" disabled>──────────</option>
+                <option value="{{ route('admin.email-lists.create') }}">+ Create New List...</option>
             </select>
             <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-surface-400">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
@@ -94,6 +96,19 @@
 
 @section('header-actions')
     <div class="flex items-center gap-3" x-data>
+        @if(!app()->has('team_user') || $emailList->created_by_id === app('team_user')->id)
+        <form action="{{ route('admin.email-lists.destroy', $emailList) }}" method="POST" onsubmit="return confirm('WARNING: Deleting this list will permanently delete all its contacts. This action cannot be undone. Are you sure you want to delete this list?')" class="inline">
+            @csrf
+            @method('DELETE')
+            <button type="submit"
+                class="px-4 py-3 flex items-center rounded-sm bg-red-500 hover:bg-red-650 text-white text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
+                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete List
+            </button>
+        </form>
+        @endif
         <button @click="$dispatch('open-export-modal')"
             class="px-4 py-3 flex items-center rounded-sm bg-white border border-gray-100 text-surface-600 hover:text-surface-900 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
             <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -77,21 +77,20 @@
                                 </div>
 
                                 <div x-show="editing === 'to'" class="mt-8 space-y-8" x-transition>
-                                    {{-- Multi-List Selector --}}
+                                    {{-- Single-List Dropdown Selector --}}
                                     <div class="space-y-3">
-                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Select Audience Lists</label>
-                                        <div class="p-4 border border-color rounded bg-white max-h-60 overflow-auto space-y-2">
+                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Select Audience List</label>
+                                        <select x-model="campaign.email_list_id" 
+                                                @change="list_ids = campaign.email_list_id ? [parseInt(campaign.email_list_id)] : []; save()" 
+                                                class="w-full p-4 border border-color rounded text-sm focus:outline-none focus:border-gray-900 bg-white cursor-pointer">
+                                            <option value="">Choose an Audience...</option>
                                             @foreach($emailLists as $list)
-                                            <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors" :class="list_ids.includes({{ $list->id }}) ? 'bg-gray-50' : ''">
-                                                <input type="checkbox" :value="{{ $list->id }}" x-model="list_ids" @change="save()" class="w-5 h-5 rounded-sm border-gray-300 text-gray-900 focus:ring-0">
-                                                <div class="flex-1 flex justify-between items-center">
-                                                    <span class="font-medium text-gray-900">{{ $list->name }}</span>
-                                                    <span class="text-xs text-gray-400">{{ number_format($list->emails_count) }} subs</span>
-                                                </div>
-                                            </label>
+                                            <option value="{{ $list->id }}">
+                                                {{ $list->name }} ({{ number_format($list->emails_count) }} subscribers)
+                                            </option>
                                             @endforeach
-                                        </div>
-                                        <div class="text-[10px] font-bold text-red-400 uppercase tracking-widest" x-show="list_ids.length === 0">Please select at least one list to continue.</div>
+                                        </select>
+                                        <div class="text-[10px] font-bold text-red-400 uppercase tracking-widest" x-show="list_ids.length === 0">Please select a list to continue.</div>
                                     </div>
 
                                     {{-- Multi-Select Tags/Segments --}}
@@ -449,8 +448,8 @@ function mailchimpWizard() {
         getAudienceSummary() {
             if(this.list_ids.length === 0) return null;
             
-            let count = this.list_ids.length;
-            let summary = count === 1 ? '1 List' : `${count} Lists`;
+            const list = this.lists.find(l => l.id == this.list_ids[0]);
+            let summary = list ? list.name : '1 List';
             
             let filters = [];
             if(this.include_tags.length > 0) filters.push(`${this.include_tags.length} Tags`);

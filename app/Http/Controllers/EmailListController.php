@@ -28,18 +28,24 @@ class EmailListController extends Controller
                   ->orWhere('created_by_id', $teamUserId);
             });
         }
-        $lists = $query->latest()->paginate(15);
 
-        $globalStats = [
-            'total' => \App\Models\Email::count(),
-            'subscribed' => \App\Models\Email::where('subscription_status', 'subscribed')->count(),
-            'unsubscribed' => \App\Models\Email::whereNotNull('unsubscribed_at')->count(),
-            'bounced' => \App\Models\EmailLog::where('status', 'bounced')->count(),
-            'invalid' => \App\Models\Email::where('status', 'invalid')->count(),
-            'duplicate' => \App\Models\Email::where('status', 'duplicate')->count(),
-        ];
+        // Redirect to last opened list or first available list
+        $lastOpenedId = session('last_opened_list_id');
+        $list = null;
+        if ($lastOpenedId) {
+            $list = (clone $query)->where('id', $lastOpenedId)->first();
+        }
 
-        return view('email-lists.index', compact('lists', 'globalStats'));
+        if (!$list) {
+            $list = $query->orderBy('name')->first();
+        }
+
+        if ($list) {
+            session(['last_opened_list_id' => $list->id]);
+            return redirect()->route('admin.email-lists.show', $list);
+        }
+
+        return redirect()->route('admin.email-lists.create');
     }
 
     public function create()
@@ -313,6 +319,8 @@ class EmailListController extends Controller
                 abort(403, 'This list is private.');
             }
         }
+
+        session(['last_opened_list_id' => $emailList->id]);
 
         $stats = $emailList->getStatistics();
 
@@ -708,6 +716,11 @@ class EmailListController extends Controller
 
         if ($emailList->file_path)
             Storage::disk('local')->delete($emailList->file_path);
+
+        if (session('last_opened_list_id') == $emailList->id) {
+            session()->forget('last_opened_list_id');
+        }
+
         $emailList->delete();
         return redirect()->route('admin.email-lists.index')->with('success', 'Email list deleted successfully.');
     }
