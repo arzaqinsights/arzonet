@@ -27,5 +27,17 @@ class UpdateContactSegmentsJob implements ShouldQueue
     public function handle(SegmentService $service): void
     {
         $service->recalculateSegments($this->emailId, $this->listId);
+
+        $listId = $this->listId;
+        if (!$listId && $this->emailId) {
+            $listId = \Illuminate\Support\Facades\DB::table('emails')
+                ->where('id', $this->emailId)
+                ->value('email_list_id');
+        }
+
+        if ($listId) {
+            \Illuminate\Support\Facades\Redis::del("list_stats:{$listId}");
+            \Illuminate\Support\Facades\Redis::del("list_filters:{$listId}");
+        }
     }
 }

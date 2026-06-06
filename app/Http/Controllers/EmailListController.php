@@ -314,21 +314,52 @@ class EmailListController extends Controller
             }
         }
 
-        // Only recalculate stats on read if they are not cached yet to prevent database writes
-        if (!\Illuminate\Support\Facades\Redis::exists("list_stats:{$emailList->id}")) {
-            $emailList->recalculateStats();
-        }
-
         $stats = $emailList->getStatistics();
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
         $emails = $emailList->emails()->with(['deals.stage.pipeline'])->where('is_archived', false)->orderBy('created_at', 'desc')->paginate(50);
 
-        $customSegments = $emailList->emails()->whereNotNull('segment_name')->distinct()->pluck('segment_name')->toArray();
-        $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
-        $segments = array_merge($customSegments, $autoSegments);
-        $tags = $emailList->emails()->whereNotNull('tags')->distinct()->pluck('tags');
-        $sources = $emailList->emails()->whereNotNull('signup_source')->distinct()->pluck('signup_source');
+        // Cache filters (segments, tags, sources) in Redis with 15s TTL
+        $filterCacheKey = "list_filters:{$emailList->id}";
+        $cachedFilters = \Illuminate\Support\Facades\Redis::get($filterCacheKey);
+        
+        if ($cachedFilters) {
+            $decodedFilters = json_decode($cachedFilters, true);
+            $segments = $decodedFilters['segments'] ?? [];
+            $tags = $decodedFilters['tags'] ?? [];
+            $sources = $decodedFilters['sources'] ?? [];
+        } else {
+            $customSegments = $emailList->emails()->whereNotNull('segment_name')->distinct()->pluck('segment_name')->toArray();
+            $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
+            $segments = array_merge($customSegments, $autoSegments);
+            
+            // Normalize and unique tags
+            $rawTags = $emailList->emails()->whereNotNull('tags')->distinct()->pluck('tags')->toArray();
+            $flatTags = [];
+            foreach ($rawTags as $tagVal) {
+                if (is_array($tagVal)) {
+                    $flatTags = array_merge($flatTags, $tagVal);
+                } elseif (is_string($tagVal)) {
+                    $decoded = json_decode($tagVal, true);
+                    if (is_array($decoded)) {
+                        $flatTags = array_merge($flatTags, $decoded);
+                    } else {
+                        $flatTags[] = $tagVal;
+                    }
+                }
+            }
+            $tags = array_values(array_unique(array_filter($flatTags)));
+
+            $sources = $emailList->emails()->whereNotNull('signup_source')->distinct()->pluck('signup_source')->toArray();
+
+            $decodedFilters = [
+                'segments' => $segments,
+                'tags' => $tags,
+                'sources' => $sources
+            ];
+
+            \Illuminate\Support\Facades\Redis::setex($filterCacheKey, 86400, json_encode($decodedFilters));
+        }
 
         return view('email-lists.show', compact('emailList', 'stats', 'emails', 'segments', 'tags', 'sources'));
     }
@@ -884,6 +915,8 @@ class EmailListController extends Controller
         // Recalculate segments for this contact
         \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $email->id);
 
+        $emailList->recalculateStats();
+
         return response()->json(['success' => true]);
     }
 
@@ -969,6 +1002,8 @@ class EmailListController extends Controller
         // Recalculate segments for this contact
         \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $email->id);
 
+        $emailList->recalculateStats();
+
         return response()->json(['success' => true]);
     }
 
@@ -1044,6 +1079,8 @@ class EmailListController extends Controller
         $emailList->increment('valid_count');
 
         \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $newContact->id);
+
+        $emailList->recalculateStats();
 
         return response()->json(['success' => true]);
     }

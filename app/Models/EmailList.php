@@ -137,6 +137,7 @@ class EmailList extends Model
 
         // Invalidate Redis cache
         \Illuminate\Support\Facades\Redis::del("list_stats:{$this->id}");
+        \Illuminate\Support\Facades\Redis::del("list_filters:{$this->id}");
     }
 
     public function getStatistics(): array
@@ -144,8 +145,8 @@ class EmailList extends Model
         $cacheKey = "list_stats:{$this->id}";
         $isProcessing = $this->status === 'processing';
         
-        // Use 2s cache during active processing, 15s otherwise
-        $cacheTtl = $isProcessing ? 2 : 15;
+        // Use 2s cache during active processing, 24 hours otherwise
+        $cacheTtl = $isProcessing ? 2 : 86400;
         
         $cached = \Illuminate\Support\Facades\Redis::get($cacheKey);
         if ($cached) {
