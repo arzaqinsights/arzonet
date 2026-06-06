@@ -96,7 +96,7 @@ class CampaignController extends Controller
             $sampleContact = $query->first();
             if ($sampleContact) {
                 $personalizer = app(\App\Services\PersonalizationService::class);
-                $personalizedSubject = $personalizer->preview($campaign->subject, $sampleContact->toArray());
+                $personalizedSubject = $personalizer->preview($campaign->subject ?? '', $sampleContact->toArray());
             }
         }
 
