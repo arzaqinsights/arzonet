@@ -107,23 +107,38 @@
                                     meta: @js($email->meta ?? [])
                                 },
                                 save() {
-                                    this.saving = true;
-                                    fetch(`{{ route('admin.email-lists.update-email', [$emailList, ':id']) }}`.replace(':id', this.row.id), {
-                                        method: 'PUT',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').content,
-                                        },
-                                        body: JSON.stringify(this.row)
-                                    })
-                                    .then(r => r.json())
-                                    .then(() => {
-                                        this.saving = false;
-                                        this.editing = false;
-                                        fetchEmails();
-                                        refreshStats();
-                                    });
-                                }
+                                     this.saving = true;
+                                     fetch(`{{ route('admin.email-lists.update-email', [$emailList, ':id']) }}`.replace(':id', this.row.id), {
+                                         method: 'PUT',
+                                         headers: {
+                                             'Content-Type': 'application/json',
+                                             'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').content,
+                                         },
+                                         body: JSON.stringify(this.row)
+                                     })
+                                     .then(r => {
+                                         if (!r.ok) {
+                                             return r.json().then(err => { throw err; });
+                                         }
+                                         return r.json();
+                                     })
+                                     .then(() => {
+                                         this.saving = false;
+                                         this.editing = false;
+                                         fetchEmails();
+                                         refreshStats();
+                                     })
+                                     .catch(err => {
+                                         this.saving = false;
+                                         let msg = 'Failed to save contact.';
+                                         if (err && err.message) {
+                                             msg = err.message;
+                                         } else if (err && err.errors) {
+                                             msg = Object.values(err.errors).flat().join('\n');
+                                         }
+                                         alert(msg);
+                                     });
+                                 }
                             }" class="group transition-all duration-200 border-y" :class="[
                                 editing ? 'bg-[#fafafa]' : (selectedIds.includes({{ $email->id }}) ? 'selected bg-[#f6f1ec]' : ({{ $isMaster ? 'true' : 'false' }} ? 'bg-white' : 'bg-slate-100')),
                                 editing ? 'hover:bg-[#fafafa]' : (selectedIds.includes({{ $email->id }}) ? 'hover:bg-[#f6f1ec]' : ({{ $isMaster ? 'true' : 'false' }} ? 'hover:bg-slate-50/50' : 'hover:bg-slate-150')),

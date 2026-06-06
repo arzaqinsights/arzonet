@@ -225,6 +225,7 @@
                             class="w-full px-4 py-3 bg-white border border-gray-100 rounded-sm text-xs font-black uppercase tracking-widest text-surface-700 focus:border-brand focus:ring-0 focus:outline-none transition-all cursor-pointer appearance-none">
                             <option value="name">Search in: Name</option>
                             <option value="email">Search in: Email</option>
+                            <option value="whatsapp_number">Search in: WhatsApp Number</option>
                             @foreach($displayedFields as $field)
                                 <option value="{{ $field }}">
                                     Search in: {{ str_replace(['_', 'custom_'], [' ', ''], $field) }}

@@ -407,6 +407,8 @@ class EmailListController extends Controller
                     $q->whereRaw("LOWER(email) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'name') {
                     $q->whereRaw("LOWER(name) LIKE ?", ["%" . strtolower($search) . "%"]);
+                } elseif ($field === 'whatsapp_number') {
+                    $q->whereRaw("LOWER(whatsapp_number) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'segment') {
                     $q->whereRaw("LOWER(segment_name) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'tag') {
@@ -530,6 +532,8 @@ class EmailListController extends Controller
                     $q->whereRaw("LOWER(email) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'name') {
                     $q->whereRaw("LOWER(name) LIKE ?", ["%" . strtolower($search) . "%"]);
+                } elseif ($field === 'whatsapp_number') {
+                    $q->whereRaw("LOWER(whatsapp_number) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'segment') {
                     $q->whereRaw("LOWER(segment_name) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'tag') {
@@ -771,7 +775,7 @@ class EmailListController extends Controller
 
         $email = $emailList->emails()->findOrFail($emailId);
         $request->validate([
-            'email' => 'required|email', 
+            'email' => 'nullable|email', 
             'name' => 'nullable|string|max:255',
             'whatsapp_number' => 'nullable|string'
         ]);
