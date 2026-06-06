@@ -7,17 +7,25 @@ $kernel->bootstrap();
 
 $c = \App\Models\Campaign::latest()->first();
 
-$c->update(['audience_config' => [
-    'list_ids' => [\App\Models\EmailList::first()->id],
-    'exclude_unhealthy' => true,
-    'exclude_risky' => true,
-    'exclude_disposable' => true,
-    'exclude_role_based' => true,
-]]);
+// Simulate payload
+$payload = [
+    'audience_config' => [
+        'list_ids' => [47],
+        'include_tags' => [],
+        'include_segments' => [],
+        'exclude_tags' => [],
+        'exclude_segments' => [],
+        'exclude_unhealthy' => true,
+        'exclude_risky' => false,
+        'exclude_disposable' => false,
+        'exclude_role_based' => false,
+    ]
+];
+
+$c->update($payload);
 
 try {
-    $query = $c->getAudienceQueryBuilder();
-    echo "Count with just list_ids: " . $query->count() . "\n";
+    echo "Count: " . $c->getEstimatedRecipientCount() . "\n";
 } catch (\Exception $e) {
     echo "Exception: " . $e->getMessage() . "\n";
 }

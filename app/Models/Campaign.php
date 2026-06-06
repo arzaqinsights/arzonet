@@ -247,13 +247,13 @@ class Campaign extends Model
                     $q->whereNotIn('email_status', ['hard_bounce', 'complaint', 'invalid', 'blocked'])
                       ->orWhereNull('email_status');
                 });
-                $query->where('email_score', '>', 1);
             }
 
             if (isset($config['exclude_risky']) && $config['exclude_risky']) {
-                $query->where('email_status', '!=', 'risky')
+                $query->where(function($q) {
+                    $q->where('email_status', '!=', 'risky')
                       ->orWhereNull('email_status');
-                $query->where('email_score', '>', 2);
+                });
             }
             if (isset($config['exclude_disposable']) && $config['exclude_disposable']) {
                 $query->where('is_disposable', false);
