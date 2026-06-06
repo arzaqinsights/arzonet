@@ -377,12 +377,12 @@ function mailchimpWizard() {
         isSaving: false,
         campaign: {
             id: {{ $campaign->id }},
-            name: '{{ $campaign->name }}',
-            subject: '{{ $campaign->subject }}',
-            email_list_id: '{{ $campaign->email_list_id }}',
-            template_id: '{{ $campaign->template_id }}',
-            sender_id: '{{ $campaign->sender_id }}',
-            scheduled_at: '{{ $campaign->scheduled_at }}',
+            name: @json($campaign->name),
+            subject: @json($campaign->subject),
+            email_list_id: @json($campaign->email_list_id),
+            template_id: @json($campaign->template_id),
+            sender_id: @json($campaign->sender_id),
+            scheduled_at: @json($campaign->scheduled_at),
         },
         // Advanced Audience State
         audience_type: @json($campaign->audience_config['type'] ?? 'all'),
