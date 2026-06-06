@@ -120,7 +120,7 @@
         $failedCount = $stats['failed'] ?? 0;
         $droppedCount = $stats['dropped'] ?? 0;
         $successfulDeliveries = max(0, $totalSent - $bouncedCount - $failedCount - $droppedCount);
-        $successRate = round(($successfulDeliveries / $totalSent) * 100, 1);
+        $successRate = round(($successfulDeliveries / $totalSent) * 100, 2);
         
         $healthColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
         if ($successRate < 98 && $successRate >= 95) {
@@ -132,7 +132,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" id="stats-grid">
         {{-- Campaign Funnel & Core Engagement --}}
-        <div class="lg:col-span-2 bg-white rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+        <div class="lg:col-span-2 bg-white rounded-md border border-surface-200 shadow-sm flex flex-col justify-between overflow-hidden">
             {{-- Panel Header --}}
             <div class="p-4 border-b border-surface-150 flex items-center justify-between bg-surface-50/50">
                 <div class="flex items-center gap-2">
@@ -141,9 +141,38 @@
                 </div>
                 <span class="text-[10px] text-surface-400 font-bold uppercase tracking-wider">Performance Funnel</span>
             </div>
+
+            {{-- Campaign Metadata Section (Fills empty vertical space beautifully) --}}
+            <div class="px-5 py-3.5 bg-surface-50/70 border-b border-surface-200 grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+                <div class="min-w-0">
+                    <span class="text-[9px] font-bold text-surface-400 uppercase tracking-wider block">Subject Line</span>
+                    <span class="text-xs font-semibold text-surface-800 block truncate mt-0.5" title="{{ $campaign->subject }}">{{ $campaign->subject ?: 'N/A' }}</span>
+                </div>
+                <div class="min-w-0">
+                    <span class="text-[9px] font-bold text-surface-400 uppercase tracking-wider block">Target Audience</span>
+                    <span class="text-xs font-semibold text-surface-800 block truncate mt-0.5">{{ $campaign->emailList?->name ?: 'N/A' }}</span>
+                </div>
+                <div class="min-w-0">
+                    <span class="text-[9px] font-bold text-surface-400 uppercase tracking-wider block">Sender Identity</span>
+                    <span class="text-xs font-semibold text-surface-800 block truncate mt-0.5" title="{{ $campaign->sender?->from_name }} <{{ $campaign->sender?->from_email }}>">
+                        {{ $campaign->sender?->from_name ?: 'N/A' }}
+                        <span class="text-surface-400 font-normal block text-[10px] truncate mt-0.5">{{ $campaign->sender?->from_email ?: '' }}</span>
+                    </span>
+                </div>
+                <div class="min-w-0">
+                    <span class="text-[9px] font-bold text-surface-400 uppercase tracking-wider block">Dispatch Speed</span>
+                    <span class="text-xs font-semibold text-surface-800 block truncate mt-0.5">
+                        @if($campaign->emails_per_minute)
+                            {{ number_format($campaign->emails_per_minute) }} <span class="text-surface-400 font-normal text-[10px]">emails/min</span>
+                        @else
+                            Max Throttle
+                        @endif
+                    </span>
+                </div>
+            </div>
             
             {{-- Funnel Steps --}}
-            <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+            <div class="p-5 grid grid-cols-1 md:grid-cols-3 gap-6 relative flex-1 items-center">
                 {{-- Step 1: Dispatched --}}
                 <div class="flex flex-col justify-between space-y-4">
                     <div>
