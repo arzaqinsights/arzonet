@@ -314,39 +314,12 @@ class EmailListController extends Controller
             }
         }
 
-        $emailList->recalculateStats();
+        // Only recalculate stats on read if they are not cached yet to prevent database writes
+        if (!\Illuminate\Support\Facades\Redis::exists("list_stats:{$emailList->id}")) {
+            $emailList->recalculateStats();
+        }
 
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
-
-        $stats = [
-            'total' => $emailList->total_records,
-            'valid' => $emailList->valid_count,
-            'invalid' => $emailList->invalid_count,
-            'duplicate' => $emailList->duplicate_count,
-            'subscribed' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'subscribed')->count(),
-            'unsubscribed' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'unsubscribed')->count(),
-            'bounced' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'bounced')->count(),
-            'complaints' => $emailList->emails()->where('is_archived', false)->where('email_status', 'complaint')->count(),
-            'archived' => $emailList->emails()->where('is_archived', true)->count(),
-            // Health specific
-            'risky' => $emailList->emails()->where('is_archived', false)->where('email_status', 'risky')->count(),
-            'disposable' => $emailList->emails()->where('is_archived', false)->where('is_disposable', true)->count(),
-            'role_based' => $emailList->emails()->where('is_archived', false)->where('is_role_based', true)->count(),
-            'suspicious' => $emailList->emails()->where('is_archived', false)->where('email_status', 'suspicious')->count(),
-            'hard_bounce' => $emailList->emails()->where('is_archived', false)->where('email_status', 'hard_bounce')->count(),
-            'soft_bounce' => $emailList->emails()->where('is_archived', false)->where('email_status', 'soft_bounce')->count(),
-            
-            // Advanced counts
-            'global_main_rows' => DB::table('emails')
-                ->where('email_list_id', $emailList->id)
-                ->where('is_archived', false)
-                ->distinct()
-                ->count(DB::raw($groupExpr)),
-            'total_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->count(),
-            'subscribed_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->where('subscription_status', 'subscribed')->count(),
-            'total_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->count(),
-            'subscribed_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->where('whatsapp_subscription_status', 'subscribed')->count(),
-        ];
+        $stats = $emailList->getStatistics();
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
         $emails = $emailList->emails()->with(['deals.stage.pipeline'])->where('is_archived', false)->orderBy('created_at', 'desc')->paginate(50);
@@ -451,13 +424,15 @@ class EmailListController extends Controller
             });
         }
 
+        $stats = $emailList->getStatistics();
+
         // 1. Calculate stats for the FULL LIST (ignoring current filters)
         $globalStats = [
-            'valid' => $emailList->emails()->where('status', 'valid')->count(),
-            'invalid' => $emailList->emails()->where('status', 'invalid')->count(),
-            'duplicate' => $emailList->emails()->where('status', 'duplicate')->count(),
-            'cross_duplicate' => $emailList->emails()->where('status', 'cross_duplicate')->count(),
-            'subscribed' => $emailList->emails()->where('is_archived', false)->where('status', 'valid')->where('subscription_status', 'subscribed')->count(),
+            'valid' => $emailList->valid_count,
+            'invalid' => $emailList->invalid_count,
+            'duplicate' => $emailList->duplicate_count,
+            'cross_duplicate' => $emailList->cross_duplicate_count,
+            'subscribed' => $stats['subscribed'],
             'segment' => ($request->segment && $request->segment !== 'all') ? $emailList->emails()->where('segment_name', $request->segment)->count() : 0,
             'tag' => ($request->tag && $request->tag !== 'all') ? $emailList->emails()->where('tags', 'like', "%{$request->tag}%")->count() : 0,
             'source' => ($request->source && $request->source !== 'all') ? $emailList->emails()->where('signup_source', $request->source)->count() : 0,
@@ -465,29 +440,38 @@ class EmailListController extends Controller
 
         // 2. Calculate stats for the CURRENT filtered set
         $statsQuery = clone $query;
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+        
+        $dbStats = (clone $statsQuery)
+            ->reorder() // Remove orderBy from count query for performance
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'valid' THEN 1 ELSE 0 END) as valid,
+                SUM(CASE WHEN status = 'invalid' THEN 1 ELSE 0 END) as invalid,
+                SUM(CASE WHEN status = 'duplicate' THEN 1 ELSE 0 END) as duplicate,
+                SUM(CASE WHEN status = 'cross_duplicate' THEN 1 ELSE 0 END) as cross_duplicate,
+                SUM(CASE WHEN subscription_status = 'subscribed' THEN 1 ELSE 0 END) as subscribed,
+                SUM(CASE WHEN subscription_status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed,
+                SUM(CASE WHEN whatsapp_subscription_status = 'unsubscribed' THEN 1 ELSE 0 END) as whatsapp_unsubscribed,
+                SUM(CASE WHEN subscription_status = 'bounced' THEN 1 ELSE 0 END) as bounced
+            ")->first();
 
         $dynamicStats = [
-            'total' => $statsQuery->count(),
-            'valid' => (clone $statsQuery)->where('status', 'valid')->count(),
-            'invalid' => (clone $statsQuery)->where('status', 'invalid')->count(),
-            'duplicate' => (clone $statsQuery)->where('status', 'duplicate')->count(),
-            'cross_duplicate' => (clone $statsQuery)->where('status', 'cross_duplicate')->count(),
-            'subscribed' => (clone $statsQuery)->where('subscription_status', 'subscribed')->count(),
-            'unsubscribed' => (clone $statsQuery)->where('subscription_status', 'unsubscribed')->count(),
-            'whatsapp_unsubscribed' => (clone $statsQuery)->where('whatsapp_subscription_status', 'unsubscribed')->count(),
-            'bounced' => (clone $statsQuery)->where('subscription_status', 'bounced')->count(),
+            'total' => (int) ($dbStats->total ?? 0),
+            'valid' => (int) ($dbStats->valid ?? 0),
+            'invalid' => (int) ($dbStats->invalid ?? 0),
+            'duplicate' => (int) ($dbStats->duplicate ?? 0),
+            'cross_duplicate' => (int) ($dbStats->cross_duplicate ?? 0),
+            'subscribed' => (int) ($dbStats->subscribed ?? 0),
+            'unsubscribed' => (int) ($dbStats->unsubscribed ?? 0),
+            'whatsapp_unsubscribed' => (int) ($dbStats->whatsapp_unsubscribed ?? 0),
+            'bounced' => (int) ($dbStats->bounced ?? 0),
             
-            // Advanced counts
-            'global_main_rows' => DB::table('emails')
-                ->where('email_list_id', $emailList->id)
-                ->where('is_archived', false)
-                ->distinct()
-                ->count(DB::raw($groupExpr)),
-            'total_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->count(),
-            'subscribed_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->where('subscription_status', 'subscribed')->count(),
-            'total_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->count(),
-            'subscribed_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->where('whatsapp_subscription_status', 'subscribed')->count(),
+            // Advanced counts loaded from cached list statistics
+            'global_main_rows' => $stats['global_main_rows'],
+            'total_emails' => $stats['total_emails'],
+            'subscribed_emails' => $stats['subscribed_emails'],
+            'total_whatsapps' => $stats['total_whatsapps'],
+            'subscribed_whatsapps' => $stats['subscribed_whatsapps'],
         ];
 
         // Check if filter is applied
@@ -705,7 +689,7 @@ class EmailListController extends Controller
 
     public function checkStatus(EmailList $emailList)
     {
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+        $stats = $emailList->getStatistics();
 
         $data = [
             'status' => $emailList->status,
@@ -714,28 +698,24 @@ class EmailListController extends Controller
             'invalid_count' => $emailList->invalid_count,
             'duplicate_count' => $emailList->duplicate_count,
             'cross_duplicate_count' => $emailList->cross_duplicate_count,
-            'subscribed_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'subscribed')->count(),
-            'unsubscribed_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'unsubscribed')->count(),
-            'bounced_count' => $emailList->emails()->where('is_archived', false)->where('subscription_status', 'bounced')->count(),
-            'hard_bounce_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'hard_bounce')->count(),
-            'soft_bounce_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'soft_bounce')->count(),
-            'complaint_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'complaint')->count(),
-            'risky_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'risky')->count(),
-            'disposable_count' => $emailList->emails()->where('is_archived', false)->where('is_disposable', true)->count(),
-            'role_based_count' => $emailList->emails()->where('is_archived', false)->where('is_role_based', true)->count(),
-            'suspicious_count' => $emailList->emails()->where('is_archived', false)->where('email_status', 'suspicious')->count(),
-            'archived_count' => $emailList->emails()->where('is_archived', true)->count(),
+            'subscribed_count' => $stats['subscribed'],
+            'unsubscribed_count' => $stats['unsubscribed'],
+            'bounced_count' => $stats['bounced'],
+            'hard_bounce_count' => $stats['hard_bounce'],
+            'soft_bounce_count' => $stats['soft_bounce'],
+            'complaint_count' => $stats['complaints'],
+            'risky_count' => $stats['risky'],
+            'disposable_count' => $stats['disposable'],
+            'role_based_count' => $stats['role_based'],
+            'suspicious_count' => $stats['suspicious'],
+            'archived_count' => $stats['archived'],
             
             // Advanced counts
-            'global_main_rows' => DB::table('emails')
-                ->where('email_list_id', $emailList->id)
-                ->where('is_archived', false)
-                ->distinct()
-                ->count(DB::raw($groupExpr)),
-            'total_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->count(),
-            'subscribed_emails' => $emailList->emails()->where('is_archived', false)->whereNotNull('email')->where('email', '!=', '')->where('subscription_status', 'subscribed')->count(),
-            'total_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->count(),
-            'subscribed_whatsapps' => $emailList->emails()->where('is_archived', false)->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '')->where('whatsapp_subscription_status', 'subscribed')->count(),
+            'global_main_rows' => $stats['global_main_rows'],
+            'total_emails' => $stats['total_emails'],
+            'subscribed_emails' => $stats['subscribed_emails'],
+            'total_whatsapps' => $stats['total_whatsapps'],
+            'subscribed_whatsapps' => $stats['subscribed_whatsapps'],
         ];
 
         // Check for active batch progress
