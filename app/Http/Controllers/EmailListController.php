@@ -397,30 +397,24 @@ class EmailListController extends Controller
             $query->where('whatsapp_subscription_status', $request->wa_status);
         }
 
-        // Targeted or Global Search
+        // Targeted Search
         if ($request->search) {
             $search = $request->search;
-            $field = $request->search_field ?? 'all';
+            $field = $request->search_field ?? 'name';
 
             $query->where(function ($q) use ($search, $field) {
                 if ($field === 'email') {
-                    $q->where('email', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(email) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'name') {
-                    $q->where('name', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(name) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'segment') {
-                    $q->where('segment_name', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(segment_name) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'tag') {
-                    $q->where('tags', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(tags) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'source') {
-                    $q->where('signup_source', 'like', "%{$search}%");
-                } elseif ($field === 'all') {
-                    $q->where('email', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                        ->orWhere('segment_name', 'like', "%{$search}%")
-                        ->orWhere('signup_source', 'like', "%{$search}%")
-                        ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '\$'))) LIKE ?", ["%" . strtolower($search) . "%"]);
+                    $q->whereRaw("LOWER(signup_source) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } else {
-                    // Search in meta JSON for specific keys (city, company, etc)
+                    // Search in meta JSON for specific keys (city, company, country, etc)
                     $q->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}'))) LIKE ?", ["%" . strtolower($search) . "%"]);
                 }
             });
@@ -529,25 +523,19 @@ class EmailListController extends Controller
         }
         if ($request->search) {
             $search = $request->search;
-            $field = $request->search_field ?? 'all';
+            $field = $request->search_field ?? 'name';
 
             $query->where(function ($q) use ($search, $field) {
                 if ($field === 'email') {
-                    $q->where('email', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(email) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'name') {
-                    $q->where('name', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(name) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'segment') {
-                    $q->where('segment_name', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(segment_name) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'tag') {
-                    $q->where('tags', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(tags) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } elseif ($field === 'source') {
-                    $q->where('signup_source', 'like', "%{$search}%");
-                } elseif ($field === 'all') {
-                    $q->where('email', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                        ->orWhere('segment_name', 'like', "%{$search}%")
-                        ->orWhere('tags', 'like', "%{$search}%")
-                        ->orWhere('signup_source', 'like', "%{$search}%");
+                    $q->whereRaw("LOWER(signup_source) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } else {
                     $q->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}'))) LIKE ?", ["%" . strtolower($search) . "%"]);
                 }

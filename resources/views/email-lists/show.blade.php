@@ -146,7 +146,7 @@
         @php
             $mapping = $emailList->column_mapping ?? [];
             $displayedFields = [];
-            foreach (['company', 'job_title', 'phone', 'city'] as $field) {
+            foreach (['company', 'job_title', 'phone', 'city', 'country'] as $field) {
                 if (isset($mapping[$field]))
                     $displayedFields[] = $field;
             }
@@ -218,36 +218,34 @@
             {{-- Search & Filter Engine --}}
             <div class="space-y-4 mb-8">
                 {{-- Search Row --}}
-                <div class="relative group">
-                    <div
-                        class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-surface-400 group-focus-within:text-brand transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <input type="text" x-model.debounce.300ms="search" @focus="showSearchOptions = true"
-                        @input="fetchEmails()"
-                        class="w-full pl-11 pr-4 py-3 bg-white border border-gray-100 rounded-sm text-sm font-bold placeholder:text-surface-300 focus:bg-white focus:border-brand focus:ring-0 focus:outline-none transition-all group-hover:border-gray-200"
-                        placeholder="Search by email, name, or custom data...">
-
-                    {{-- Floating Search Field Options --}}
-                    <div x-show="showSearchOptions && search.length > 0" x-transition x-cloak
-                        class="absolute left-0 top-full mt-1 w-full bg-white border border-gray-100 rounded-sm z-[60] p-4 animate-in fade-in slide-in-from-top-2">
-                        <p
-                            class="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-3 border-b border-gray-50 pb-2">
-                            Where should we search for "<span class="text-surface-900" x-text="search"></span>"?</p>
-                        <div class="flex flex-wrap gap-2">
-                            <button @click="searchField = 'all'; showSearchOptions = false; fetchEmails()"
-                                :class="searchField === 'all' ? 'bg-surface-900 text-white' : 'bg-gray-50 text-surface-600 hover:bg-gray-100'"
-                                class="px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all focus:outline-none cursor-pointer">Global
-                                / All</button>
-                            <button @click="searchField = 'email'; showSearchOptions = false; fetchEmails()" :class="searchField === 'email' ? 'bg-brand text-white' : 'bg-gray-50 text-surface-600 hover:bg-gray-100'" class="px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all focus:outline-none cursor-pointer">Email Only</button>
-                            <button @click="searchField = 'name'; showSearchOptions = false; fetchEmails()" :class="searchField === 'name' ? 'bg-brand text-white' : 'bg-gray-50 text-surface-600 hover:bg-gray-100'" class="px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all focus:outline-none cursor-pointer">Name</button>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    {{-- Search Field Selector --}}
+                    <div class="relative shrink-0 sm:w-64">
+                        <select x-model="searchField" @change="fetchEmails()"
+                            class="w-full px-4 py-3 bg-white border border-gray-100 rounded-sm text-xs font-black uppercase tracking-widest text-surface-700 focus:border-brand focus:ring-0 focus:outline-none transition-all cursor-pointer appearance-none">
+                            <option value="name">Search in: Name</option>
+                            <option value="email">Search in: Email</option>
                             @foreach($displayedFields as $field)
-                                <button @click="searchField = '{{ $field }}'; showSearchOptions = false; fetchEmails()" :class="searchField === '{{ $field }}' ? 'bg-brand text-white' : 'bg-gray-50 text-surface-600 hover:bg-gray-100'" class="px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all focus:outline-none cursor-pointer">{{ strtoupper(str_replace(['_', 'custom_'], ' ', $field)) }}</button>
+                                <option value="{{ $field }}">
+                                    Search in: {{ str_replace(['_', 'custom_'], [' ', ''], $field) }}
+                                </option>
                             @endforeach
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-surface-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
                         </div>
+                    </div>
+
+                    {{-- Search Input --}}
+                    <div class="relative flex-1 group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-surface-400 group-focus-within:text-brand transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input type="text" x-model="search" @input.debounce.150ms="fetchEmails()"
+                            class="w-full pl-11 pr-4 py-3 bg-white border border-gray-100 rounded-sm text-sm font-bold placeholder:text-surface-300 focus:bg-white focus:border-brand focus:ring-0 focus:outline-none transition-all group-hover:border-gray-200"
+                            placeholder="Type to search contacts instantly...">
                     </div>
                 </div>
 
@@ -1454,7 +1452,7 @@
     function emailListView() {
         return {
             filter: 'all', segment: 'all', tag: 'all', source: 'all', archived: 'no', subscription: 'all', channel: 'all', wa_status: 'all', cross_duplicate: 'all',
-            search: '', searchField: 'all', selectedIds: [], activeTab: 'contacts', globalSelect: false,
+            search: '', searchField: 'name', selectedIds: [], activeTab: 'contacts', globalSelect: false,
             showSearchOptions: false, showEditModal: false, showImportMoreModal: false, showExportModal: false, 
             showAddCustomColumnModal: false, newCustomColumnName: '', addingCustomColumn: false,
             channel: '{{ request("channel", "all") }}',
@@ -1540,7 +1538,7 @@
 
             resetFilters() {
                 this.filter = 'all'; this.segment = 'all'; this.tag = 'all'; this.source = 'all'; this.archived = 'no'; this.subscription = 'all'; this.channel = 'all'; this.wa_status = 'all';
-                this.search = ''; this.searchField = 'all'; this.selectedIds = []; this.fetchEmails();
+                this.search = ''; this.searchField = 'name'; this.selectedIds = []; this.fetchEmails();
             },
 
             toggleSelectAll(checked) {
