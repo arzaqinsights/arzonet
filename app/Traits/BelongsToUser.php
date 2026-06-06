@@ -14,13 +14,23 @@ trait BelongsToUser
     {
         static::creating(function ($model) {
             if (Auth::check() && !$model->user_id) {
-                $model->user_id = Auth::id();
+                $user = Auth::user();
+                $userId = $user->id;
+                if ($user->role === 'team' && $user->parent_id) {
+                    $userId = $user->parent_id;
+                }
+                $model->user_id = $userId;
             }
         });
 
         static::addGlobalScope('user_id', function (Builder $builder) {
             if (Auth::check()) {
-                $builder->where($builder->getModel()->getTable() . '.user_id', Auth::id());
+                $user = Auth::user();
+                $userId = $user->id;
+                if ($user->role === 'team' && $user->parent_id) {
+                    $userId = $user->parent_id;
+                }
+                $builder->where($builder->getModel()->getTable() . '.user_id', $userId);
             }
         });
     }
