@@ -57,6 +57,7 @@ class PrepareCampaignDispatchJob implements ShouldQueue
         $query = $emailList->emails()
             ->valid()
             ->subscribed()
+            ->where('is_archived', false)
             ->whereNotNull('email')
             ->where('email', '!=', '');
 
@@ -101,7 +102,12 @@ class PrepareCampaignDispatchJob implements ShouldQueue
             }
         }
 
+        $limit = isset($config['limit']) && (int) $config['limit'] > 0 ? (int) $config['limit'] : null;
+
         $totalRecipients = $query->count();
+        if ($limit) {
+            $totalRecipients = min($totalRecipients, $limit);
+        }
         if ($totalRecipients === 0) {
             $campaign->update([
                 'total_recipients' => 0,
@@ -128,13 +134,18 @@ class PrepareCampaignDispatchJob implements ShouldQueue
         
         $queueName = "bulk-{$providerType}";
         $jobCount = 0;
+        $emailsProcessed = 0;
 
         // Use chunkById on emails to process without heavy memory overhead
-        $query->chunkById(1000, function ($emails) use ($campaign, $batchSize, $queueName, &$jobCount, $providerType) {
+        $query->chunkById(1000, function ($emails) use ($campaign, $batchSize, $queueName, &$jobCount, $providerType, $limit, &$emailsProcessed) {
             $logEntries = [];
             $emailIds = [];
 
             foreach ($emails as $email) {
+                if ($limit && $emailsProcessed >= $limit) {
+                    break;
+                }
+
                 $logEntries[] = [
                     'user_id'        => $campaign->user_id,
                     'campaign_id'    => $campaign->id,
@@ -146,10 +157,13 @@ class PrepareCampaignDispatchJob implements ShouldQueue
                     'updated_at'     => now(),
                 ];
                 $emailIds[] = $email->id;
+                $emailsProcessed++;
             }
 
-            // Raw Bulk Insert for speed and lower memory
-            DB::table('email_logs')->insert($logEntries);
+            if (!empty($logEntries)) {
+                // Raw Bulk Insert for speed and lower memory
+                DB::table('email_logs')->insert($logEntries);
+            }
 
             // Chunk email IDs to dispatch SendEmailBatchJob jobs
             foreach (array_chunk($emailIds, $batchSize) as $chunk) {
@@ -163,6 +177,10 @@ class PrepareCampaignDispatchJob implements ShouldQueue
                     ->delay(now()->addSeconds($delay));
 
                 $jobCount++;
+            }
+
+            if ($limit && $emailsProcessed >= $limit) {
+                return false; // Stop chunking early
             }
         });
 

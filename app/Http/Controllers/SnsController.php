@@ -108,6 +108,9 @@ class SnsController extends Controller
 
             // 3. Update EmailLog (Analytics)
             if ($sesMessageId) {
+                $log = \App\Models\EmailLog::where('message_id', $sesMessageId)->where('email_address', $email)->first();
+                $wasNotBounced = $log && $log->status !== 'bounced';
+
                 \App\Models\EmailLog::where('message_id', $sesMessageId)
                     ->where('email_address', $email)
                     ->update([
@@ -116,10 +119,9 @@ class SnsController extends Controller
                         'bounce_reason' => $reason,
                     ]);
                 
-                $log = \App\Models\EmailLog::where('message_id', $sesMessageId)->where('email_address', $email)->first();
                 if ($log) {
                     $campaign = $log->campaign;
-                    if ($campaign && $log->status !== 'bounced') {
+                    if ($campaign && $wasNotBounced) {
                         $campaign->decrement('sent_count');
                         $campaign->increment('bounce_count');
                     }

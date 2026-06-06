@@ -171,6 +171,25 @@
                                         </div>
                                     </div>
 
+                                    {{-- Limit Filter --}}
+                                    <div class="pt-6 border-t border-color space-y-4" x-transition>
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-xs font-black text-gray-400 uppercase tracking-widest">Quantity Limit</label>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <label class="flex items-center gap-3 p-3 border border-color rounded cursor-pointer hover:bg-gray-50 transition-all group" :class="limit_enabled ? 'bg-gray-50 border-gray-900 ring-1 ring-gray-900' : ''">
+                                                <input type="checkbox" x-model="limit_enabled" @change="if(!limit_enabled) limit = ''; save()" class="w-5 h-5 rounded-sm border-gray-200 text-gray-900 focus:ring-0">
+                                                <div>
+                                                    <div class="text-xs font-black text-gray-900 uppercase tracking-tight">Limit Number of Recipients</div>
+                                                    <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Send only to a specific quantity</div>
+                                                </div>
+                                            </label>
+                                            <div x-show="limit_enabled" class="pl-8" x-transition>
+                                                <input type="number" x-model="limit" @input.debounce.1000ms="save()" placeholder="e.g. 2000" class="w-full md:w-1/2 p-3 border border-color rounded text-sm focus:outline-none focus:border-gray-900" min="1">
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div class="pt-4">
                                         <button @click="editing = null" class="px-8 py-3 bg-gray-900 text-white rounded font-bold text-sm hover:bg-black transition-colors">Save Audience</button>
                                     </div>
@@ -362,6 +381,8 @@ function mailchimpWizard() {
         exclude_risky: @json($campaign->audience_config['exclude_risky'] ?? false),
         exclude_disposable: @json($campaign->audience_config['exclude_disposable'] ?? false),
         exclude_role_based: @json($campaign->audience_config['exclude_role_based'] ?? false),
+        limit_enabled: @json(isset($campaign->audience_config['limit']) && $campaign->audience_config['limit'] > 0),
+        limit: @json($campaign->audience_config['limit'] ?? ''),
         
         personalizedSubject: '',
         sampleContact: null,
@@ -413,7 +434,8 @@ function mailchimpWizard() {
                     exclude_unhealthy: this.exclude_unhealthy,
                     exclude_risky: this.exclude_risky,
                     exclude_disposable: this.exclude_disposable,
-                    exclude_role_based: this.exclude_role_based
+                    exclude_role_based: this.exclude_role_based,
+                    limit: this.limit_enabled ? this.limit : null
                 }
             };
 
