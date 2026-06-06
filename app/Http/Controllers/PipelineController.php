@@ -14,12 +14,20 @@ class PipelineController extends Controller
 {
     public function index()
     {
+        $activeWorkspaceId = session('last_opened_list_id');
         $query = Pipeline::with(['stages', 'creator'])->withCount([
             'deals',
             'deals as open_deals_count' => function ($q) { $q->where('status', 'open'); },
             'deals as won_deals_count' => function ($q) { $q->where('status', 'won'); },
             'deals as lost_deals_count' => function ($q) { $q->where('status', 'lost'); }
         ])->withSum('deals', 'value');
+
+        if ($activeWorkspaceId) {
+            $query->where(function ($q) use ($activeWorkspaceId) {
+                $q->where('email_list_id', $activeWorkspaceId)
+                  ->orWhereNull('email_list_id');
+            });
+        }
 
         if (app()->has('team_user')) {
             $teamUserId = app('team_user')->id;
@@ -56,6 +64,7 @@ class PipelineController extends Controller
 
     public function store(Request $request)
     {
+        $activeWorkspaceId = session('last_opened_list_id');
         $request->validate([
             'name' => 'required|string|max:255',
             'is_public' => 'nullable',
@@ -75,6 +84,7 @@ class PipelineController extends Controller
             'is_public' => $isPublic,
             'created_by_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'team_permissions' => $teamPermissions,
+            'email_list_id' => $activeWorkspaceId,
         ]);
 
         return redirect()
@@ -84,6 +94,7 @@ class PipelineController extends Controller
 
     public function show(Pipeline $pipeline)
     {
+        $activeWorkspaceId = session('last_opened_list_id');
         if (app()->has('team_user')) {
             $teamUserId = app('team_user')->id;
             if (!$pipeline->is_public && $pipeline->created_by_id !== $teamUserId) {
@@ -92,7 +103,12 @@ class PipelineController extends Controller
         }
 
         $pipeline->load(['stages.deals.contact', 'stages.deals.assignee']);
-        $contacts = Email::select('id', 'name', 'email', 'whatsapp_number')->limit(500)->get();
+        
+        $contactsQuery = Email::select('id', 'name', 'email', 'whatsapp_number');
+        if ($activeWorkspaceId) {
+            $contactsQuery->where('email_list_id', $activeWorkspaceId);
+        }
+        $contacts = $contactsQuery->limit(500)->get();
 
         // Get team members for assignee dropdown
         $user = auth()->user();

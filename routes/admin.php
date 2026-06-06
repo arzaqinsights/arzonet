@@ -26,6 +26,9 @@ Route::name('admin.')->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Switch Workspace
+    Route::get('/switch-workspace/{id}', [EmailListController::class, 'switchWorkspace'])->name('switch-workspace');
+
     // Email Lists
     Route::prefix('email-lists')->name('email-lists.')->group(function () {
         Route::get('/', [EmailListController::class, 'index'])->name('index');

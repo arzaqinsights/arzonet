@@ -31,7 +31,13 @@ class Sender extends Model
         'verified_at',
         'verified_domain_id',
         'is_authenticated',
+        'email_list_id',
     ];
+
+    public function emailList()
+    {
+        return $this->belongsTo(EmailList::class);
+    }
 
     public function domain()
     {

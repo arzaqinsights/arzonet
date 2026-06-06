@@ -18,6 +18,24 @@ use App\Services\EmailValidationService;
 
 class EmailListController extends Controller
 {
+    public function switchWorkspace($id)
+    {
+        $query = EmailList::query();
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            $query->where(function($q) use ($teamUserId) {
+                $q->where('is_public', true)
+                  ->orWhere('created_by_id', $teamUserId);
+            });
+        }
+        
+        $workspace = $query->findOrFail($id);
+        
+        session(['last_opened_list_id' => $workspace->id]);
+        
+        return redirect()->back();
+    }
+
     public function index()
     {
         $query = EmailList::query();
@@ -50,6 +68,9 @@ class EmailListController extends Controller
 
     public function create()
     {
+        if (!\App\Models\User::canAccess('workspace.create')) {
+            abort(403, 'Unauthorized action. You do not have permission to create workspaces.');
+        }
         return view('email-lists.create');
     }
 
@@ -59,6 +80,9 @@ class EmailListController extends Controller
      */
     public function store(Request $request, FileParserService $parser)
     {
+        if (!\App\Models\User::canAccess('workspace.create')) {
+            abort(403, 'Unauthorized action. You do not have permission to create workspaces.');
+        }
         // Check Limits
         if (auth()->user()->getContactsUsage()->is_exceeded) {
             return redirect()->route('admin.email-lists.index')->with('error', 'Contact limit exceeded. Please upgrade your plan before creating new lists.');

@@ -14,6 +14,10 @@ return [
                     'label' => 'Create Lists & Contacts',
                     'description' => 'Allows adding new contacts manually or creating new empty lists.',
                 ],
+                'workspace.create' => [
+                    'label' => 'Create Workspaces',
+                    'description' => 'Allows creating new workspaces (lists) in the system.',
+                ],
                 'crm.edit' => [
                     'label' => 'Edit Contacts & Lists',
                     'description' => 'Allows editing contact details, notes, tag labels, and renaming lists.',

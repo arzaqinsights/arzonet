@@ -9,13 +9,18 @@ class Pipeline extends Model
 {
     use \App\Traits\BelongsToUser;
 
-    protected $fillable = ['name', 'user_id', 'is_public', 'created_by_id', 'team_permissions', 'monthly_target', 'rotting_days'];
+    protected $fillable = ['name', 'user_id', 'is_public', 'created_by_id', 'team_permissions', 'monthly_target', 'rotting_days', 'email_list_id'];
 
     protected $casts = [
         'team_permissions' => 'array',
         'monthly_target' => 'decimal:2',
         'rotting_days' => 'integer',
     ];
+
+    public function emailList(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(EmailList::class);
+    }
 
     public function canPerformAction(string $action): bool
     {

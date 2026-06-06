@@ -179,54 +179,87 @@
         </div>
     </nav>
 
-    <div class="flex flex-1 overflow-hidden relative">
+        @php
+            $workspaceQuery = \App\Models\EmailList::query();
+            if (app()->has('team_user')) {
+                $teamUserId = app('team_user')->id;
+                $workspaceQuery->where(function($q) use ($teamUserId) {
+                    $q->where('is_public', true)
+                      ->orWhere('created_by_id', $teamUserId);
+                });
+            }
+            $workspaces = $workspaceQuery->orderBy('name')->get();
+            $activeWorkspaceId = session('last_opened_list_id');
+            $activeWorkspace = $workspaces->firstWhere('id', $activeWorkspaceId) ?? $workspaces->first();
+            if ($activeWorkspace && $activeWorkspace->id != $activeWorkspaceId) {
+                session(['last_opened_list_id' => $activeWorkspace->id]);
+                $activeWorkspaceId = $activeWorkspace->id;
+            }
+        @endphp
+
         {{-- ── Sidebar ── --}}
         <aside x-show="$store.sidebar.open" x-transition:enter="transition-transform duration-300"
             x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
             x-transition:leave="transition-transform duration-300" x-transition:leave-start="translate-x-0"
             x-transition:leave-end="-translate-x-full"
-            class="fixed left-0 z-40 w-[260px] h-full pb-16 flex flex-col border-r border-color bg-white">
+            class="fixed left-0 z-40 w-[260px] h-full pt-16 flex flex-col border-r border-color bg-white">
 
-            {{-- Create Button --}}
-            <div class="p-3.25 border-b border-gray-300 mb-3 relative" x-data="{ openCreate: false }">
-                <button @click="openCreate = !openCreate" @click.away="openCreate = false"
-                    class="bg-brand text-white p-3 text-xs rounded-sm w-full flex items-center justify-between gap-2 cursor-pointer transition-colors hover:bg-brand/90">
-                    <span class="tracking-wider uppercase">Create New</span>
-                    <svg class="w-4 h-4 transition-transform duration-200" :class="openCreate ? 'rotate-45' : ''"
+            {{-- Workspace Switcher Dropdown --}}
+            <div class="p-3 border-b border-gray-200 mb-3 relative" x-data="{ openWorkspace: false }">
+                <button @click="openWorkspace = !openWorkspace" @click.away="openWorkspace = false"
+                    class="bg-gray-50 border border-gray-200 hover:bg-gray-100 p-2.5 rounded-sm w-full flex items-center justify-between gap-2 cursor-pointer transition-all">
+                    <div class="flex items-center justify-center gap-2 overflow-hidden">
+                        <div class="w-6 h-6 pt-0.5 rounded-sm bg-brand text-white flex items-center justify-center shrink-0 text-xs font-bold font-mono">
+                            {{ $activeWorkspace ? strtoupper(substr($activeWorkspace->name, 0, 2)) : 'WS' }}
+                        </div>
+                        <span class="font-bold text-xs text-gray-700 truncate">
+                            {{ $activeWorkspace ? $activeWorkspace->name : 'Select Workspace' }}
+                        </span>
+                    </div>
+                    <svg class="w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform duration-250" :class="openWorkspace ? 'rotate-180' : ''"
                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
                     </svg>
                 </button>
 
                 {{-- Dropdown Menu --}}
-                <div x-show="openCreate" x-cloak x-transition:enter="transition ease-out duration-100"
-                    x-transition:enter-start="transform opacity-0 -translate-y-2"
-                    x-transition:enter-end="transform opacity-100 translate-y-0"
+                <div x-show="openWorkspace" x-cloak x-transition:enter="transition ease-out duration-100"
+                    x-transition:enter-start="transform opacity-0 -translate-y-2 scale-98"
+                    x-transition:enter-end="transform opacity-100 translate-y-0 scale-100"
                     x-transition:leave="transition ease-in duration-75"
-                    x-transition:leave-start="transform opacity-100 translate-y-0"
-                    x-transition:leave-end="transform opacity-0 -translate-y-2"
-                    class="absolute left-3 right-3 top-14 mt-1 bg-white border border-gray-200 rounded-sm shadow-lg py-1 z-50">
+                    x-transition:leave-start="transform opacity-100 translate-y-0 scale-100"
+                    x-transition:leave-end="transform opacity-0 -translate-y-2 scale-98"
+                    class="absolute left-3 right-3 top-14 mt-1 bg-white border border-gray-100 rounded-sm shadow-sm py-1 z-50 max-h-72 flex flex-col">
+                    
+                    <div class="text-[9px] uppercase tracking-wider text-gray-400 font-bold px-3 py-1.5 border-b border-gray-100">
+                        Workspaces
+                    </div>
 
-                    <a href="{{ route('admin.email-lists.create') }}"
-                        class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors group">
-                        <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-brand transition-colors" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                        </svg>
-                        Create New List
-                    </a>
+                    <div class="overflow-y-auto flex-1 py-1 scrollbar-thin">
+                        @foreach($workspaces as $workspace)
+                            <a href="{{ route('admin.switch-workspace', $workspace->id) }}"
+                                class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-brand/5 hover:text-brand transition-colors {{ $activeWorkspace && $workspace->id == $activeWorkspace->id ? 'bg-brand/5 text-brand' : '' }}">
+                                <span class="truncate">{{ $workspace->name }}</span>
+                                @if($activeWorkspace && $workspace->id == $activeWorkspace->id)
+                                    <svg class="w-3.5 h-3.5 text-brand shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                @endif
+                            </a>
+                        @endforeach
+                    </div>
 
-                    <a href="{{ route('admin.campaigns.create') }}"
-                        class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors group border-t border-gray-50">
-                        <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-brand transition-colors" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                        </svg>
-                        Create New Campaign
-                    </a>
+                    @if(\App\Models\User::canAccess('workspace.create'))
+                        <div class="border-t border-brand/20 p-1.5 pt-2 bg-gray-50/50">
+                            <a href="{{ route('admin.email-lists.create') }}"
+                                class="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-brand hover:bg-brand hover:text-white border border-dashed border-brand/50 rounded-sm transition-all">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Create Workspace
+                            </a>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -451,7 +484,7 @@
         </aside>
 
         {{-- ── Main Content ── --}}
-        <main class="w-full ml-[260px] overflow-y-auto">
+        <main class="w-full pl-[260px] overflow-y-auto">
             {{-- Limit Warning Banner --}}
             @php
                 $cUsage = auth()->user()->getContactsUsage();

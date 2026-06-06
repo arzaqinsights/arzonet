@@ -12,29 +12,45 @@ class WhatsAppCampaignController extends Controller
 {
     public function index()
     {
-        $campaigns = WhatsAppCampaign::where('user_id', Auth::id())->latest()->get();
+        $activeWorkspaceId = session('last_opened_list_id');
+        $query = WhatsAppCampaign::where('user_id', Auth::id());
+        if ($activeWorkspaceId) {
+            $query->where(function ($q) use ($activeWorkspaceId) {
+                $q->where('email_list_id', $activeWorkspaceId)
+                  ->orWhereNull('email_list_id');
+            });
+        }
+        $campaigns = $query->latest()->get();
         return view('admin.whatsapp.campaigns.index', compact('campaigns'));
     }
 
     public function create()
     {
+        $activeWorkspaceId = session('last_opened_list_id');
         $templates = WhatsAppTemplate::where('user_id', Auth::id())->where('status', 'approved')->get();
-        $emailLists = \App\Models\EmailList::forWhatsApp()->where('status', 'completed')->get();
+        
+        $emailListsQuery = \App\Models\EmailList::forWhatsApp()->where('status', 'completed');
+        if ($activeWorkspaceId) {
+            $emailListsQuery->where('id', $activeWorkspaceId);
+        }
+        $emailLists = $emailListsQuery->get();
+        
         return view('admin.whatsapp.campaigns.create', compact('templates', 'emailLists'));
     }
 
     public function store(Request $request)
     {
+        $activeWorkspaceId = session('last_opened_list_id');
         $request->validate([
             'name' => 'required|string|max:255',
             'whatsapp_template_id' => 'required|exists:whatsapp_templates,id',
-            'email_list_id' => 'required|exists:email_lists,id',
+            'email_list_id' => 'nullable|exists:email_lists,id',
         ]);
 
         $campaign = WhatsAppCampaign::create([
             'user_id' => Auth::id(),
             'whatsapp_template_id' => $request->whatsapp_template_id,
-            'email_list_id' => $request->email_list_id,
+            'email_list_id' => $request->email_list_id ?: $activeWorkspaceId,
             'name' => $request->name,
             'status' => 'draft',
         ]);

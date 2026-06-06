@@ -26,7 +26,7 @@ class CrossListDuplicateImportTest extends TestCase
         config('app.url');
         config('app.domain');
 
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['role' => 'admin']);
 
         // Create an active subscription so user contact limits are not exceeded under test
         \App\Models\Subscription::create([

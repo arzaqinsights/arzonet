@@ -11,7 +11,15 @@ class SenderController extends Controller
 {
     public function index()
     {
-        $senders = Sender::where('user_id', Auth::id())->latest()->get();
+        $activeWorkspaceId = session('last_opened_list_id');
+        $query = Sender::where('user_id', Auth::id());
+        if ($activeWorkspaceId) {
+            $query->where(function ($q) use ($activeWorkspaceId) {
+                $q->where('email_list_id', $activeWorkspaceId)
+                  ->orWhereNull('email_list_id');
+            });
+        }
+        $senders = $query->latest()->get();
         return view('senders.index', compact('senders'));
     }
 
@@ -22,6 +30,7 @@ class SenderController extends Controller
 
     public function store(Request $request)
     {
+        $activeWorkspaceId = session('last_opened_list_id');
         $mode = $request->input('mode', 'bulk');
 
         $request->validate([
@@ -75,6 +84,7 @@ class SenderController extends Controller
                 'daily_limit' => $profile['daily_limit'],
                 'status' => 'verified',
                 'verified_at' => now(),
+                'email_list_id' => $activeWorkspaceId,
             ]);
 
             return redirect()->route('admin.senders.index')->with('success', "Bulk Sender '{$email}' added via verified domain.");
@@ -92,6 +102,7 @@ class SenderController extends Controller
                 'smtp_encryption' => $request->smtp_encryption ?? 'tls',
                 'status' => 'verified', // SMTP is assumed verified by credentials
                 'verified_at' => now(),
+                'email_list_id' => $activeWorkspaceId,
             ]);
 
             return redirect()->route('admin.senders.index')->with('success', "SMTP Sender '{$email}' added successfully.");

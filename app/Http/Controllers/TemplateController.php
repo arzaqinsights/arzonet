@@ -11,7 +11,15 @@ class TemplateController extends Controller
 {
     public function index()
     {
-        $templates = Template::latest()->paginate(12);
+        $activeWorkspaceId = session('last_opened_list_id');
+        $query = Template::latest();
+        if ($activeWorkspaceId) {
+            $query->where(function ($q) use ($activeWorkspaceId) {
+                $q->where('email_list_id', $activeWorkspaceId)
+                  ->orWhereNull('email_list_id');
+            });
+        }
+        $templates = $query->paginate(12);
         return view('templates.index', compact('templates'));
     }
 
@@ -22,6 +30,7 @@ class TemplateController extends Controller
 
     public function store(Request $request)
     {
+        $activeWorkspaceId = session('last_opened_list_id');
         $request->validate([
             'name'         => 'required|string|max:255',
             'html_content' => 'required|string',
@@ -32,6 +41,7 @@ class TemplateController extends Controller
             'name'         => $request->name,
             'html_content' => $request->html_content,
             'json_design'  => $request->json_design,
+            'email_list_id'=> $activeWorkspaceId,
         ]);
 
         return redirect()

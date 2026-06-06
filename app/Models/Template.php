@@ -15,7 +15,13 @@ class Template extends Model
         'subject',
         'html_content',
         'json_design',
+        'email_list_id',
     ];
+
+    public function emailList()
+    {
+        return $this->belongsTo(EmailList::class);
+    }
 
     public function campaigns(): HasMany
     {
