@@ -173,7 +173,7 @@
             </div>
             <div class="flex items-center gap-4">
                 <span class="text-xs font-black text-surface-400 uppercase tracking-widest" id="live-progress-label">In Progress</span>
-                <span class="text-lg font-black text-primary-600" id="live-progress-percent">{{ number_format($campaign->progress(), 1) }}%</span>
+                <span class="text-lg font-black text-brand" id="live-progress-percent">{{ number_format($campaign->progress(), 1) }}%</span>
             </div>
         </div>
 

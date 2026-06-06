@@ -69,7 +69,7 @@
                                 </div>
                                 <div x-show="editing !== 'to'">
                                     <p class="text-gray-500 text-lg" x-text="getAudienceSummary() || 'Who are you sending this campaign to?'"></p>
-                                    <template x-if="estimatedRecipients !== null && campaign.email_list_id">
+                                    <template x-if="estimatedRecipients !== null && list_ids.length > 0">
                                         <p class="text-sm font-bold text-gray-900 mt-2">
                                             Estimated Recipients: <span class="text-blue-600" x-text="estimatedRecipients.toLocaleString()"></span>
                                         </p>
@@ -77,64 +77,88 @@
                                 </div>
 
                                 <div x-show="editing === 'to'" class="mt-8 space-y-8" x-transition>
-                                    {{-- List Selector --}}
+                                    {{-- Multi-List Selector --}}
                                     <div class="space-y-3">
-                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Select Audience List</label>
-                                        <div class="relative" x-data="{ open: false, search: '' }">
-                                            <button @click="open = !open" class="w-full flex items-center justify-between p-4 border border-color rounded bg-white text-left">
-                                                <span x-text="getSelectedListName() || 'Choose a list...'" class="font-medium"></span>
-                                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
-                                            </button>
-                                            
-                                            <div x-show="open" @click.away="open = false" class="absolute z-50 w-full mt-2 bg-white border border-color rounded-lg shadow-xl max-h-80 overflow-auto">
-                                                <div class="sticky top-0 p-3 bg-white border-b border-color">
-                                                    <input type="text" x-model="search" placeholder="Search lists..." class="w-full px-4 py-2 border border-color rounded text-sm focus:outline-none focus:border-gray-900">
+                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Select Audience Lists</label>
+                                        <div class="p-4 border border-color rounded bg-white max-h-60 overflow-auto space-y-2">
+                                            @foreach($emailLists as $list)
+                                            <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors" :class="list_ids.includes({{ $list->id }}) ? 'bg-gray-50' : ''">
+                                                <input type="checkbox" :value="{{ $list->id }}" x-model="list_ids" @change="save()" class="w-5 h-5 rounded-sm border-gray-300 text-gray-900 focus:ring-0">
+                                                <div class="flex-1 flex justify-between items-center">
+                                                    <span class="font-medium text-gray-900">{{ $list->name }}</span>
+                                                    <span class="text-xs text-gray-400">{{ number_format($list->emails_count) }} subs</span>
                                                 </div>
-                                                <div class="py-2">
-                                                    @foreach($emailLists as $list)
-                                                    <button x-show="'{{ strtolower($list->name) }}'.includes(search.toLowerCase())" 
-                                                            @click="campaign.email_list_id = {{ $list->id }}; open = false; save()"
-                                                            class="w-full px-6 py-3 text-left hover:bg-gray-50 flex items-center justify-between transition-colors">
-                                                        <span class="font-medium text-gray-900">{{ $list->name }}</span>
-                                                        <span class="text-xs text-gray-400">{{ number_format($list->emails_count) }} subscribers</span>
-                                                    </button>
+                                            </label>
+                                            @endforeach
+                                        </div>
+                                        <div class="text-[10px] font-bold text-red-400 uppercase tracking-widest" x-show="list_ids.length === 0">Please select at least one list to continue.</div>
+                                    </div>
+
+                                    {{-- Multi-Select Tags/Segments --}}
+                                    <div x-show="list_ids.length > 0" class="space-y-6 pt-6 border-t border-color" x-transition>
+                                        
+                                        {{-- INCLUDES --}}
+                                        <div class="space-y-3">
+                                            <div class="flex items-center justify-between">
+                                                <label class="text-xs font-black text-gray-900 uppercase tracking-widest">Target Specific Audience (Optional)</label>
+                                                <div class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-sm text-[8px] font-black uppercase tracking-widest border border-blue-100">INCLUDES</div>
+                                            </div>
+                                            <p class="text-xs text-gray-500 font-medium">If left blank, sends to ALL subscribers. If selected, sends ONLY to those matching AT LEAST ONE.</p>
+                                            
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div class="space-y-2 border border-color p-3 rounded bg-white max-h-48 overflow-auto">
+                                                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest sticky top-0 bg-white pb-2 mb-2 border-b border-color z-10">Tags to Include</div>
+                                                    @foreach($allTags as $tag)
+                                                    <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                                                        <input type="checkbox" value="{{ $tag }}" x-model="include_tags" @change="save()" class="rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                        {{ $tag }}
+                                                    </label>
                                                     @endforeach
+                                                    @if(empty($allTags)) <div class="text-xs text-gray-400">No tags found.</div> @endif
+                                                </div>
+                                                <div class="space-y-2 border border-color p-3 rounded bg-white max-h-48 overflow-auto">
+                                                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest sticky top-0 bg-white pb-2 mb-2 border-b border-color z-10">Segments to Include</div>
+                                                    @foreach($allSegments as $segment)
+                                                    <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                                                        <input type="checkbox" value="{{ $segment }}" x-model="include_segments" @change="save()" class="rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                        {{ $segment }}
+                                                    </label>
+                                                    @endforeach
+                                                    @if(empty($allSegments)) <div class="text-xs text-gray-400">No segments found.</div> @endif
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {{-- Segment/Tag Selector --}}
-                                    <div x-show="campaign.email_list_id" class="space-y-4 pt-4 border-t border-color" x-transition>
-                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Send To</label>
-                                        <div class="flex flex-wrap gap-4">
-                                            <label class="flex-1 min-w-[200px] p-4 border border-color rounded cursor-pointer transition-all" :class="audience_type === 'all' ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'">
-                                                <input type="radio" x-model="audience_type" value="all" class="hidden" @change="save()">
-                                                <div class="font-bold">All Subscribers</div>
-                                                <div class="text-xs opacity-70">Send to everyone in this list</div>
-                                            </label>
-                                            <label class="flex-1 min-w-[200px] p-4 border border-color rounded cursor-pointer transition-all" :class="audience_type === 'segment' ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'">
-                                                <input type="radio" x-model="audience_type" value="segment" class="hidden" @change="save()">
-                                                <div class="font-bold">Segment / Tag</div>
-                                                <div class="text-xs opacity-70">Target specific groups</div>
-                                            </label>
-                                        </div>
-
-                                        {{-- Tag Dropdown --}}
-                                        <div x-show="audience_type === 'segment'" class="mt-4 space-y-3" x-transition>
-                                            <select x-model="audience_tag" @change="save()" class="w-full p-4 border border-color rounded bg-white font-medium focus:outline-none focus:border-gray-900">
-                                                <option value="">Select a Tag...</option>
-                                                <optgroup label="Tags">
+                                        {{-- EXCLUDES --}}
+                                        <div class="space-y-3 pt-4 border-t border-color/50">
+                                            <div class="flex items-center justify-between">
+                                                <label class="text-xs font-black text-gray-900 uppercase tracking-widest">Skip Specific Audience (Optional)</label>
+                                                <div class="px-2 py-0.5 bg-red-50 text-red-600 rounded-sm text-[8px] font-black uppercase tracking-widest border border-red-100">EXCLUDES</div>
+                                            </div>
+                                            <p class="text-xs text-gray-500 font-medium">Subscribers matching ANY of these will NOT receive the campaign, overriding includes.</p>
+                                            
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div class="space-y-2 border border-color p-3 rounded bg-red-50/30 max-h-48 overflow-auto">
+                                                    <div class="text-[10px] font-bold text-red-400 uppercase tracking-widest sticky top-0 bg-red-50/30 pb-2 mb-2 border-b border-color z-10">Tags to Exclude</div>
                                                     @foreach($allTags as $tag)
-                                                        <option value="tag:{{ $tag }}">{{ $tag }}</option>
+                                                    <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                                                        <input type="checkbox" value="{{ $tag }}" x-model="exclude_tags" @change="save()" class="rounded-sm border-gray-300 text-red-600 focus:ring-red-500">
+                                                        {{ $tag }}
+                                                    </label>
                                                     @endforeach
-                                                </optgroup>
-                                                <optgroup label="Segments">
+                                                    @if(empty($allTags)) <div class="text-xs text-gray-400">No tags found.</div> @endif
+                                                </div>
+                                                <div class="space-y-2 border border-color p-3 rounded bg-red-50/30 max-h-48 overflow-auto">
+                                                    <div class="text-[10px] font-bold text-red-400 uppercase tracking-widest sticky top-0 bg-red-50/30 pb-2 mb-2 border-b border-color z-10">Segments to Exclude</div>
                                                     @foreach($allSegments as $segment)
-                                                        <option value="segment:{{ $segment }}">{{ $segment }}</option>
+                                                    <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                                                        <input type="checkbox" value="{{ $segment }}" x-model="exclude_segments" @change="save()" class="rounded-sm border-gray-300 text-red-600 focus:ring-red-500">
+                                                        {{ $segment }}
+                                                    </label>
                                                     @endforeach
-                                                </optgroup>
-                                            </select>
+                                                    @if(empty($allSegments)) <div class="text-xs text-gray-400">No segments found.</div> @endif
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {{-- Health Filters --}}
@@ -197,7 +221,7 @@
 
                                     <div class="pt-4 flex items-center justify-between">
                                         <button @click="editing = null" class="px-8 py-3 bg-gray-900 text-white rounded font-bold text-sm hover:bg-black transition-colors">Save Audience</button>
-                                        <template x-if="estimatedRecipients !== null && campaign.email_list_id">
+                                        <template x-if="estimatedRecipients !== null && list_ids.length > 0">
                                             <div class="text-sm font-bold text-gray-500">
                                                 Estimated count: <span class="text-gray-900 text-lg" x-text="estimatedRecipients.toLocaleString()"></span>
                                             </div>
@@ -385,8 +409,12 @@ function mailchimpWizard() {
             scheduled_at: @json($campaign->scheduled_at),
         },
         // Advanced Audience State
-        audience_type: @json($campaign->audience_config['type'] ?? 'all'),
-        audience_tag: @json($campaign->audience_config['tag'] ?? ''),
+        list_ids: @json($campaign->audience_config['list_ids'] ?? ($campaign->email_list_id ? [$campaign->email_list_id] : [])).map(Number),
+        include_tags: @json($campaign->audience_config['include_tags'] ?? []),
+        include_segments: @json($campaign->audience_config['include_segments'] ?? []),
+        exclude_tags: @json($campaign->audience_config['exclude_tags'] ?? []),
+        exclude_segments: @json($campaign->audience_config['exclude_segments'] ?? []),
+        
         exclude_unhealthy: @json($campaign->audience_config['exclude_unhealthy'] ?? true),
         exclude_risky: @json($campaign->audience_config['exclude_risky'] ?? false),
         exclude_disposable: @json($campaign->audience_config['exclude_disposable'] ?? false),
@@ -410,8 +438,7 @@ function mailchimpWizard() {
         },
 
         isAudienceReady() {
-            if(!this.campaign.email_list_id) return false;
-            if(this.audience_type === 'segment' && !this.audience_tag) return false;
+            if(this.list_ids.length === 0) return false;
             return true;
         },
 
@@ -420,13 +447,17 @@ function mailchimpWizard() {
         },
 
         getAudienceSummary() {
-            const list = this.lists.find(l => l.id == this.campaign.email_list_id);
-            if(!list) return null;
+            if(this.list_ids.length === 0) return null;
             
-            let summary = list.name;
-            if(this.audience_type === 'segment' && this.audience_tag) {
-                const tagValue = this.audience_tag.split(':')[1];
-                summary += ` — Targeted to ${tagValue}`;
+            let count = this.list_ids.length;
+            let summary = count === 1 ? '1 List' : `${count} Lists`;
+            
+            let filters = [];
+            if(this.include_tags.length > 0) filters.push(`${this.include_tags.length} Tags`);
+            if(this.include_segments.length > 0) filters.push(`${this.include_segments.length} Segments`);
+            
+            if(filters.length > 0) {
+                summary += ` (Targeted to ${filters.join(' & ')})`;
             } else {
                 summary += ' (All Subscribers)';
             }
@@ -439,9 +470,13 @@ function mailchimpWizard() {
             // Merge advanced audience data into the payload
             const payload = {
                 ...this.campaign,
+                email_list_id: this.list_ids.length > 0 ? this.list_ids[0] : null,
                 audience_config: {
-                    type: this.audience_type,
-                    tag: this.audience_tag,
+                    list_ids: this.list_ids,
+                    include_tags: this.include_tags,
+                    include_segments: this.include_segments,
+                    exclude_tags: this.exclude_tags,
+                    exclude_segments: this.exclude_segments,
                     exclude_unhealthy: this.exclude_unhealthy,
                     exclude_risky: this.exclude_risky,
                     exclude_disposable: this.exclude_disposable,

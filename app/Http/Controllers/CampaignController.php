@@ -91,15 +91,12 @@ class CampaignController extends Controller
 
         $sampleContact = null;
         $personalizedSubject = $campaign->subject;
-        
-        if ($campaign->email_list_id) {
-            $list = \App\Models\EmailList::find($campaign->email_list_id);
-            if ($list) {
-                $sampleContact = $list->emails()->valid()->first();
-                if ($sampleContact) {
-                    $personalizer = app(\App\Services\PersonalizationService::class);
-                    $personalizedSubject = $personalizer->preview($campaign->subject, $sampleContact->toArray());
-                }
+        $query = $campaign->getAudienceQueryBuilder();
+        if ($query) {
+            $sampleContact = $query->first();
+            if ($sampleContact) {
+                $personalizer = app(\App\Services\PersonalizationService::class);
+                $personalizedSubject = $personalizer->preview($campaign->subject, $sampleContact->toArray());
             }
         }
 

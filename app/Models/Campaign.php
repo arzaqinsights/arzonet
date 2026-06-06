@@ -219,11 +219,20 @@ class Campaign extends Model
 
     public function getAudienceQueryBuilder()
     {
-        if (!$this->emailList) {
+        $config = $this->audience_config ?? [];
+        $listIds = $config['list_ids'] ?? [];
+        
+        // Backward compatibility
+        if (empty($listIds) && $this->email_list_id) {
+            $listIds = [$this->email_list_id];
+        }
+
+        if (empty($listIds)) {
             return null;
         }
 
-        $query = $this->emailList->emails()
+        $query = \App\Models\Email::query()
+            ->whereIn('email_list_id', $listIds)
             ->valid()
             ->subscribed()
             ->where(function($q) {
@@ -232,9 +241,7 @@ class Campaign extends Model
             ->whereNotNull('email')
             ->where('email', '!=', '');
 
-        if ($this->audience_config) {
-            $config = $this->audience_config;
-            
+        if ($config) {
             if (isset($config['exclude_unhealthy']) && $config['exclude_unhealthy']) {
                 $query->where(function($q) {
                     $q->whereNotIn('email_status', ['hard_bounce', 'complaint', 'invalid', 'blocked'])
@@ -255,17 +262,60 @@ class Campaign extends Model
                 $query->where('is_role_based', false);
             }
 
+            // Legacy backward compatibility for old campaigns
             if (isset($config['type']) && $config['type'] === 'segment' && !empty($config['tag'])) {
                 [$type, $value] = explode(':', $config['tag'], 2);
                 if ($type === 'tag') {
-                    $query->where('tags', 'LIKE', "%\"{$value}\"%")
-                          ->orWhere('tags', 'LIKE', "%{$value}%");
+                    $config['include_tags'] = array_merge($config['include_tags'] ?? [], [$value]);
                 } elseif ($type === 'segment') {
-                    $query->where(function($q) use ($value) {
-                        $q->where('segment_name', $value)
-                          ->orWhereJsonContains('auto_segments', $value);
-                    });
+                    $config['include_segments'] = array_merge($config['include_segments'] ?? [], [$value]);
                 }
+            }
+
+            // --- INCLUDES (OR logic: match AT LEAST ONE of the tags/segments) ---
+            $includeTags = $config['include_tags'] ?? [];
+            $includeSegments = $config['include_segments'] ?? [];
+            
+            if (!empty($includeTags) || !empty($includeSegments)) {
+                $query->where(function($q) use ($includeTags, $includeSegments) {
+                    foreach ($includeTags as $tag) {
+                        $q->orWhere('tags', 'LIKE', "%\"{$tag}\"%")
+                          ->orWhere('tags', 'LIKE', "%{$tag}%");
+                    }
+                    foreach ($includeSegments as $seg) {
+                        $q->orWhere('segment_name', $seg)
+                          ->orWhereJsonContains('auto_segments', $seg);
+                    }
+                });
+            }
+
+            // --- EXCLUDES (AND logic: MUST NOT match ANY of the excluded tags/segments) ---
+            $excludeTags = $config['exclude_tags'] ?? [];
+            $excludeSegments = $config['exclude_segments'] ?? [];
+
+            if (!empty($excludeTags) || !empty($excludeSegments)) {
+                $query->where(function($q) use ($excludeTags, $excludeSegments) {
+                    foreach ($excludeTags as $tag) {
+                        $q->where(function($subQ) use ($tag) {
+                            $subQ->whereNull('tags')
+                                 ->orWhere(function($sub2) use ($tag) {
+                                     $sub2->where('tags', 'NOT LIKE', "%\"{$tag}\"%")
+                                          ->where('tags', 'NOT LIKE', "%{$tag}%");
+                                 });
+                        });
+                    }
+                    foreach ($excludeSegments as $seg) {
+                        $q->where(function($subQ) use ($seg) {
+                            $subQ->where(function($s1) use ($seg) {
+                                $s1->where('segment_name', '!=', $seg)
+                                   ->orWhereNull('segment_name');
+                            })->where(function($s2) use ($seg) {
+                                $s2->whereNull('auto_segments')
+                                   ->orWhereJsonDoesntContain('auto_segments', $seg);
+                            });
+                        });
+                    }
+                });
             }
         }
 
