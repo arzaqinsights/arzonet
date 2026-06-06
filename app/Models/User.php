@@ -179,7 +179,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         if ($this->isSuperAdmin()) {
             return (object) [
-                'total' => $this->logs()->count(),
+                'total' => $this->logs()->where('status', '!=', 'pending')->count(),
                 'limit' => 999999,
                 'percent' => 0,
                 'is_exceeded' => false,
@@ -188,7 +188,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $hasEmail = $this->hasModule('email');
         $limit = $hasEmail ? (optional($this->subscription)->emails_limit ?? 0) : 0;
-        $total = $this->logs()->count();
+        $total = $this->logs()->where('status', '!=', 'pending')->count();
         return (object) [
             'total' => $total,
             'limit' => $limit,

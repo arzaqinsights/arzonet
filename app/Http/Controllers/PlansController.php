@@ -81,7 +81,7 @@ class PlansController extends Controller
 
         // Active metrics count
         $contactsCount = $user->emails()->count();
-        $emailsCount = $user->logs()->count();
+        $emailsCount = $user->logs()->where('status', '!=', 'pending')->count();
         $whatsappCount = $user->whatsappAccounts()->count();
         $teamCount = \App\Models\User::where('role', 'team')->count();
 
