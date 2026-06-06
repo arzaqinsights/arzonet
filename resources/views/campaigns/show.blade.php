@@ -115,62 +115,52 @@
 
     {{-- Main Stats Dashboard (TOP) --}}
     <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4" id="stats-grid">
-        <div class="glass-card p-5 rounded-md border-b-4 border-primary-500">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivery</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">Delivery</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($stats['sent'] ?? 0) }}</h3>
-            <div class="flex items-center gap-1 mt-1">
-                <p class="text-[10px] text-primary-600 font-bold">{{ $campaign->progress() }}% of {{ number_format($campaign->total_recipients) }} total</p>
-            </div>
+            <p class="text-[11px] text-surface-500 mt-1">{{ $campaign->progress() }}% of {{ number_format($campaign->total_recipients) }} total</p>
         </div>
 
-        <div class="glass-card p-5 rounded-md border-b-4 border-indigo-500">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Opens</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">Opens</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-open-rate">{{ $campaign->open_rate }}%</h3>
-            <div class="flex items-center gap-2 mt-1">
-                <p class="text-[10px] text-indigo-600 font-bold"><span id="stat-unique-opens">{{ number_format($stats['unique_opens'] ?? 0) }}</span> Unique</p>
-                <span class="text-[10px] text-surface-300">|</span>
-                <p class="text-[10px] text-surface-400 font-bold"><span id="stat-total-opens">{{ number_format($stats['opens'] ?? 0) }}</span> Total</p>
-            </div>
+            <p class="text-[11px] text-surface-500 mt-1"><span id="stat-unique-opens">{{ number_format($stats['unique_opens'] ?? 0) }}</span> Unique <span class="text-surface-300 mx-1">|</span> <span id="stat-total-opens">{{ number_format($stats['opens'] ?? 0) }}</span> Total</p>
         </div>
 
-        <div class="glass-card p-5 rounded-md border-b-4 border-emerald-500">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Clicks</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">Clicks</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-click-rate">{{ $campaign->click_rate }}%</h3>
-            <div class="flex items-center gap-2 mt-1">
-                <p class="text-[10px] text-emerald-600 font-bold"><span id="stat-unique-clicks">{{ number_format($stats['unique_clicks'] ?? 0) }}</span> Unique</p>
-                <span class="text-[10px] text-surface-300">|</span>
-                <p class="text-[10px] text-surface-400 font-bold"><span id="stat-total-clicks">{{ number_format($stats['clicks'] ?? 0) }}</span> Total</p>
-            </div>
+            <p class="text-[11px] text-surface-500 mt-1"><span id="stat-unique-clicks">{{ number_format($stats['unique_clicks'] ?? 0) }}</span> Unique <span class="text-surface-300 mx-1">|</span> <span id="stat-total-clicks">{{ number_format($stats['clicks'] ?? 0) }}</span> Total</p>
         </div>
 
-        <div class="glass-card p-5 rounded-md border-b-4 border-rose-500">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Bounced</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">Bounced</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-bounce-count">{{ number_format($stats['bounced'] ?? 0) }}</h3>
-            <p class="text-[10px] text-rose-600 mt-1 font-bold">Rejected by Server</p>
+            <p class="text-[11px] text-surface-500 mt-1">Rejected by Server</p>
         </div>
 
-        <div class="glass-card p-5 rounded-md border-b-4 border-amber-500">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2" title="Unsubscribed">Unsubs.</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1" title="Unsubscribed">Unsubs.</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-unsubscribe-count">{{ number_format($stats['unsubscribed'] ?? 0) }}</h3>
-            <p class="text-[10px] text-amber-600 mt-1 font-bold">Opt-outs</p>
+            <p class="text-[11px] text-surface-500 mt-1">Opt-outs</p>
         </div>
 
-        <div class="glass-card p-5 rounded-md border-b-4 border-surface-500">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Failed</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">Failed</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-failed-count">{{ number_format($stats['failed'] ?? 0) }}</h3>
-            <p class="text-[10px] text-surface-600 mt-1 font-bold">Errors</p>
+            <p class="text-[11px] text-surface-500 mt-1">Errors</p>
         </div>
 
-        <div class="glass-card p-5 rounded-md border-b-4 border-orange-500">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Dropped</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">Dropped</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-dropped-count">{{ number_format($stats['dropped'] ?? 0) }}</h3>
-            <p class="text-[10px] text-orange-600 mt-1 font-bold">Blocked/Invalid</p>
+            <p class="text-[11px] text-surface-500 mt-1">Blocked / Invalid</p>
         </div>
 
-        <div class="glass-card p-5 rounded-md border-b-4 border-red-600">
-            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Spam / Comp.</span>
+        <div class="bg-white p-5 rounded-md border border-surface-200 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">Spam / Comp.</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-spam-count">{{ number_format($stats['spam'] ?? 0) }}</h3>
-            <p class="text-[10px] text-red-600 mt-1 font-bold">Reports</p>
+            <p class="text-[11px] text-surface-500 mt-1">Reports</p>
         </div>
     </div>
 
