@@ -693,8 +693,10 @@
     });
 
     @if($campaign->status !== 'draft')
-    // Auto-refresh stats: 5s for sending, 30s for completed (catches late open/click events)
-    const pollMs = {{ $campaign->status === 'sending' ? 5000 : 30000 }};
+    // Auto-refresh stats: 5s for preparing/sending, 30s for completed (catches late open/click events)
+    const pollMs = {{ in_array($campaign->status, ['preparing', 'sending']) ? 5000 : 30000 }};
+    const currentStatus = '{{ $campaign->status }}';
+
     const pollInterval = setInterval(() => {
         // Disable polling if filtering/searching to prevent UI jumps
         if (logFilters.status || logFilters.engagement || logFilters.search || logFilters.page > 1) {
@@ -703,6 +705,11 @@
         fetch('{{ route("admin.campaigns.status", $campaign) }}')
         .then(response => response.json())
         .then(data => {
+            if (currentStatus === 'preparing' && data.status === 'sending') {
+                window.location.reload();
+                return;
+            }
+
             // 1. Update Global Stats Grid
             document.getElementById('stat-sent-count').innerText = data.sent_count.toLocaleString();
             document.getElementById('stat-bounce-count').innerText = data.bounce_count.toLocaleString();
@@ -725,6 +732,7 @@
                 setTimeout(() => engine.classList.add('hidden'), 500);
                 clearInterval(pollInterval); // Stop polling when done
                 window.location.reload(); // Refresh once to get final UI state
+                return;
             }
 
             document.getElementById('live-progress-percent').innerText = data.progress + '%';
