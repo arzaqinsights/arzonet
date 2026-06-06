@@ -335,6 +335,8 @@ class EmailListController extends Controller
 
     public function filterEmails(Request $request, EmailList $emailList)
     {
+        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+
         $query = $emailList->emails()->with(['deals.stage.pipeline'])->orderBy('created_at', 'desc');
 
         // Health filter
