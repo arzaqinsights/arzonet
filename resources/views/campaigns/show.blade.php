@@ -114,7 +114,7 @@
     </div>
 
     {{-- Main Stats Dashboard (TOP) --}}
-    <div class="grid grid-cols-1 md:grid-cols-6 gap-4" id="stats-grid">
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4" id="stats-grid">
         <div class="glass-card p-5 rounded-md border-b-4 border-primary-500">
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Delivery</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-sent-count">{{ number_format($stats['sent'] ?? 0) }}</h3>
@@ -159,6 +159,18 @@
             <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Failed</span>
             <h3 class="text-2xl font-black text-surface-900" id="stat-failed-count">{{ number_format($stats['failed'] ?? 0) }}</h3>
             <p class="text-[10px] text-surface-600 mt-1 font-bold">Errors</p>
+        </div>
+
+        <div class="glass-card p-5 rounded-md border-b-4 border-orange-500">
+            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Dropped</span>
+            <h3 class="text-2xl font-black text-surface-900" id="stat-dropped-count">{{ number_format($stats['dropped'] ?? 0) }}</h3>
+            <p class="text-[10px] text-orange-600 mt-1 font-bold">Blocked/Invalid</p>
+        </div>
+
+        <div class="glass-card p-5 rounded-md border-b-4 border-red-600">
+            <span class="text-[9px] font-black text-surface-400 uppercase tracking-widest block mb-2">Spam / Comp.</span>
+            <h3 class="text-2xl font-black text-surface-900" id="stat-spam-count">{{ number_format($stats['spam'] ?? 0) }}</h3>
+            <p class="text-[10px] text-red-600 mt-1 font-bold">Reports</p>
         </div>
     </div>
 
@@ -713,6 +725,8 @@
             // 1. Update Global Stats Grid
             document.getElementById('stat-sent-count').innerText = data.sent_count.toLocaleString();
             document.getElementById('stat-bounce-count').innerText = data.bounce_count.toLocaleString();
+            document.getElementById('stat-dropped-count').innerText = data.dropped_count.toLocaleString();
+            document.getElementById('stat-spam-count').innerText = data.spam_count.toLocaleString();
             document.getElementById('stat-unsubscribe-count').innerText = data.unsubscribe_count.toLocaleString();
             document.getElementById('stat-failed-count').innerText = data.failed_count.toLocaleString();
             document.getElementById('stat-open-rate').innerText = data.open_rate + '%';

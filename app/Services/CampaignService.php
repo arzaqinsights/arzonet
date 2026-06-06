@@ -117,6 +117,8 @@ class CampaignService
         $failedCount = ($logStats['failed'] ?? 0);
         $bounceCount = ($logStats['bounced'] ?? 0);
         $pendingCount = ($logStats['pending'] ?? 0);
+        $droppedCount = ($logStats['dropped'] ?? 0);
+        $spamCount = ($logStats['spamreport'] ?? 0) + ($logStats['complaint'] ?? 0);
 
         return [
             'total'      => $campaign->total_recipients,
@@ -124,6 +126,8 @@ class CampaignService
             'failed'     => $failedCount,
             'pending'    => $pendingCount,
             'bounced'    => $bounceCount,
+            'dropped'    => $droppedCount,
+            'spam'       => $spamCount,
             'opens'        => $campaign->logs()->sum('open_count'),
             'unique_opens' => $campaign->logs()->where(function($q) {
                 $q->where('open_count', '>', 0)->orWhere('click_count', '>', 0);

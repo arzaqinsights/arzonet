@@ -465,6 +465,8 @@ class CampaignController extends Controller
             'sent_count'   => $stats['sent'],
             'failed_count' => $stats['failed'],
             'bounce_count' => $stats['bounced'],
+            'dropped_count'=> $stats['dropped'],
+            'spam_count'   => $stats['spam'],
             'unsubscribe_count' => $stats['unsubscribed'],
             'total_opens'  => $stats['opens'],
             'unique_opens' => $stats['unique_opens'],
