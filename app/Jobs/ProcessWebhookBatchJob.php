@@ -138,11 +138,6 @@ class ProcessWebhookBatchJob implements ShouldQueue
             $type = $event['event'];
             $eventId = $event['sg_event_id'] ?? null;
 
-            // Track unique contact segment updates
-            if ($log->email_id) {
-                $contactSegmentJobsToDispatch[] = $log->email_id;
-            }
-
             // Init log record tracked state in logUpdates
             if (!isset($logUpdates[$log->id])) {
                 $logUpdates[$log->id] = [
@@ -346,17 +341,13 @@ class ProcessWebhookBatchJob implements ShouldQueue
         // 4. Perform database operations in bulk inside a transaction
         DB::transaction(function () use ($logUpdates, $emailUpdates, $eventsToInsert, $unsubscribesToCreate) {
             // Bulk update email_logs
-            foreach ($logUpdates as $logId => $state) {
-                DB::table('email_logs')
-                    ->where('id', $logId)
-                    ->update($state);
+            if (!empty($logUpdates)) {
+                $this->performBulkUpdate('email_logs', $logUpdates);
             }
 
             // Bulk update emails
-            foreach ($emailUpdates as $emailId => $fields) {
-                DB::table('emails')
-                    ->where('id', $emailId)
-                    ->update($fields);
+            if (!empty($emailUpdates)) {
+                $this->performBulkUpdate('emails', $emailUpdates);
             }
 
             // Bulk insert email_events
@@ -373,6 +364,8 @@ class ProcessWebhookBatchJob implements ShouldQueue
         });
 
         // 5. Debounce Segment Recalculation using a Redis lock (60 seconds)
+        // Only run for contacts that actually had a subscription/bounce change
+        $contactSegmentJobsToDispatch = array_keys($emailUpdates);
         $uniqueEmailIds = array_unique($contactSegmentJobsToDispatch);
         foreach ($uniqueEmailIds as $emailId) {
             $lockKey = "webhook:segment_lock:{$emailId}";
@@ -380,5 +373,54 @@ class ProcessWebhookBatchJob implements ShouldQueue
                 \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $emailId)->onQueue('segments');
             }
         }
+    }
+
+    /**
+     * Perform a raw SQL bulk update for thousands of records in 1 query.
+     */
+    protected function performBulkUpdate(string $table, array $updates, string $idColumn = 'id')
+    {
+        if (empty($updates)) {
+            return;
+        }
+
+        $allFields = [];
+        foreach ($updates as $data) {
+            foreach (array_keys($data) as $key) {
+                $allFields[$key] = true;
+            }
+        }
+        $allFields = array_keys($allFields);
+
+        $ids = array_keys($updates);
+        $idPlaceholders = implode(',', array_fill(0, count($ids), '?'));
+        
+        $bindings = [];
+        $setClauses = [];
+
+        foreach ($allFields as $field) {
+            $cases = [];
+            foreach ($updates as $id => $data) {
+                if (array_key_exists($field, $data)) {
+                    $cases[] = "WHEN {$idColumn} = ? THEN ?";
+                    $bindings[] = $id;
+                    $bindings[] = $data[$field];
+                }
+            }
+            if (!empty($cases)) {
+                $caseStr = implode(' ', $cases);
+                $setClauses[] = "{$field} = CASE {$caseStr} ELSE {$field} END";
+            }
+        }
+
+        if (empty($setClauses)) {
+            return;
+        }
+
+        $setSql = implode(', ', $setClauses);
+        $bindings = array_merge($bindings, $ids);
+        
+        $sql = "UPDATE {$table} SET {$setSql} WHERE {$idColumn} IN ({$idPlaceholders})";
+        DB::update($sql, $bindings);
     }
 }

@@ -199,7 +199,7 @@ return [
                 'connection' => 'redis',
                 'queue' => ['bulk-sendgrid'],
                 'balance' => 'auto',
-                'maxProcesses' => 15,
+                'maxProcesses' => 10,
                 'memory' => 256,
                 'tries' => 1,
                 'timeout' => 120,
