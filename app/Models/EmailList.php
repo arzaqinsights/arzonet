@@ -68,6 +68,23 @@ class EmailList extends Model
             return true;
         }
 
+        // Check global CRM permissions first
+        $globalPermMap = [
+            'edit_contact' => 'crm.edit',
+            'add_contact' => 'crm.create',
+            'delete_contact' => 'crm.delete',
+            'export_contacts' => 'crm.export',
+            'import_contacts' => 'crm.import',
+            'perform_bulk_actions' => 'crm.bulk',
+            'scrub_contacts' => 'crm.scrub',
+        ];
+
+        if (array_key_exists($action, $globalPermMap)) {
+            if (\App\Models\User::canAccess($globalPermMap[$action])) {
+                return true;
+            }
+        }
+
         // If list is private, other team members have no access
         if (!$this->is_public) {
             return false;

@@ -24,7 +24,7 @@ class CRMContactGroupingTest extends TestCase
         config(['app.domain' => 'email.test']);
 
         // Create a user
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['role' => 'admin']);
 
         // Create an email list
         $this->emailList = EmailList::create([

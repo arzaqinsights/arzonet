@@ -44,59 +44,13 @@
                 </div>
             @endif
 
-            {{-- Global Opt-out --}}
-            <div class="mb-8 text-left border-t border-gray-150 pt-6">
-                <label class="flex items-start gap-3 p-4 bg-red-50/20 border border-red-100 rounded-xl cursor-pointer hover:bg-red-50/40 transition-all select-none">
-                    <input type="checkbox" id="global_unsubscribe" name="global_unsubscribe" value="1" 
-                           class="mt-1 rounded border-red-300 text-red-600 focus:ring-red-500 focus:ring-offset-0"
-                           {{ $email->subscription_status === 'unsubscribed' ? 'checked' : '' }}>
-                    <div class="flex-1">
-                        <div class="text-sm font-black text-red-700 leading-tight">Unsubscribe from all updates</div>
-                        <div class="text-xs text-red-600 mt-1 leading-normal">Opt out of all emails from this list. You can update this preference at any time.</div>
-                    </div>
-                </label>
-            </div>
-
             <div class="space-y-3">
                 <button type="submit" class="btn btn-primary w-full py-3">Save Preferences</button>
-                <a href="/" class="btn btn-ghost w-full py-3 text-center block">Cancel & Keep Subscriptions</a>
             </div>
         </form>
         
         <p class="text-xs text-surface-400 mt-8">We respect your inbox. You can update your email preferences or subscribe back at any time.</p>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const globalCheck = document.getElementById('global_unsubscribe');
-            const topicChecks = document.querySelectorAll('.topic-checkbox');
-            const topicsSection = document.getElementById('topics-section');
-            
-            function updateState() {
-                if (globalCheck && globalCheck.checked) {
-                    topicChecks.forEach(cb => {
-                        cb.disabled = true;
-                        cb.parentElement.classList.add('opacity-50');
-                    });
-                    if (topicsSection) {
-                        topicsSection.classList.add('opacity-60');
-                    }
-                } else {
-                    topicChecks.forEach(cb => {
-                        cb.disabled = false;
-                        cb.parentElement.classList.remove('opacity-50');
-                    });
-                    if (topicsSection) {
-                        topicsSection.classList.remove('opacity-60');
-                    }
-                }
-            }
-            
-            if (globalCheck) {
-                globalCheck.addEventListener('change', updateState);
-                updateState();
-            }
-        });
-    </script>
 </body>
 </html>

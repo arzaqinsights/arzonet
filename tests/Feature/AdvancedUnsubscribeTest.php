@@ -24,7 +24,7 @@ class AdvancedUnsubscribeTest extends TestCase
         config('app.url');
         config('app.domain');
 
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['role' => 'admin']);
 
         $this->emailList = EmailList::create([
             'user_id' => $this->user->id,

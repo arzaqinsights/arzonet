@@ -40,6 +40,21 @@ class Pipeline extends Model
             return false;
         }
 
+        // Check global CRM permissions first
+        $globalPermMap = [
+            'add_deal' => 'pipelines.manage',
+            'move_deal' => 'pipelines.manage',
+            'delete_deal' => 'pipelines.manage',
+            'edit_pipeline' => 'pipelines.manage',
+            'delete_pipeline' => 'pipelines.manage',
+        ];
+
+        if (array_key_exists($action, $globalPermMap)) {
+            if (\App\Models\User::canAccess($globalPermMap[$action])) {
+                return true;
+            }
+        }
+
         // Check overrides
         $perms = $this->team_permissions ?? [];
         return (bool) ($perms[$action] ?? true);

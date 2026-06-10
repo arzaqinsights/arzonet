@@ -42,6 +42,56 @@ return [
                     'label' => 'Perform Bulk Actions',
                     'description' => 'Allows running operations (delete, blacklist) on multiple selected contacts.',
                 ],
+                'segments.view' => [
+                    'label' => 'View Segments',
+                    'description' => 'Allows viewing the list of contact segments and rules.',
+                ],
+                'segments.manage' => [
+                    'label' => 'Manage Segments',
+                    'description' => 'Allows creating, editing, and deleting segments.',
+                ],
+                'pipelines.view' => [
+                    'label' => 'View Pipelines & Deals',
+                    'description' => 'Allows viewing the deals pipeline, stages, and deal cards.',
+                ],
+                'pipelines.manage' => [
+                    'label' => 'Manage Pipelines & Deals',
+                    'description' => 'Allows creating, moving, and editing deals and pipeline stages.',
+                ],
+                'tasks.view' => [
+                    'label' => 'View Tasks & Calendar',
+                    'description' => 'Allows viewing the team calendar and task lists.',
+                ],
+                'tasks.manage' => [
+                    'label' => 'Manage Tasks',
+                    'description' => 'Allows creating, updating, or deleting tasks and events.',
+                ],
+                'custom_fields.manage' => [
+                    'label' => 'Manage Custom Fields',
+                    'description' => 'Allows adding or removing custom contact attributes.',
+                ],
+                'blacklist.manage' => [
+                    'label' => 'Manage Blacklist',
+                    'description' => 'Allows adding or removing emails from the global blacklist.',
+                ],
+            ]
+        ],
+        'workflows' => [
+            'title' => 'Automations & Workflows',
+            'icon' => 'fa-project-diagram',
+            'permissions' => [
+                'workflows.view' => [
+                    'label' => 'View Workflows',
+                    'description' => 'Allows viewing the list of workflows and automation graphs.',
+                ],
+                'workflows.create' => [
+                    'label' => 'Create & Edit Workflows',
+                    'description' => 'Allows building and modifying automation workflows.',
+                ],
+                'workflows.delete' => [
+                    'label' => 'Delete Workflows',
+                    'description' => 'Allows permanently deleting workflows.',
+                ],
             ]
         ],
         'campaigns' => [

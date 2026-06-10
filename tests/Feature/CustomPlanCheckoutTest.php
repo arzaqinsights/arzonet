@@ -22,7 +22,7 @@ class CustomPlanCheckoutTest extends TestCase
         config(['app.url' => 'http://email.test']);
         config(['app.domain' => 'email.test']);
 
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['role' => 'admin']);
     }
 
     /**

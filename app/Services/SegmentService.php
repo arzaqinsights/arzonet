@@ -75,10 +75,8 @@ class SegmentService
             $contact->last_opened = $engagement->last_opened;
             $contact->last_clicked = $engagement->last_clicked;
 
-            $segments = $this->computeSegmentsForContact($contact);
-            DB::table('emails')->where('id', $emailId)->update([
-                'auto_segments' => json_encode($segments)
-            ]);
+            // auto_segments column has been removed, so we no longer save it to database
+            return;
             return;
         }
 
@@ -117,11 +115,7 @@ class SegmentService
                     $contact->last_opened = $eng->last_opened ?? null;
                     $contact->last_clicked = $eng->last_clicked ?? null;
 
-                    $segments = $this->computeSegmentsForContact($contact);
-
-                    DB::table('emails')
-                        ->where('id', $contact->id)
-                        ->update(['auto_segments' => json_encode($segments)]);
+                    // auto_segments column has been removed, so we no longer save it to database
                 }
             });
         });

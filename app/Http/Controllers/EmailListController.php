@@ -33,6 +33,13 @@ class EmailListController extends Controller
         
         session(['last_opened_list_id' => $workspace->id]);
         
+        $previousUrl = url()->previous();
+        
+        // If they were on an email list specific page, redirect to the new workspace's dashboard
+        if (\Illuminate\Support\Str::contains($previousUrl, '/email-lists')) {
+            return redirect()->route('admin.email-lists.show', $workspace->id);
+        }
+        
         return redirect()->back();
     }
 
@@ -1377,7 +1384,7 @@ class EmailListController extends Controller
     public function bulkAction(Request $request, EmailList $emailList)
     {
         $request->validate([
-            'action' => 'required|in:unsubscribe,subscribe,archive,unarchive,permanent_delete,edit_column,update_column,add_tags,remove_tags,add_topics,remove_topics,create_deals,transfer,add_note,add_task'
+            'action' => 'required|in:archive,unarchive,unsubscribe,subscribe,permanent_delete,edit_column,update_column,add_tags,remove_tags,manage_subscriptions,create_deals,transfer,add_note,add_task'
         ]);
 
         if ($request->global && $request->filters) {
@@ -1394,7 +1401,7 @@ class EmailListController extends Controller
 
         $count = $emails->count();
 
-        $advancedActions = ['add_tags', 'remove_tags', 'add_topics', 'remove_topics', 'create_deals', 'transfer', 'add_note', 'add_task'];
+        $advancedActions = ['add_tags', 'remove_tags', 'manage_subscriptions', 'create_deals', 'transfer', 'add_note', 'add_task'];
 
         if (in_array($request->action, $advancedActions)) {
             \App\Jobs\AdvancedBulkActionJob::dispatch(

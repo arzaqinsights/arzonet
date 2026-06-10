@@ -1,33 +1,46 @@
-@extends('layouts.app')
+@extends('layouts.fullscreen-builder')
 @section('title', 'Email Editor — ' . $template->name)
 
 @push('head')
 <script src="https://editor.unlayer.com/embed.js"></script>
 @endpush
 
-@section('heading')
-    <div class="flex items-center gap-2 group">
-        <input type="text" id="template-name" value="{{ $template->name }}" class="bg-transparent border-0 text-lg font-black uppercase p-0 m-0 focus:ring-0 w-full min-w-[400px] text-surface-900" placeholder="TEMPLATE NAME">
-    </div>
-@endsection
-
-@section('header-actions')
-    <div class="flex items-center gap-3">
-        @if(request()->has('return_to_campaign'))
-            <a href="{{ route('admin.campaigns.wizard', request('return_to_campaign')) }}" class="btn btn-ghost px-6 py-2 text-sm font-bold">Cancel & Return</a>
-        @else
-            <a href="{{ route('admin.templates.index') }}" class="btn btn-ghost px-6 py-2 text-sm font-bold">Cancel</a>
-        @endif
-        <button onclick="saveTemplate()" id="save-btn" class="btn btn-primary px-8 py-2 text-sm font-black shadow-xl shadow-brand/20 flex items-center justify-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-            Update Template
-        </button>
-    </div>
-@endsection
-
 @section('content')
-<div class="space-y-6 animate-fade-in">
-    <div id="editor-container" style="height: 800px; width:100%; border: 1px solid #e5e5e5; border-radius: 4px; overflow: hidden;"></div>
+<div class="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden">
+    {{-- Top Navigation for Editor --}}
+    <div class="h-16 border-b border-color bg-white px-6 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-6">
+            @if(request()->has('return_to_campaign'))
+                <a href="{{ route('admin.campaigns.wizard', request('return_to_campaign')) }}" class="text-gray-400 hover:text-gray-900 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+            @else
+                <a href="{{ route('admin.templates.index') }}" class="text-gray-400 hover:text-gray-900 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+            @endif
+            
+            <div class="flex flex-col">
+                <input type="text" id="template-name" value="{{ $template->name }}" class="bg-transparent border-0 text-xl font-bold p-0 m-0 focus:ring-0 w-full min-w-[300px] text-gray-900" placeholder="TEMPLATE NAME">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Template Editor</span>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            @if(request()->has('return_to_campaign'))
+                <a href="{{ route('admin.campaigns.wizard', request('return_to_campaign')) }}" class="px-6 py-2 text-sm font-bold text-gray-500 hover:text-gray-900">Cancel</a>
+            @else
+                <a href="{{ route('admin.templates.index') }}" class="px-6 py-2 text-sm font-bold text-gray-500 hover:text-gray-900">Cancel</a>
+            @endif
+            <button onclick="saveTemplate()" id="save-btn" class="px-8 py-2 bg-gray-900 text-white rounded-sm font-bold text-sm hover:bg-black transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                Save & Return
+            </button>
+        </div>
+    </div>
+
+    {{-- Editor Container --}}
+    <div id="editor-container" class="flex-1 w-full bg-gray-50"></div>
 
     <form id="template-form" action="{{ route('admin.templates.update', $template->id) }}" method="POST" class="hidden">
         @csrf
@@ -69,7 +82,6 @@
             @if($template->json_design)
                 try {
                     const design = {!! $template->json_design !!};
-                    // Check if it's Unlayer JSON (has 'body' or 'counters') vs GrapesJS MJML
                     if (design && (design.body || design.counters)) {
                         unlayer.loadDesign(design);
                     } else {

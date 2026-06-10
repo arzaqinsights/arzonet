@@ -63,14 +63,15 @@ class UnsubscribeController extends Controller
             abort(403, 'Invalid request.');
         }
 
-        $globalUnsubscribe = $request->has('global_unsubscribe');
         $selectedTopicIds = $request->input('topics', []);
+        $globalUnsubscribe = empty($selectedTopicIds);
         $durationText = 'permanently';
 
         if ($globalUnsubscribe) {
             // Mark ONLY this specific record as unsubscribed (Isolated to this list/workspace)
             $email->update([
                 'subscription_status' => 'unsubscribed',
+                'whatsapp_subscription_status' => 'unsubscribed',
                 'unsubscribed_at' => now(),
                 'subscribed_topics' => [], // Empty means subscribed to nothing
             ]);
@@ -79,6 +80,7 @@ class UnsubscribeController extends Controller
             // Keep status as subscribed, but update their specific topic list
             $email->update([
                 'subscription_status' => 'subscribed',
+                'whatsapp_subscription_status' => 'subscribed',
                 'unsubscribed_at' => null,
                 'unsubscribe_expires_at' => null,
                 'subscribed_topics' => array_map('intval', $selectedTopicIds),

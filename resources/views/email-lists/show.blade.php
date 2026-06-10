@@ -42,15 +42,6 @@
                 </button>
             </form>
         @endif
-        @if($emailList->canPerformAction('edit_contact'))
-            <button @click="$dispatch('open-merge-modal')"
-                class="px-4 py-3 flex items-center rounded-sm bg-surface-100 hover:bg-surface-200 text-surface-700 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
-                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Merge Duplicates
-            </button>
-        @endif
         <button @click="$dispatch('open-export-modal')"
             class="px-4 py-3 flex items-center rounded-sm bg-white border border-gray-100 text-surface-600 hover:text-surface-900 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
             <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1161,19 +1152,7 @@
                                 </div>
                             </div>
 
-                            {{-- Consolidate Option --}}
-                            <div class="p-4 bg-amber-50 border border-amber-100 rounded-sm">
-                                <label class="flex items-center gap-3 cursor-pointer">
-                                    <input type="checkbox" x-model="consolidate"
-                                        class="w-5 h-5 rounded-sm border-amber-300 text-amber-500 focus:ring-amber-500 cursor-pointer">
-                                    <div>
-                                        <p class="text-[11px] font-black text-amber-900 uppercase tracking-tight">
-                                            Consolidate Split Rows</p>
-                                        <p class="text-[10px] text-amber-700/70 font-bold mt-0.5">Merge multiple
-                                            emails/numbers back into a single row per person.</p>
-                                    </div>
-                                </label>
-                            </div>
+
                         </div>
 
                         <div class="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
@@ -1575,14 +1554,12 @@
                                             <option value="">-- Choose an action --</option>
                                             @if($emailList->canPerformAction('edit_contact'))
                                                 <optgroup label="Basic">
-                                                    <option value="subscribe">Subscribe Contacts</option>
                                                     <option value="update_column">Update Column Data</option>
                                                 </optgroup>
                                                 <optgroup label="Tags & Topics">
                                                     <option value="add_tags">Add Tags</option>
                                                     <option value="remove_tags">Remove Tags</option>
-                                                    <option value="add_topics">Add Subscriptions (Topics)</option>
-                                                    <option value="remove_topics">Remove Subscriptions (Topics)</option>
+                                                    <option value="manage_subscriptions">Manage Subscriptions</option>
                                                 </optgroup>
                                                 <optgroup label="CRM Actions">
                                                     <option value="add_note">Add Note</option>
@@ -1593,7 +1570,6 @@
                                             @endif
                                             @if($emailList->canPerformAction('delete_contact'))
                                                 <optgroup label="Danger Zone">
-                                                    <option value="unsubscribe">Unsubscribe Contacts</option>
                                                     <option :value="archived === 'yes' ? 'unarchive' : 'archive'"
                                                         x-text="archived === 'yes' ? 'Restore to Active' : 'Move to Archive'">
                                                     </option>
@@ -1625,26 +1601,25 @@
                                 </div>
 
                                 {{-- Action Specific Fields --}}
-                                <template x-if="bulkActionType === 'unsubscribe'">
-                                    <div
-                                        class="bg-amber-50 border border-amber-200 p-4 rounded-sm animate-fade-in">
-                                        <div class="flex items-center gap-2 mb-3 text-amber-800">
+                                <template x-if="bulkActionType === 'manage_subscriptions'">
+                                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-sm animate-fade-in space-y-3">
+                                        <div class="flex items-center gap-2 mb-3 text-blue-800">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <h4 class="font-bold text-xs">Unsubscribe Config</h4>
+                                            <h4 class="font-bold text-xs">Manage Subscriptions</h4>
                                         </div>
-                                        <label
-                                            class="block text-[10px] font-black text-amber-900 uppercase tracking-widest mb-1.5">Duration</label>
-                                        <select x-model="unsubscribeDuration"
-                                            class="w-full px-3 py-2 bg-white border border-amber-200 rounded-sm text-sm font-bold focus:border-amber-500 focus:ring-0 text-amber-900 transition-all">
-                                            <option value="permanent">Permanent</option>
-                                            <option value="7_days">Temporary (7 Days)</option>
-                                            <option value="30_days">Temporary (30 Days)</option>
-                                        </select>
-                                        <p class="text-[10px] text-amber-700 mt-2 font-semibold">Contacts won't receive
-                                            campaigns during this period.</p>
+                                        <p class="text-[10px] text-blue-700 font-semibold mb-2">Check topics to subscribe. Uncheck all topics to completely unsubscribe contacts.</p>
+                                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                                            @forelse($topics as $topic)
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" x-model="bulkPayload.topics" value="{{ $topic->id }}" class="rounded border-blue-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                                    <span class="text-sm font-semibold text-blue-900 group-hover:text-blue-700 transition-colors">{{ $topic->name }}</span>
+                                                </label>
+                                            @empty
+                                                <p class="text-xs text-blue-500 font-semibold">No topics available. Add topics in the Workspace settings.</p>
+                                            @endforelse
+                                        </div>
                                     </div>
                                 </template>
 
@@ -2496,6 +2471,8 @@
                         confirmMsg = `Are you sure you want to move ${count.toLocaleString()} contact(s) to archive?`;
                     } else if (actionName === 'unarchive') {
                         confirmMsg = `Are you sure you want to restore ${count.toLocaleString()} contact(s) to active?`;
+                    } else if (actionName === 'manage_subscriptions') {
+                        confirmMsg = `Are you sure you want to update subscriptions for ${count.toLocaleString()} contact(s)?`;
                     }
 
                     if (!confirm(confirmMsg)) return;
@@ -2506,11 +2483,11 @@
                         body: JSON.stringify({
                             ids: this.selectedIds,
                             action: actionName,
-                            duration: this.unsubscribeDuration, // for unsubscribe
                             delete_reason: this.permanentDeleteReason, // for delete
                             target_column: this.bulkUpdateColumn, // for update_column
                             new_value: this.bulkUpdateValue, // for update_column
                             global: this.globalSelect,
+                            payload: this.bulkPayload,
                             filters: {
                                 status: this.filter, search: this.search, search_field: this.searchField,
                                 segment: this.segment, tag: this.tag, source: this.source,

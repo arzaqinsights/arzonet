@@ -1,29 +1,36 @@
-@extends('layouts.app')
+@extends('layouts.fullscreen-builder')
 @section('title', 'Create Template')
 
 @push('head')
 <script src="https://editor.unlayer.com/embed.js"></script>
 @endpush
 
-@section('heading')
-    <div class="flex items-center gap-2 group">
-        <input type="text" id="template-name" value="Template - {{ now()->format('M d, Y h:i A') }}" class="bg-transparent border-0 text-lg font-black uppercase p-0 m-0 focus:ring-0 w-full min-w-[400px] text-surface-900" placeholder="TEMPLATE NAME">
-    </div>
-@endsection
-
-@section('header-actions')
-    <div class="flex items-center gap-3">
-        <a href="{{ route('admin.templates.index') }}" class="btn btn-ghost px-6 py-2 text-sm font-bold">Cancel</a>
-        <button onclick="saveTemplate()" id="save-btn" class="btn btn-primary px-8 py-2 text-sm font-black shadow-xl shadow-brand/20 flex items-center justify-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Save Template
-        </button>
-    </div>
-@endsection
-
 @section('content')
-<div class="space-y-6 animate-fade-in">
-    <div id="editor-container" style="height: 800px; width:100%; border: 1px solid #e5e5e5; border-radius: 4px; overflow: hidden;"></div>
+<div class="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden">
+    {{-- Top Navigation for Editor --}}
+    <div class="h-16 border-b border-color bg-white px-6 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-6">
+            <a href="{{ route('admin.templates.index') }}" class="text-gray-400 hover:text-gray-900 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            
+            <div class="flex flex-col">
+                <input type="text" id="template-name" value="Template - {{ now()->format('M d, Y h:i A') }}" class="bg-transparent border-0 text-xl font-bold p-0 m-0 focus:ring-0 w-full min-w-[300px] text-gray-900" placeholder="TEMPLATE NAME">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Template Creator</span>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <a href="{{ route('admin.templates.index') }}" class="px-6 py-2 text-sm font-bold text-gray-500 hover:text-gray-900">Cancel</a>
+            <button onclick="saveTemplate()" id="save-btn" class="px-8 py-2 bg-gray-900 text-white rounded-sm font-bold text-sm hover:bg-black transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Create Template
+            </button>
+        </div>
+    </div>
+
+    {{-- Editor Container --}}
+    <div id="editor-container" class="flex-1 w-full bg-gray-50"></div>
 
     <form id="template-form" action="{{ route('admin.templates.store') }}" method="POST" class="hidden">
         @csrf

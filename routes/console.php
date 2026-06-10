@@ -19,6 +19,17 @@ Schedule::job(new ProcessWebhookBatchJob)->everyFiveSeconds();
 Schedule::job(new ProcessAutomationWorkflowsJob)->everyMinute();
 
 Schedule::call(function () {
+    $scheduledCampaigns = \App\Models\Campaign::where('status', 'scheduled')
+        ->where('scheduled_at', '<=', now())
+        ->get();
+
+    foreach ($scheduledCampaigns as $campaign) {
+        $campaign->update(['status' => 'preparing']);
+        \App\Jobs\PrepareCampaignDispatchJob::dispatch($campaign->id)->onQueue('high');
+    }
+})->everyMinute();
+
+Schedule::call(function () {
     $expiredIds = \Illuminate\Support\Facades\DB::table('emails')
         ->where('subscription_status', 'unsubscribed')
         ->whereNotNull('unsubscribe_expires_at')

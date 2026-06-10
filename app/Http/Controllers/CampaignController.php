@@ -57,6 +57,13 @@ class CampaignController extends Controller
         }
 
         $activeWorkspaceId = session('last_opened_list_id') ?: $campaign->email_list_id;
+        
+        // Ensure campaign has list id if not set but workspace is active
+        if (!$campaign->email_list_id && $activeWorkspaceId) {
+            $campaign->email_list_id = $activeWorkspaceId;
+            $campaign->save();
+        }
+
         if ($activeWorkspaceId) {
             $topicsCount = \App\Models\SubscriptionTopic::where('email_list_id', $activeWorkspaceId)->count();
             if ($topicsCount === 0) {
@@ -75,8 +82,9 @@ class CampaignController extends Controller
             }])
             ->get();
         
-        // Fetch all unique tags from the emails table
+        // Fetch all unique tags from the emails table for the active list
         $allTags = \DB::table('emails')
+            ->where('email_list_id', $activeWorkspaceId)
             ->whereNotNull('tags')
             ->distinct()
             ->pluck('tags')
@@ -85,8 +93,9 @@ class CampaignController extends Controller
             ->filter()
             ->values();
 
-        // Fetch unique segments (including auto_segments)
-        $customSegments = \DB::table('emails')
+        // Fetch unique segments for the active list
+        $staticSegments = \DB::table('emails')
+            ->where('email_list_id', $activeWorkspaceId)
             ->whereNotNull('segment_name')
             ->distinct()
             ->pluck('segment_name')
@@ -94,54 +103,23 @@ class CampaignController extends Controller
             ->values()
             ->toArray();
 
-        $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
-        $allSegments = array_merge($customSegments, $autoSegments);
+        $dynamicSegments = \App\Models\Segment::where(function ($q) use ($activeWorkspaceId) {
+                $q->whereNull('email_list_id')
+                  ->orWhere('email_list_id', $activeWorkspaceId);
+            })
+            ->pluck('name')
+            ->toArray();
+
+        $allSegments = array_values(array_unique(array_merge($staticSegments, $dynamicSegments)));
 
         $templates = Template::all();
         $senders = Sender::all();
+        $verifiedDomains = \App\Models\VerifiedDomain::where('status', 'verified')->get();
 
-        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments', 'subscriptionTopics'));
+        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments', 'subscriptionTopics', 'verifiedDomains'));
     }
 
-    public function saveStep(Request $request, Campaign $campaign)
-    {
-        $data = $request->only(['name', 'from_name', 'subject', 'email_list_id', 'template_id', 'sender_id', 'scheduled_at', 'audience_config', 'subscription_topic_id']);
-        
-        // We want to allow null values for subscription_topic_id to allow resetting it
-        $cleanedData = [];
-        foreach ($data as $key => $val) {
-            if ($key === 'subscription_topic_id') {
-                $cleanedData[$key] = $val ?: null;
-            } elseif ($key === 'from_name') {
-                $cleanedData[$key] = $val ?: null;
-            } elseif (!is_null($val)) {
-                $cleanedData[$key] = $val;
-            }
-        }
 
-        $campaign->update($cleanedData);
-
-        $sampleContact = null;
-        $personalizedSubject = $campaign->subject;
-        $query = $campaign->getAudienceQueryBuilder();
-        if ($query) {
-            $sampleContact = $query->first();
-            if ($sampleContact) {
-                $personalizer = app(\App\Services\PersonalizationService::class);
-                $personalizedSubject = $personalizer->preview($campaign->subject ?? '', $sampleContact->toArray());
-            }
-        }
-
-        $estimatedRecipients = $campaign->getEstimatedRecipientCount();
-
-        return response()->json([
-            'success' => true,
-            'campaign' => $campaign,
-            'sample_contact' => $sampleContact,
-            'personalized_subject' => $personalizedSubject,
-            'estimated_recipients' => $estimatedRecipients
-        ]);
-    }
 
     public function show(Request $request, Campaign $campaign, CampaignService $campaignService, CostEstimationService $costService)
     {
@@ -325,6 +303,12 @@ class CampaignController extends Controller
         }
         if (!$campaign->sender) {
             return back()->with('error', 'Campaign has no sender configured.');
+        }
+
+        if ($campaign->scheduled_at && $campaign->scheduled_at->isFuture()) {
+            $campaign->update(['status' => 'scheduled']);
+            return redirect()->route('admin.campaigns.index')
+                ->with('success', 'Campaign scheduled successfully for ' . $campaign->scheduled_at->format('Y-m-d H:i') . '.');
         }
 
         $campaign->update(['status' => 'preparing']);
@@ -536,6 +520,8 @@ class CampaignController extends Controller
             return redirect()->route('admin.campaigns.index')->with('error', 'Active or completed campaigns cannot be edited. Try duplicating instead.');
         }
 
+        $activeWorkspaceId = session('last_opened_list_id') ?: $campaign->email_list_id;
+
         $emailLists = EmailList::where('status', 'completed')
             ->withCount(['emails as emails_count' => function ($query) {
                 $query->valid()->subscribed();
@@ -543,6 +529,7 @@ class CampaignController extends Controller
             ->get();
         
         $allTags = \DB::table('emails')
+            ->where('email_list_id', $activeWorkspaceId)
             ->whereNotNull('tags')
             ->distinct()
             ->pluck('tags')
@@ -551,7 +538,8 @@ class CampaignController extends Controller
             ->filter()
             ->values();
 
-        $customSegments = \DB::table('emails')
+        $staticSegments = \DB::table('emails')
+            ->where('email_list_id', $activeWorkspaceId)
             ->whereNotNull('segment_name')
             ->distinct()
             ->pluck('segment_name')
@@ -559,13 +547,111 @@ class CampaignController extends Controller
             ->values()
             ->toArray();
 
-        $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
-        $allSegments = array_merge($customSegments, $autoSegments);
+        $dynamicSegments = \App\Models\Segment::where(function ($q) use ($activeWorkspaceId) {
+                $q->whereNull('email_list_id')
+                  ->orWhere('email_list_id', $activeWorkspaceId);
+            })
+            ->pluck('name')
+            ->toArray();
+
+        $allSegments = array_values(array_unique(array_merge($staticSegments, $dynamicSegments)));
+
+        if ($activeWorkspaceId) {
+            $topicsCount = \App\Models\SubscriptionTopic::where('email_list_id', $activeWorkspaceId)->count();
+            if ($topicsCount === 0) {
+                $emailList = \App\Models\EmailList::find($activeWorkspaceId);
+                if ($emailList) {
+                    \App\Models\SubscriptionTopic::seedDefaultsFor($activeWorkspaceId, $emailList->user_id);
+                }
+            }
+        }
+        $subscriptionTopics = \App\Models\SubscriptionTopic::where('email_list_id', $activeWorkspaceId)->get();
 
         $templates = Template::all();
         $senders = Sender::all();
+        $verifiedDomains = \App\Models\VerifiedDomain::where('status', 'verified')->get();
 
-        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments'));
+        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments', 'subscriptionTopics', 'verifiedDomains'));
+    }
+
+    public function saveStep(Request $request, Campaign $campaign)
+    {
+        $data = $request->only(['name', 'from_name', 'from_email', 'subject', 'email_list_id', 'template_id', 'sender_id', 'scheduled_at', 'audience_config', 'subscription_topic_id']);
+        
+        // If from_email is provided but sender_id is not, find or assign logic happens in wizard front-end
+        // We want to allow null values for subscription_topic_id to allow resetting it
+        $cleanedData = [];
+        foreach ($data as $key => $val) {
+            if ($key === 'subscription_topic_id') {
+                $cleanedData[$key] = $val ?: null;
+            } elseif ($key === 'from_name' || $key === 'from_email') {
+                $cleanedData[$key] = $val ?: null;
+            } elseif (!is_null($val)) {
+                $cleanedData[$key] = $val;
+            }
+        }
+
+        // Auto-inject workspace email list id if empty
+        if (empty($cleanedData['email_list_id'])) {
+            $cleanedData['email_list_id'] = session('last_opened_list_id');
+        }
+
+        $fromEmail = $request->input('from_email');
+        if ($fromEmail) {
+            $parts = explode('@', $fromEmail);
+            if (count($parts) === 2) {
+                $domain = strtolower($parts[1]);
+                $verifiedDomain = \App\Models\VerifiedDomain::where('domain', $domain)
+                    ->where('status', 'verified')
+                    ->first();
+
+                if ($verifiedDomain) {
+                    $sender = \App\Models\Sender::where('email', $fromEmail)
+                        ->where('user_id', $campaign->user_id ?: auth()->id())
+                        ->first();
+
+                    if (!$sender) {
+                        $sender = \App\Models\Sender::create([
+                            'user_id' => $campaign->user_id ?: auth()->id(),
+                            'email' => $fromEmail,
+                            'status' => 'verified',
+                            'type' => 'ses', // default provider
+                            'from_name' => $request->input('from_name') ?: ($campaign->from_name ?: auth()->user()->name),
+                            'verified_at' => now(),
+                            'verified_domain_id' => $verifiedDomain->id,
+                        ]);
+                    }
+                    $cleanedData['sender_id'] = $sender->id;
+                } else {
+                    $cleanedData['sender_id'] = null;
+                }
+            }
+        } else {
+            $cleanedData['sender_id'] = null;
+        }
+
+        $campaign->update($cleanedData);
+
+        $sampleContact = null;
+        $personalizedSubject = $campaign->subject;
+        $query = $campaign->getAudienceQueryBuilder();
+        if ($query) {
+            $sampleContact = $query->first();
+            if ($sampleContact) {
+                $personalizer = app(\App\Services\PersonalizationService::class);
+                $personalizedSubject = $personalizer->preview($campaign->subject ?? '', $sampleContact->toArray());
+            }
+        }
+
+        $estimatedRecipients = $campaign->getEstimatedRecipientCount();
+
+        return response()->json([
+            'success' => true,
+            'campaign' => $campaign,
+            'sample_contact' => $sampleContact,
+            'personalized_subject' => $personalizedSubject,
+            'estimated_recipients' => $estimatedRecipients
+        ]);
     }
 
     public function update(Request $request, Campaign $campaign)
@@ -579,9 +665,10 @@ class CampaignController extends Controller
             $request->validate([
                 'name'              => 'required|string|max:255',
                 'from_name'         => 'nullable|string|max:255',
+                'from_email'        => 'nullable|email|max:255',
                 'email_list_id'     => 'required|exists:email_lists,id',
-                'template_id'       => 'required|exists:templates,id',
-                'sender_id'         => 'required|exists:senders,id',
+                'template_id'       => 'nullable|exists:templates,id',
+                'sender_id'         => 'nullable|exists:senders,id',
                 'emails_per_minute' => 'nullable|integer|min:1',
             ]);
             $campaign->update($request->all());

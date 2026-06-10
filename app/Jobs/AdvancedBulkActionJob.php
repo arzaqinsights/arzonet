@@ -158,22 +158,23 @@ class AdvancedBulkActionJob implements ShouldQueue
                         $email->update(['tags' => implode(',', $finalTags)]);
                         break;
 
-                    case 'add_topics':
-                        $existingTopics = $email->subscribed_topics ?? [];
-                        if (!is_array($existingTopics)) $existingTopics = [];
+                    case 'manage_subscriptions':
                         $newTopics = $this->payload['topics'] ?? [];
                         if (!is_array($newTopics)) $newTopics = [];
-                        $mergedTopics = array_values(array_unique(array_merge($existingTopics, $newTopics)));
-                        $email->update(['subscribed_topics' => $mergedTopics]);
-                        break;
 
-                    case 'remove_topics':
-                        $existingTopics = $email->subscribed_topics ?? [];
-                        if (!is_array($existingTopics)) $existingTopics = [];
-                        $removeTopics = $this->payload['topics'] ?? [];
-                        if (!is_array($removeTopics)) $removeTopics = [];
-                        $finalTopics = array_values(array_diff($existingTopics, $removeTopics));
-                        $email->update(['subscribed_topics' => $finalTopics]);
+                        if (empty($newTopics)) {
+                            $email->update([
+                                'subscribed_topics' => [],
+                                'subscription_status' => 'unsubscribed',
+                                'whatsapp_subscription_status' => 'unsubscribed'
+                            ]);
+                        } else {
+                            $email->update([
+                                'subscribed_topics' => array_values(array_unique($newTopics)),
+                                'subscription_status' => 'subscribed',
+                                'whatsapp_subscription_status' => 'subscribed'
+                            ]);
+                        }
                         break;
 
                     case 'create_deals':

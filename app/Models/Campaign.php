@@ -33,6 +33,10 @@ class Campaign extends Model
         'subscription_topic_id',
     ];
 
+    protected $appends = [
+        'from_email',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -41,6 +45,11 @@ class Campaign extends Model
             'completed_at'  => 'datetime',
             'audience_config' => 'array',
         ];
+    }
+
+    public function getFromEmailAttribute(): ?string
+    {
+        return $this->sender?->email;
     }
 
     public function subscriptionTopic(): BelongsTo
@@ -298,7 +307,10 @@ class Campaign extends Model
                           ->orWhere('tags', 'LIKE', "%{$tag}%");
                     }
                     foreach ($includeSegments as $seg) {
-                        $segmentModel = \App\Models\Segment::whereIn('email_list_id', $listIds)->where('name', $seg)->first();
+                        $segmentModel = \App\Models\Segment::where(function ($q) use ($listIds) {
+                            $q->whereIn('email_list_id', $listIds)
+                              ->orWhereNull('email_list_id');
+                        })->where('name', $seg)->first();
                         $q->orWhere(function($sub) use ($seg, $segmentModel) {
                             if ($segmentModel) {
                                 \App\Models\Segment::applyRulesToQuery($sub, $segmentModel->rules ?? []);
@@ -326,7 +338,10 @@ class Campaign extends Model
                         });
                     }
                     foreach ($excludeSegments as $seg) {
-                        $segmentModel = \App\Models\Segment::whereIn('email_list_id', $listIds)->where('name', $seg)->first();
+                        $segmentModel = \App\Models\Segment::where(function ($q) use ($listIds) {
+                            $q->whereIn('email_list_id', $listIds)
+                              ->orWhereNull('email_list_id');
+                        })->where('name', $seg)->first();
                         $q->where(function($subQ) use ($seg, $segmentModel) {
                             if ($segmentModel) {
                                 // Exclude those who match the segment rules

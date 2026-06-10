@@ -15,7 +15,12 @@ class ContactController extends Controller
      */
     public function index(Request $request)
     {
+        $activeWorkspaceId = session('last_opened_list_id');
+
         $query = Email::with(['emailList'])
+            ->when($activeWorkspaceId, function($q) use ($activeWorkspaceId) {
+                $q->where('email_list_id', $activeWorkspaceId);
+            })
             ->withCount([
                 'activities as opens_count' => function ($q) {
                     $q->where('type', 'opened');
@@ -94,6 +99,8 @@ class ContactController extends Controller
 
         $email->update([
             'subscribed_topics' => array_map('intval', $topicIds),
+            'subscription_status' => count($topicIds) > 0 ? 'subscribed' : 'unsubscribed',
+            'whatsapp_subscription_status' => count($topicIds) > 0 ? 'subscribed' : 'unsubscribed',
         ]);
 
         return back()->with('success', 'Subscription topics updated.');

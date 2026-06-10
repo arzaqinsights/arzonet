@@ -148,15 +148,49 @@
                                 </svg>
                                 My Profile
                             </a>
+                            @if(\App\Models\User::canAccess('domains.view'))
+                            <a href="{{ route('admin.domains.index') }}"
+                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
+                                <i class="fa-solid fa-globe w-4 h-4 mr-3 text-gray-400"></i>
+                                Domains
+                            </a>
+                            @endif
+                            @if(\App\Models\User::canAccess('senders.view'))
+                            <a href="{{ route('admin.senders.index') }}"
+                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
+                                <i class="fa-solid fa-envelope w-4 h-4 mr-3 text-gray-400"></i>
+                                Sender Emails
+                            </a>
+                            @endif
+                            @if(\App\Models\User::canAccess('settings.view'))
+                            <a href="{{ route('admin.settings.index') }}"
+                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
+                                <i class="fa-solid fa-gear w-4 h-4 mr-3 text-gray-400"></i>
+                                Settings
+                            </a>
+                            @endif
+                            @if(!app()->has('team_user'))
+                            <a href="{{ route('admin.users.index') }}"
+                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
+                                <i class="fa-solid fa-users w-4 h-4 mr-3 text-gray-400"></i>
+                                Team
+                            </a>
+                            @endif
+                            @if(\App\Models\User::canAccess('billing.view'))
                             <a href="{{ route('admin.billing.plans') }}"
                                 class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
-                                <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
+                                <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                 </svg>
                                 Billing & Plan
                             </a>
+                            <a href="{{ route('admin.billing.invoices.index') }}"
+                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
+                                <i class="fa-solid fa-file-invoice w-4 h-4 mr-3 text-gray-400"></i>
+                                Invoices
+                            </a>
+                            @endif
                         </div>
 
                         <div class="border-t border-gray-100 py-1">
@@ -283,18 +317,24 @@
                     $audienceSub = [];
                     if ($can('crm.view')) {
                         $audienceSub[] = ['title' => 'Contacts', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'];
-                        $audienceSub[] = ['title' => 'Deals Pipeline', 'route' => 'admin.pipelines.index', 'active' => 'admin.pipelines.*'];
+                    }
+                    if ($can('segments.view')) {
                         $audienceSub[] = ['title' => 'Segments', 'route' => 'admin.segments.index', 'active' => 'admin.segments.*'];
-                        $audienceSub[] = ['title' => 'Tasks & Calendar', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*'];
-                        $audienceSub[] = ['title' => 'Custom Fields', 'route' => 'admin.custom-fields.index', 'active' => 'admin.custom-fields.*'];
-                        $audienceSub[] = ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'];
+                    }
+                    if ($can('crm.view')) {
                         $audienceSub[] = ['title' => 'Topics', 'route' => 'admin.subscription-topics.index', 'active' => 'admin.subscription-topics.*'];
+                    }
+                    if ($can('custom_fields.manage')) {
+                        $audienceSub[] = ['title' => 'Custom Fields', 'route' => 'admin.custom-fields.index', 'active' => 'admin.custom-fields.*'];
+                    }
+                    if ($can('blacklist.manage')) {
+                        $audienceSub[] = ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'];
                     }
                     if (!empty($audienceSub)) {
                         $sidebarMenu[] = [
                             'title' => 'Audience',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
-                            'active' => ['admin.email-lists.*', 'admin.blacklist.*', 'admin.pipelines.*', 'admin.segments.*', 'admin.tasks.*', 'admin.custom-fields.*', 'admin.subscription-topics.*'],
+                            'active' => ['admin.email-lists.*', 'admin.contacts.*', 'admin.blacklist.*', 'admin.segments.*', 'admin.custom-fields.*', 'admin.subscription-topics.*'],
                             'submenu' => $audienceSub
                         ];
                     }
@@ -315,12 +355,28 @@
                         ];
                     }
 
-                    if ($can('campaigns.view')) {
+                    if ($can('workflows.view')) {
                         $sidebarMenu[] = [
                             'title' => 'Workflows',
                             'route' => 'admin.workflows.index',
                             'active' => 'admin.workflows.*',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />',
+                        ];
+                    }
+
+                    $crmSub = [];
+                    if ($can('pipelines.view')) {
+                        $crmSub[] = ['title' => 'Deals Pipeline', 'route' => 'admin.pipelines.index', 'active' => 'admin.pipelines.*'];
+                    }
+                    if ($can('tasks.view')) {
+                        $crmSub[] = ['title' => 'Tasks & Calendar', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*'];
+                    }
+                    if (!empty($crmSub)) {
+                        $sidebarMenu[] = [
+                            'title' => 'CRM & Sales',
+                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+                            'active' => ['admin.pipelines.*', 'admin.tasks.*'],
+                            'submenu' => $crmSub
                         ];
                     }
 
@@ -353,50 +409,6 @@
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />',
                             'active' => 'admin.whatsapp.*',
                             'submenu' => $waSub
-                        ];
-                    }
-
-                    $sendersSub = [];
-                    if ($can('senders.view')) {
-                        $sendersSub[] = ['title' => 'Domains', 'route' => 'admin.domains.index', 'active' => 'admin.domains.*'];
-                        $sendersSub[] = ['title' => 'Sender Emails', 'route' => 'admin.senders.index', 'active' => 'admin.senders.*'];
-                    }
-                    if (!empty($sendersSub)) {
-                        $sidebarMenu[] = [
-                            'title' => 'Senders',
-                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />',
-                            'active' => ['admin.domains.*', 'admin.senders.*'],
-                            'submenu' => $sendersSub
-                        ];
-                    }
-
-                    $settingsSub = [];
-                    if ($can('settings.view')) {
-                        $settingsSub[] = ['title' => 'Settings', 'route' => 'admin.settings.index', 'active' => 'admin.settings.index'];
-                    }
-                    if (!app()->has('team_user')) {
-                        $settingsSub[] = ['title' => 'Team', 'route' => 'admin.users.index', 'active' => 'admin.users.*'];
-                    }
-                    if (!empty($settingsSub)) {
-                        $sidebarMenu[] = [
-                            'title' => 'System',
-                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />',
-                            'active' => ['admin.settings.*', 'admin.users.*'],
-                            'submenu' => $settingsSub
-                        ];
-                    }
-
-                    $billingSub = [];
-                    if ($can('billing.view')) {
-                        $billingSub[] = ['title' => 'Plan', 'route' => 'admin.billing.plans', 'active' => 'admin.billing.plans'];
-                        $billingSub[] = ['title' => 'Invoices', 'route' => 'admin.billing.invoices.index', 'active' => 'admin.billing.invoices.*'];
-                    }
-                    if (!empty($billingSub)) {
-                        $sidebarMenu[] = [
-                            'title' => 'Billing',
-                            'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />',
-                            'active' => 'admin.billing.*',
-                            'submenu' => $billingSub
                         ];
                     }
                 @endphp

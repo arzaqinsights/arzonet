@@ -56,8 +56,8 @@ class AutomationWorkflowEngineTest extends TestCase
             'email_list_id' => $this->emailList->id,
             'name' => 'Signup Journey',
             'trigger_type' => 'list_signup',
-            'steps' => [
-                ['type' => 'tag', 'details' => ['tag' => 'new_subscriber']]
+            'nodes' => [
+                'start' => ['type' => 'add_tag', 'details' => ['tag' => 'new_subscriber'], 'next' => null]
             ],
             'is_active' => true,
         ]);
@@ -100,8 +100,8 @@ class AutomationWorkflowEngineTest extends TestCase
             'email_list_id' => $this->emailList->id,
             'name' => 'Signup Journey',
             'trigger_type' => 'list_signup',
-            'steps' => [
-                ['type' => 'tag', 'details' => ['tag' => 'verified_subscriber']]
+            'nodes' => [
+                'start' => ['type' => 'add_tag', 'details' => ['tag' => 'verified_subscriber'], 'next' => null]
             ],
             'is_active' => true,
         ]);
@@ -159,16 +159,16 @@ class AutomationWorkflowEngineTest extends TestCase
             'subscription_status' => 'subscribed',
         ]);
 
-        // Create a 3-step workflow: Wait -> Send Email -> Tag
+        // Create a 3-step workflow: Wait -> Send Email -> Add Tag
         $workflow = Workflow::create([
             'user_id' => $this->user->id,
             'email_list_id' => $this->emailList->id,
             'name' => 'Multi-step Automation',
             'trigger_type' => 'list_signup',
-            'steps' => [
-                ['type' => 'wait', 'details' => ['delay' => 10, 'unit' => 'minutes']],
-                ['type' => 'send_email', 'details' => ['template_id' => $this->template->id, 'subject' => 'Welcome to our newsletter!']],
-                ['type' => 'tag', 'details' => ['tag' => 'auto_processed']],
+            'nodes' => [
+                'start' => ['type' => 'wait', 'details' => ['delay' => 10, 'unit' => 'minutes'], 'next' => 'step2'],
+                'step2' => ['type' => 'send_email', 'details' => ['template_id' => $this->template->id, 'subject' => 'Welcome to our newsletter!'], 'next' => 'step3'],
+                'step3' => ['type' => 'add_tag', 'details' => ['tag' => 'auto_processed'], 'next' => null],
             ],
             'is_active' => true,
         ]);
@@ -181,7 +181,7 @@ class AutomationWorkflowEngineTest extends TestCase
             ->first();
 
         $this->assertNotNull($run);
-        $this->assertEquals(0, $run->current_step_index);
+        $this->assertEquals('start', $run->current_node_id);
         $this->assertEquals('active', $run->status);
 
         // ── STEP 1: Wait Execution ──
@@ -189,8 +189,8 @@ class AutomationWorkflowEngineTest extends TestCase
         $job->handle(app(\App\Services\MailService::class));
 
         $run->refresh();
-        // Index is incremented to 1, scheduled_at pushed into future (+10 mins)
-        $this->assertEquals(1, $run->current_step_index);
+        // Index is transitioned to step2, scheduled_at pushed into future (+10 mins)
+        $this->assertEquals('step2', $run->current_node_id);
         $this->assertEquals('active', $run->status);
         $this->assertTrue($run->scheduled_at->isFuture());
 
@@ -201,7 +201,7 @@ class AutomationWorkflowEngineTest extends TestCase
         $job->handle(app(\App\Services\MailService::class));
 
         $run->refresh();
-        $this->assertEquals(2, $run->current_step_index);
+        $this->assertEquals('step3', $run->current_node_id);
         $this->assertEquals('active', $run->status);
 
         // ── STEP 3: Tag Execution ──
@@ -210,7 +210,7 @@ class AutomationWorkflowEngineTest extends TestCase
         $job->handle(app(\App\Services\MailService::class));
 
         $run->refresh();
-        // Since step index 3 has no node left, status becomes completed
+        // Since step transitions to null, status becomes completed
         $this->assertEquals('completed', $run->status);
 
         // Contact should have the tag "auto_processed" added
