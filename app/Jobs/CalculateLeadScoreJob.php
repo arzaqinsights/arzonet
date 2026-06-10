@@ -22,46 +22,123 @@ class CalculateLeadScoreJob implements ShouldQueue
         $contact = Email::withoutGlobalScopes()->find($this->emailId);
         if (!$contact) return;
 
-        $score = 0;
+        // ──────────────────────────────────────────────────
+        // 1. EMAIL LEAD SCORE (1-10 scale)
+        // ──────────────────────────────────────────────────
+        $emailScore = 1;
 
-        // 1. Email opens (+20)
-        $opensCount = $contact->activities()->where('type', 'opened')->count();
-        if ($opensCount > 0) $score += 20;
-
-        // 2. Link clicks (+20)
-        $clicksCount = $contact->activities()->where('type', 'clicked')->count();
-        if ($clicksCount > 0) $score += 20;
-
-        // 3. Phone/WhatsApp present (+10)
-        if (!empty($contact->whatsapp_number)) $score += 10;
-
-        // 4. Has metadata (company, etc.) (+10)
-        if (!empty($contact->meta) && is_array($contact->meta) && count($contact->meta) > 0) {
-            $score += 10;
+        // Opens count
+        $opens = $contact->activities()->where('type', 'opened')->count();
+        if ($opens >= 6) {
+            $emailScore += 3;
+        } elseif ($opens >= 3) {
+            $emailScore += 2;
+        } elseif ($opens >= 1) {
+            $emailScore += 1;
         }
 
-        // 5. Active deal (open status) (+15)
-        $hasOpenDeal = $contact->deals()->where('status', 'open')->exists();
-        if ($hasOpenDeal) $score += 15;
-
-        // 6. Not bounced (+10)
-        if (!in_array($contact->email_status, ['hard_bounce', 'soft_bounce', 'bounced'])) {
-            $score += 10;
+        // Clicks count
+        $clicks = $contact->activities()->where('type', 'clicked')->count();
+        if ($clicks >= 3) {
+            $emailScore += 4;
+        } elseif ($clicks >= 1) {
+            $emailScore += 2;
         }
 
-        // 7. Not complained (+10)
-        if ($contact->email_status !== 'complaint') {
-            $score += 10;
+        // Subscription status (Double opt-in verification bonus)
+        if ($contact->subscription_status === 'subscribed') {
+            $emailScore += 1;
         }
 
-        // 8. Recency bonus — engaged within 30 days (+5)
-        if ($contact->last_engaged_at && $contact->last_engaged_at->diffInDays(now()) <= 30) {
-            $score += 5;
+        // Active deals
+        if ($contact->deals()->where('status', 'open')->exists()) {
+            $emailScore += 2;
         }
 
-        // Clamp 0-100
-        $score = max(0, min(100, $score));
+        // Recency
+        if ($contact->last_engaged_at) {
+            $lastEng = \Carbon\Carbon::parse($contact->last_engaged_at);
+            $diffDays = $lastEng->diffInDays(now());
+            if ($diffDays <= 7) {
+                $emailScore += 2;
+            } elseif ($diffDays <= 30) {
+                $emailScore += 1;
+            }
+        }
 
-        $contact->update(['engagement_score' => $score]);
+        // Penalties
+        if ($contact->email_status === 'risky') {
+            $emailScore -= 2;
+        }
+        if ($contact->is_role_based || $contact->is_disposable) {
+            $emailScore -= 2;
+        }
+        if (in_array($contact->email_status, ['hard_bounce', 'soft_bounce', 'bounced', 'complaint'])) {
+            $emailScore -= 5;
+        }
+
+        $emailScore = max(1, min(10, $emailScore));
+
+        // ──────────────────────────────────────────────────
+        // 2. WHATSAPP LEAD SCORE (1-10 scale)
+        // ──────────────────────────────────────────────────
+        $waScore = 1;
+
+        // Opt-in / Subscribed status
+        if ($contact->whatsapp_subscription_status === 'subscribed' || $contact->whatsapp_opt_in) {
+            $waScore += 1;
+        }
+
+        // Inbound message replies
+        $inbound = \App\Models\WhatsAppMessage::where('contact_id', $contact->id)
+            ->where('direction', 'inbound')
+            ->count();
+        if ($inbound >= 5) {
+            $waScore += 6;
+        } elseif ($inbound >= 2) {
+            $waScore += 4;
+        } elseif ($inbound >= 1) {
+            $waScore += 2;
+        }
+
+        // Outbound messages sent/delivered
+        $outbound = \App\Models\WhatsAppMessage::where('contact_id', $contact->id)
+            ->where('direction', 'outbound')
+            ->count();
+        if ($outbound >= 6) {
+            $waScore += 2;
+        } elseif ($outbound >= 1) {
+            $waScore += 1;
+        }
+
+        // Recency
+        if ($contact->whatsapp_last_message_at) {
+            $lastWa = \Carbon\Carbon::parse($contact->whatsapp_last_message_at);
+            $diffDays = $lastWa->diffInDays(now());
+            if ($diffDays <= 7) {
+                $waScore += 2;
+            } elseif ($diffDays <= 30) {
+                $waScore += 1;
+            }
+        }
+
+        // Penalties
+        if ($contact->whatsapp_subscription_status === 'unsubscribed') {
+            $waScore -= 5;
+        }
+
+        $waScore = max(1, min(10, $waScore));
+
+        // ──────────────────────────────────────────────────
+        // 3. OVERALL ENGAGEMENT SCORE (0-100 scale)
+        // ──────────────────────────────────────────────────
+        $overallScore = (int)(($emailScore + $waScore) * 5);
+
+        // Update contact metrics
+        $contact->update([
+            'email_lead_score' => $emailScore,
+            'whatsapp_lead_score' => $waScore,
+            'engagement_score' => $overallScore,
+        ]);
     }
 }

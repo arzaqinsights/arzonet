@@ -159,7 +159,10 @@ class SendEmailBatchJob implements ShouldQueue
                 $subject = $mailService->replaceVariables($subjectSource, $recipientData, false);
                 $trackedHtml = $analyticsTracker->injectTracking($html, $log);
 
-                $currentSender = $senders[$senderIndex % $senderCount];
+                $currentSender = clone $senders[$senderIndex % $senderCount];
+                if ($campaign->from_name) {
+                    $currentSender->from_name = $campaign->from_name;
+                }
                 $senderIndex++;
 
                 // ── CENTRALIZED GLOBAL RATE LIMITER (Non-Blocking) ──

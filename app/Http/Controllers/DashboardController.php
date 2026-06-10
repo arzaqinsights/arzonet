@@ -17,7 +17,7 @@ class DashboardController extends Controller
     {
         // ── 1. CORE PERFORMANCE METRICS (Consolidated Queries) ──
         $logStats = \DB::table('email_logs')->selectRaw("
-            COUNT(*) as total_sent,
+            SUM(CASE WHEN status NOT IN ('pending') THEN 1 ELSE 0 END) as total_sent,
             SUM(CASE WHEN status IN ('sent','delivered','processed','opened','clicked') THEN 1 ELSE 0 END) as total_delivered,
             SUM(CASE WHEN status = 'bounced' THEN 1 ELSE 0 END) as total_bounced,
             SUM(CASE WHEN status = 'complaint' THEN 1 ELSE 0 END) as total_complaints,

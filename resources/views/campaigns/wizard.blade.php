@@ -93,6 +93,21 @@
                                         <div class="text-[10px] font-bold text-red-400 uppercase tracking-widest" x-show="list_ids.length === 0">Please select a list to continue.</div>
                                     </div>
 
+                                    {{-- Subscription Topic Dropdown Selector --}}
+                                    <div x-show="list_ids.length > 0" class="space-y-3" x-transition>
+                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Subscription Topic (Preference Center)</label>
+                                        <select x-model="campaign.subscription_topic_id" 
+                                                @change="save()" 
+                                                class="w-full p-4 border border-color rounded text-sm focus:outline-none focus:border-gray-900 bg-white cursor-pointer">
+                                            <option value="">All Topics (Sends to general audience)</option>
+                                            @foreach($subscriptionTopics as $topic)
+                                            <option value="{{ $topic->id }}">
+                                                {{ $topic->name }}@if($topic->description) — {{ $topic->description }}@endif
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
                                     {{-- Multi-Select Tags/Segments --}}
                                     <div x-show="list_ids.length > 0" class="space-y-6 pt-6 border-t border-color" x-transition>
                                         
@@ -251,16 +266,24 @@
                                     <p class="text-gray-500 text-lg" x-text="getSelectedSenderName() || 'Who is sending this campaign?'"></p>
                                 </div>
 
-                                <div x-show="editing === 'from'" class="mt-8 space-y-4" x-transition>
-                                    @foreach($senders as $sender)
-                                    <label class="flex items-center gap-4 p-5 border border-color rounded cursor-pointer transition-all hover:bg-gray-50" :class="campaign.sender_id == {{ $sender->id }} ? 'bg-gray-50 border-gray-900 ring-1 ring-gray-900' : ''">
-                                        <input type="radio" x-model="campaign.sender_id" value="{{ $sender->id }}" @change="save()" class="form-radio text-gray-900 w-5 h-5">
-                                        <div>
-                                            <div class="font-bold text-gray-900 text-lg">{{ $sender->from_name }}</div>
-                                            <div class="text-gray-500">{{ $sender->email }}</div>
-                                        </div>
-                                    </label>
-                                    @endforeach
+                                <div x-show="editing === 'from'" class="mt-8 space-y-6" x-transition>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">From Name (Sender Name)</label>
+                                        <input type="text" x-model="campaign.from_name" @input.debounce.1000ms="save()" class="w-full p-4 border border-color rounded text-lg focus:outline-none focus:border-gray-900" placeholder="e.g. John from Arzonet">
+                                        <p class="text-xs text-gray-400">Leave blank to use the default sender name below.</p>
+                                    </div>
+                                    <div class="space-y-4">
+                                        <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Select Sending Email</label>
+                                        @foreach($senders as $sender)
+                                        <label class="flex items-center gap-4 p-5 border border-color rounded cursor-pointer transition-all hover:bg-gray-50" :class="campaign.sender_id == {{ $sender->id }} ? 'bg-gray-50 border-gray-900 ring-1 ring-gray-900' : ''">
+                                            <input type="radio" x-model="campaign.sender_id" value="{{ $sender->id }}" @change="save()" class="form-radio text-gray-900 w-5 h-5">
+                                            <div>
+                                                <div class="font-bold text-gray-900 text-lg">{{ $sender->from_name }}</div>
+                                                <div class="text-gray-500">{{ $sender->email }}</div>
+                                            </div>
+                                        </label>
+                                        @endforeach
+                                    </div>
                                     <div class="pt-4">
                                         <button @click="editing = null" class="px-8 py-3 bg-gray-900 text-white rounded font-bold text-sm hover:bg-black transition-colors">Save Sender</button>
                                     </div>
@@ -353,6 +376,7 @@
                     <div class="flex items-center justify-between">
                         <h4 class="text-sm font-bold text-gray-500 uppercase tracking-widest">Live Preview</h4>
                         <div class="flex gap-2">
+                            <a x-show="campaign.template_id" :href="'/admin/templates/' + campaign.template_id + '/edit?return_to_campaign=' + campaign.id" class="px-4 py-2 border border-color rounded font-bold text-[10px] uppercase tracking-widest hover:bg-white transition-colors bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">Edit Template</a>
                             <button class="px-4 py-2 border border-color rounded font-bold text-[10px] uppercase tracking-widest hover:bg-white transition-colors">Preview</button>
                             <button class="px-4 py-2 border border-color rounded font-bold text-[10px] uppercase tracking-widest hover:bg-white transition-colors">Test Email</button>
                         </div>
@@ -401,11 +425,13 @@ function mailchimpWizard() {
         campaign: {
             id: {{ $campaign->id }},
             name: @json($campaign->name),
+            from_name: @json($campaign->from_name),
             subject: @json($campaign->subject),
             email_list_id: @json($campaign->email_list_id),
             template_id: @json($campaign->template_id),
             sender_id: @json($campaign->sender_id),
             scheduled_at: @json($campaign->scheduled_at),
+            subscription_topic_id: @json($campaign->subscription_topic_id),
         },
         // Advanced Audience State
         list_ids: @json($campaign->audience_config['list_ids'] ?? ($campaign->email_list_id ? [$campaign->email_list_id] : [])).map(Number),
@@ -427,6 +453,7 @@ function mailchimpWizard() {
         lists: @json($emailLists),
         senders: @json($senders),
         templates: @json($templates),
+        topics: @json($subscriptionTopics),
 
         init() {
             this.save(); // Initial load for data
@@ -459,6 +486,13 @@ function mailchimpWizard() {
                 summary += ` (Targeted to ${filters.join(' & ')})`;
             } else {
                 summary += ' (All Subscribers)';
+            }
+
+            if(this.campaign.subscription_topic_id) {
+                const topic = this.topics.find(t => t.id == this.campaign.subscription_topic_id);
+                if(topic) {
+                    summary += ` [Topic: ${topic.name}]`;
+                }
             }
             return summary;
         },
@@ -528,7 +562,8 @@ function mailchimpWizard() {
 
         getSelectedSenderName() {
             const sender = this.senders.find(s => s.id == this.campaign.sender_id);
-            return sender ? `${sender.from_name} (${sender.email})` : null;
+            const fromName = this.campaign.from_name || (sender ? sender.from_name : null);
+            return sender ? `${fromName} (${sender.email})` : null;
         },
 
         getSelectedTemplateName() {

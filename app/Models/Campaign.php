@@ -14,6 +14,7 @@ class Campaign extends Model
 
     protected $fillable = [
         'name',
+        'from_name',
         'subject',
         'email_list_id',
         'template_id',
@@ -29,6 +30,7 @@ class Campaign extends Model
         'batch_size',
         'bounce_count',
         'audience_config',
+        'subscription_topic_id',
     ];
 
     protected function casts(): array
@@ -39,6 +41,11 @@ class Campaign extends Model
             'completed_at'  => 'datetime',
             'audience_config' => 'array',
         ];
+    }
+
+    public function subscriptionTopic(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionTopic::class);
     }
 
     public function emailList(): BelongsTo
@@ -241,6 +248,14 @@ class Campaign extends Model
             ->whereNotNull('email')
             ->where('email', '!=', '');
 
+        if ($this->subscription_topic_id) {
+            $topicId = $this->subscription_topic_id;
+            $query->where(function ($q) use ($topicId) {
+                $q->whereNull('subscribed_topics')
+                  ->orWhereJsonContains('subscribed_topics', $topicId);
+            });
+        }
+
         if ($config) {
             if (isset($config['exclude_unhealthy']) && $config['exclude_unhealthy']) {
                 $query->where(function($q) {
@@ -277,14 +292,20 @@ class Campaign extends Model
             $includeSegments = $config['include_segments'] ?? [];
             
             if (!empty($includeTags) || !empty($includeSegments)) {
-                $query->where(function($q) use ($includeTags, $includeSegments) {
+                $query->where(function($q) use ($includeTags, $includeSegments, $listIds) {
                     foreach ($includeTags as $tag) {
                         $q->orWhere('tags', 'LIKE', "%\"{$tag}\"%")
                           ->orWhere('tags', 'LIKE', "%{$tag}%");
                     }
                     foreach ($includeSegments as $seg) {
-                        $q->orWhere('segment_name', $seg)
-                          ->orWhereJsonContains('auto_segments', $seg);
+                        $segmentModel = \App\Models\Segment::whereIn('email_list_id', $listIds)->where('name', $seg)->first();
+                        $q->orWhere(function($sub) use ($seg, $segmentModel) {
+                            if ($segmentModel) {
+                                \App\Models\Segment::applyRulesToQuery($sub, $segmentModel->rules ?? []);
+                            } else {
+                                $sub->where('segment_name', $seg);
+                            }
+                        });
                     }
                 });
             }
@@ -294,7 +315,7 @@ class Campaign extends Model
             $excludeSegments = $config['exclude_segments'] ?? [];
 
             if (!empty($excludeTags) || !empty($excludeSegments)) {
-                $query->where(function($q) use ($excludeTags, $excludeSegments) {
+                $query->where(function($q) use ($excludeTags, $excludeSegments, $listIds) {
                     foreach ($excludeTags as $tag) {
                         $q->where(function($subQ) use ($tag) {
                             $subQ->whereNull('tags')
@@ -305,14 +326,19 @@ class Campaign extends Model
                         });
                     }
                     foreach ($excludeSegments as $seg) {
-                        $q->where(function($subQ) use ($seg) {
-                            $subQ->where(function($s1) use ($seg) {
-                                $s1->where('segment_name', '!=', $seg)
-                                   ->orWhereNull('segment_name');
-                            })->where(function($s2) use ($seg) {
-                                $s2->whereNull('auto_segments')
-                                   ->orWhereJsonDoesntContain('auto_segments', $seg);
-                            });
+                        $segmentModel = \App\Models\Segment::whereIn('email_list_id', $listIds)->where('name', $seg)->first();
+                        $q->where(function($subQ) use ($seg, $segmentModel) {
+                            if ($segmentModel) {
+                                // Exclude those who match the segment rules
+                                $subQ->whereNot(function($s1) use ($segmentModel) {
+                                    \App\Models\Segment::applyRulesToQuery($s1, $segmentModel->rules ?? []);
+                                });
+                            } else {
+                                $subQ->where(function($s1) use ($seg) {
+                                    $s1->where('segment_name', '!=', $seg)
+                                       ->orWhereNull('segment_name');
+                                });
+                            }
                         });
                     }
                 });

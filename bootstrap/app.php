@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->group(function() {
                     Route::get('/t/o/{token}',   [\App\Http\Controllers\TrackingController::class, 'open'])->name('admin.track.open');
                     Route::get('/t/c/{token}',   [\App\Http\Controllers\TrackingController::class, 'click'])->name('admin.track.click');
-                    Route::get('/unsubscribe/{token}', [\App\Http\Controllers\TrackingController::class, 'unsubscribe'])->name('admin.unsubscribe');
+                    Route::match(['GET', 'POST'], '/unsubscribe/{token}', [\App\Http\Controllers\TrackingController::class, 'unsubscribe'])->name('admin.unsubscribe');
                 });
                 
             // 2. Authenticated Admin Routes
@@ -41,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/whatsapp/webhook',
             '*/webhooks/cashfree',
             '*/webhooks/sendgrid',
+            'unsubscribe/*',
+            '*/unsubscribe/*',
         ]);
         $middleware->web(append: [
             \App\Http\Middleware\SwapTeamUser::class,

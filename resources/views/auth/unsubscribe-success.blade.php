@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unsubscribed Successfully — Arzonet</title>
+    <title>Preferences Updated — Arzonet</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-surface-50 min-h-screen flex items-center justify-center p-4">
@@ -14,21 +14,24 @@
         <h1 class="text-2xl font-bold text-surface-900 mb-3 tracking-tight">Preferences Updated</h1>
         
         @if(isset($email))
-            <p class="text-surface-600 mb-4 leading-relaxed">
-                The email address <strong class="text-surface-900 font-semibold">{{ $email->email }}</strong> has been unsubscribed <strong class="text-brand font-bold">{{ $durationText ?? 'permanently' }}</strong>.
-            </p>
-            @if(isset($expiresAt) && $expiresAt)
-                <p class="text-xs text-brand font-medium bg-brand/5 border border-brand/10 rounded-lg p-3.5 mb-8 leading-relaxed">
-                    ⏰ <strong>Temporary Snooze Active:</strong> You will be automatically re-subscribed and resume receiving updates on <strong>{{ \Carbon\Carbon::parse($expiresAt)->format('F d, Y') }}</strong>.
+            @if(isset($globalUnsubscribe) && $globalUnsubscribe)
+                <p class="text-surface-600 mb-4 leading-relaxed">
+                    The email address <strong class="text-surface-900 font-semibold">{{ $email->email }}</strong> has been unsubscribed from all updates.
+                </p>
+                <p class="text-surface-500 text-xs mb-8 leading-normal">
+                    You will no longer receive marketing or updates from this list. You can re-subscribe anytime.
                 </p>
             @else
-                <p class="text-surface-500 text-xs mb-8">
-                    You will no longer receive marketing or updates from this list. You can re-subscribe anytime.
+                <p class="text-surface-600 mb-4 leading-relaxed">
+                    Subscription preferences for <strong class="text-surface-900 font-semibold">{{ $email->email }}</strong> have been successfully updated.
+                </p>
+                <p class="text-surface-500 text-xs mb-8 leading-normal">
+                    You will receive emails only for the topics you kept selected. You can modify these selections at any time.
                 </p>
             @endif
         @else
             <p class="text-surface-600 mb-8 leading-relaxed">
-                Your email has been successfully unsubscribed from this list.
+                Your email preferences have been successfully updated.
             </p>
         @endif
         
@@ -37,7 +40,7 @@
         </div>
         
         <div class="text-xs text-surface-400 mt-6">
-            Arzonet v1.0 • Clean & Fast Emailing
+            Arzonet v1.0 • Clean & Fast Preference Center
         </div>
     </div>
 </body>

@@ -20,36 +20,56 @@
         </div>
 
         {{-- Rules Builder --}}
-        <div class="glass-card p-8 mb-6">
-            <div class="flex items-center justify-between mb-6">
+        <div class="glass-card p-8 mb-6 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-brand/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+            
+            <div class="flex items-center justify-between mb-8 relative z-10">
                 <div>
-                    <h2 class="text-xl font-black text-surface-900">Rules</h2>
-                    <p class="text-sm text-surface-500 mt-1">Contacts matching ALL rules will be included.</p>
+                    <h2 class="text-xl font-black text-surface-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                        Targeting Rules
+                    </h2>
+                    <p class="text-sm text-surface-500 mt-1">Contacts matching <span class="font-bold text-brand bg-brand/10 px-1 rounded">ALL</span> rules will be included in this segment.</p>
                 </div>
                 <div class="flex items-center gap-3">
                     {{-- Live Count Badge --}}
-                    <div class="flex items-center gap-2 bg-brand/10 px-4 py-2 rounded-sm border border-brand/20">
-                        <div class="w-2 h-2 rounded-full animate-pulse" :class="isLoadingCount ? 'bg-amber-500' : 'bg-brand'"></div>
-                        <span class="text-sm font-black text-brand" x-text="isLoadingCount ? '...' : matchingCount.toLocaleString()"></span>
-                        <span class="text-[9px] font-black text-brand/60 uppercase tracking-widest">Contacts Match</span>
+                    <div class="flex items-center gap-3 bg-white px-5 py-3 rounded-xl border border-brand/20 shadow-sm shadow-brand/5">
+                        <div class="w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(var(--color-brand-rgb),0.6)]" :class="isLoadingCount ? 'bg-amber-400' : 'bg-brand'"></div>
+                        <div class="flex flex-col text-right">
+                            <span class="text-lg leading-none font-black text-brand" x-text="isLoadingCount ? '...' : matchingCount.toLocaleString()"></span>
+                            <span class="text-[9px] leading-tight font-black text-brand/60 uppercase tracking-widest mt-0.5">Matching Contacts</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-4 relative z-10">
                 <template x-for="(rule, index) in rules" :key="index">
-                    <div class="flex items-center gap-3 p-4 bg-surface-50 border border-surface-100 rounded-sm group">
+                    <div class="flex items-center gap-3 p-5 bg-white border border-surface-200 rounded-xl group hover:border-brand/40 hover:shadow-md hover:shadow-brand/5 transition-all relative overflow-hidden"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 transform -translate-x-4"
+                         x-transition:enter-end="opacity-100 transform translate-x-0">
+                        
+                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-surface-200 group-hover:bg-brand transition-colors"></div>
+
                         {{-- Field --}}
-                        <div class="flex-1">
-                            <select x-model="rule.field" @change="updateCount()" class="form-select text-sm">
-                                <option value="">Select Field</option>
+                        <div class="flex-1 relative">
+                            <label class="absolute -top-2 left-2 px-1 bg-white text-[9px] font-black uppercase tracking-widest text-surface-400">Field</label>
+                            <select x-model="rule.field" @change="handleFieldChange(rule)" class="form-select text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand">
+                                <option value="">Select Target Attribute</option>
                                 <optgroup label="Standard Fields">
                                     <option value="name">Name</option>
                                     <option value="email">Email</option>
-                                    <option value="engagement_score">AI Score</option>
+                                    <option value="status">Status</option>
+                                    <option value="subscription_status">Subscription Status</option>
+                                    <option value="engagement_score">Engagement Score</option>
+                                </optgroup>
+                                <optgroup label="Activity Metrics">
+                                    <option value="last_engaged_at">Last Engaged (Opens/Clicks)</option>
+                                    <option value="last_active_at">Last Active (Clicks)</option>
                                 </optgroup>
                                 @if($customFields->isNotEmpty())
-                                    <optgroup label="Custom Fields">
+                                    <optgroup label="Custom Attributes">
                                         @foreach($customFields as $cf)
                                             <option value="{{ $cf->name }}">{{ $cf->label }}</option>
                                         @endforeach
@@ -59,35 +79,43 @@
                         </div>
 
                         {{-- Operator --}}
-                        <div class="w-40">
-                            <select x-model="rule.operator" @change="updateCount()" class="form-select text-sm">
-                                <option value="">Operator</option>
-                                <option value="equals">Equals</option>
-                                <option value="not_equals">Not Equals</option>
-                                <option value="contains">Contains</option>
-                                <option value="greater_than">Greater Than</option>
-                                <option value="less_than">Less Than</option>
+                        <div class="w-48 relative">
+                            <label class="absolute -top-2 left-2 px-1 bg-white text-[9px] font-black uppercase tracking-widest text-surface-400">Condition</label>
+                            <select x-model="rule.operator" @change="updateCount()" class="form-select text-sm font-bold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand text-brand" :disabled="!rule.field">
+                                <option value="">Select Condition</option>
+                                <template x-for="op in getOperators(rule.field)" :key="op.value">
+                                    <option :value="op.value" x-text="op.label"></option>
+                                </template>
                             </select>
                         </div>
 
                         {{-- Value --}}
-                        <div class="flex-1">
-                            <input type="text" x-model="rule.value" @input.debounce.400ms="updateCount()" class="form-input text-sm" placeholder="Value...">
+                        <div class="flex-[1.5] relative">
+                            <label class="absolute -top-2 left-2 px-1 bg-white text-[9px] font-black uppercase tracking-widest text-surface-400" x-show="needsValue(rule.operator)">Value</label>
+                            <input x-show="needsValue(rule.operator)" type="text" x-model="rule.value" @input.debounce.400ms="updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand" placeholder="Enter matching value...">
+                            
+                            <div x-show="!needsValue(rule.operator)" class="h-[46px] flex items-center px-4 bg-surface-50 border border-surface-100 rounded-md">
+                                <span class="text-xs font-bold text-surface-400 italic">No value required for this condition</span>
+                            </div>
                         </div>
 
                         {{-- Remove --}}
-                        <button type="button" @click="removeRule(index)" class="p-2 text-surface-300 hover:text-red-500 transition-colors cursor-pointer opacity-0 group-hover:opacity-100">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <button type="button" @click="removeRule(index)" class="w-10 h-10 flex items-center justify-center rounded-md text-surface-300 hover:bg-red-50 hover:text-red-600 border border-transparent hover:border-red-100 transition-all cursor-pointer shrink-0" title="Remove Rule">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </div>
                 </template>
 
                 {{-- Add Rule Button --}}
-                <button type="button" @click="addRule()"
-                    class="w-full p-4 border-2 border-dashed border-surface-200 rounded-sm text-surface-400 hover:border-brand hover:text-brand transition-all cursor-pointer flex items-center justify-center gap-2 text-sm font-bold">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                    Add Rule
-                </button>
+                <div class="pt-2">
+                    <button type="button" @click="addRule()"
+                        class="w-full py-4 bg-surface-50 border-2 border-dashed border-surface-200 rounded-xl text-surface-500 hover:bg-brand/5 hover:border-brand/40 hover:text-brand transition-all cursor-pointer flex items-center justify-center gap-2 text-sm font-black uppercase tracking-wider">
+                        <div class="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-current">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        </div>
+                        Add Another Rule
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -113,6 +141,34 @@ function segmentBuilder() {
         isLoadingCount: false,
         isSaving: false,
 
+        getOperators(field) {
+            const dateFields = ['last_engaged_at', 'last_active_at'];
+            if (dateFields.includes(field)) {
+                return [
+                    { value: 'recent_days', label: 'In the last X days' }
+                ];
+            }
+            return [
+                { value: 'equals', label: 'Equals' },
+                { value: 'not_equals', label: 'Not Equals' },
+                { value: 'contains', label: 'Contains' },
+                { value: 'greater_than', label: 'Greater Than' },
+                { value: 'less_than', label: 'Less Than' },
+                { value: 'is_empty', label: 'Is Empty' },
+                { value: 'is_not_empty', label: 'Is Not Empty' }
+            ];
+        },
+
+        handleFieldChange(rule) {
+            rule.operator = '';
+            rule.value = '';
+            this.updateCount();
+        },
+
+        needsValue(operator) {
+            return !['is_empty', 'is_not_empty'].includes(operator);
+        },
+
         addRule() {
             this.rules.push({ field: '', operator: '', value: '' });
         },
@@ -123,7 +179,7 @@ function segmentBuilder() {
         },
 
         updateCount() {
-            const validRules = this.rules.filter(r => r.field && r.operator && r.value);
+            const validRules = this.rules.filter(r => r.field && r.operator && (!this.needsValue(r.operator) || r.value !== ''));
             if (validRules.length === 0) {
                 this.matchingCount = 0;
                 return;
@@ -149,7 +205,7 @@ function segmentBuilder() {
         },
 
         saveSegment() {
-            const validRules = this.rules.filter(r => r.field && r.operator && r.value);
+            const validRules = this.rules.filter(r => r.field && r.operator && (!this.needsValue(r.operator) || r.value !== ''));
             if (validRules.length === 0) {
                 alert('Please add at least one complete rule.');
                 return;

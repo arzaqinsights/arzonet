@@ -29,13 +29,42 @@
 
                 <div class="pt-6 border-t border-surface-100 text-left">
                     <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-3">Tags & Classification</p>
-                    <form action="{{ route('contacts.tags.update', $email->id) }}" method="POST" class="space-y-3">
+                    <form action="{{ route('admin.contacts.tags.update', $email->id) }}" method="POST" class="space-y-3">
                         @csrf
                         <input type="text" name="tags" value="{{ implode(', ', $email->tags ?? []) }}" 
                                class="form-input text-sm" placeholder="Add tags (comma separated)...">
                         <button class="btn btn-ghost btn-sm w-full border border-surface-200">Update Tags</button>
                     </form>
                 </div>
+
+                {{-- ── Subscription Topics ── --}}
+                @if($topics->isNotEmpty())
+                <div class="pt-6 border-t border-surface-100 text-left mt-6">
+                    <p class="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-3">Subscription Topics</p>
+                    <form action="{{ route('admin.contacts.topics.update', $email->id) }}" method="POST" class="space-y-3">
+                        @csrf
+                        <div class="space-y-2 max-h-48 overflow-y-auto pr-2">
+                            @foreach($topics as $topic)
+                                @php
+                                    $isSubscribed = is_null($email->subscribed_topics) || in_array($topic->id, $email->subscribed_topics);
+                                @endphp
+                                <label class="flex items-start gap-2 cursor-pointer group">
+                                    <input type="checkbox" name="topics[]" value="{{ $topic->id }}" 
+                                           class="mt-1 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                                           {{ $isSubscribed ? 'checked' : '' }}>
+                                    <div class="flex-1">
+                                        <div class="text-sm font-bold text-surface-900 group-hover:text-primary-600 transition-colors">{{ $topic->name }}</div>
+                                        @if($topic->description)
+                                            <div class="text-[10px] text-surface-500 leading-tight mt-0.5">{{ $topic->description }}</div>
+                                        @endif
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                        <button class="btn btn-ghost btn-sm w-full border border-surface-200 mt-2">Update Topics</button>
+                    </form>
+                </div>
+                @endif
             </div>
 
             {{-- ── Quick Stats ── --}}
@@ -113,6 +142,36 @@
                     <span class="text-lg">{{ $tempEmoji }}</span>
                     <span class="text-sm font-black {{ $textColor }} ml-1">{{ $tempLabel }} Lead</span>
                 </div>
+
+                <div class="mt-6 pt-6 border-t border-surface-200/50 space-y-4 text-left">
+                    {{-- Email Lead Score --}}
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-surface-500 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                Email Score
+                            </span>
+                            <span class="text-xs font-black text-primary-600">{{ $email->email_lead_score ?? 1 }}/10</span>
+                        </div>
+                        <div class="w-full bg-surface-200/50 rounded-full h-2 overflow-hidden">
+                            <div class="bg-gradient-to-r from-primary-500 to-indigo-500 h-full rounded-full" style="width: {{ ($email->email_lead_score ?? 1) * 10 }}%"></div>
+                        </div>
+                    </div>
+
+                    {{-- WhatsApp Lead Score --}}
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-surface-500 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.966a9.78 9.78 0 0 0-6.979-2.88C6.19.06 1.764 4.43 1.761 9.86c-.001 1.716.452 3.39 1.31 4.887l-1.02 3.722 3.822-1.002zM18.062 14.86c-.328-.164-1.94-.958-2.241-1.07-.301-.11-.52-.164-.738.164-.219.329-.848 1.07-1.039 1.29-.192.218-.384.246-.712.082-.328-.164-1.386-.51-2.64-1.627-.976-.87-1.635-1.947-1.826-2.275-.192-.329-.02-.507.144-.671.148-.148.329-.384.493-.575.164-.192.219-.329.329-.548.11-.219.055-.411-.027-.575-.082-.164-.738-1.78-.985-2.383-.242-.588-.487-.508-.669-.517-.173-.008-.372-.01-.571-.01-.2 0-.527.075-.802.373-.276.299-1.052 1.028-1.052 2.507 0 1.48 1.078 2.906 1.229 3.109.151.203 2.122 3.24 5.14 4.542.718.31 1.278.495 1.714.633.721.23 1.378.198 1.9.12.582-.088 1.94-.794 2.214-1.522.274-.728.274-1.353.192-1.483-.083-.13-.301-.203-.63-.367z"/></svg>
+                                WhatsApp Score
+                            </span>
+                            <span class="text-xs font-black text-emerald-600">{{ $email->whatsapp_lead_score ?? 1 }}/10</span>
+                        </div>
+                        <div class="w-full bg-surface-200/50 rounded-full h-2 overflow-hidden">
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full" style="width: {{ ($email->whatsapp_lead_score ?? 1) * 10 }}%"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -147,7 +206,7 @@
                     @endforelse
                 </div>
                 <div class="p-4 bg-surface-50 border-t border-surface-100">
-                    <form action="{{ route('contacts.notes.store', $email->id) }}" method="POST" class="flex gap-2">
+                    <form action="{{ route('admin.contacts.notes.store', $email->id) }}" method="POST" class="flex gap-2">
                         @csrf
                         <input type="text" name="content" class="form-input flex-1 !bg-white" placeholder="Leave a note for the team...">
                         <button class="btn btn-primary px-6">Post</button>

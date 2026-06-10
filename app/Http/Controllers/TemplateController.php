@@ -64,6 +64,12 @@ class TemplateController extends Controller
 
         $template->update($request->only('name', 'html_content', 'json_design'));
 
+        if ($request->has('return_to_campaign')) {
+            return redirect()
+                ->route('admin.campaigns.wizard', $request->return_to_campaign)
+                ->with('success', 'Template updated successfully.');
+        }
+
         return redirect()
             ->route('admin.templates.index')
             ->with('success', 'Template updated successfully.');

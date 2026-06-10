@@ -57,9 +57,22 @@ Route::name('admin.')->group(function () {
         Route::post('/{emailList}/transfer/{emailId}', [EmailListController::class, 'transferContact'])->name('transfer-contact');
         Route::post('/{emailList}/send-to-pipeline/{emailId}', [EmailListController::class, 'sendToPipeline'])->name('send-to-pipeline');
         Route::patch('/{emailList}/update-name', [EmailListController::class, 'updateName'])->name('update-name');
+        Route::post('/{emailList}/update-settings', [EmailListController::class, 'updateSettings'])->name('update-settings');
+        
+        // Contact Profile & Merge
+        Route::get('/{emailList}/contacts/{emailId}/profile', [EmailListController::class, 'getProfile'])->name('contact.profile');
+        Route::post('/{emailList}/contacts/{emailId}/note', [EmailListController::class, 'addNote'])->name('contact.note');
+        Route::post('/{emailList}/contacts/{emailId}/task', [EmailListController::class, 'addTask'])->name('contact.task');
+        Route::post('/{emailList}/merge-duplicates', [EmailListController::class, 'mergeDuplicates'])->name('merge-duplicates');
         Route::get('/check-mx', [EmailListController::class, 'checkMX'])->name('check-mx');
         Route::delete('/{emailList}', [EmailListController::class, 'destroy'])->name('destroy');
     });
+
+    // Subscription Topics
+    Route::resource('subscription-topics', \App\Http\Controllers\SubscriptionTopicController::class)->except(['show']);
+
+    // Workflows (Automations)
+    Route::resource('workflows', \App\Http\Controllers\WorkflowController::class);
 
     // Templates
     Route::prefix('templates')->name('templates.')->group(function () {
@@ -253,6 +266,8 @@ Route::name('admin.')->group(function () {
         Route::post('/', [\App\Http\Controllers\SegmentBuilderController::class, 'store'])->name('store');
         Route::post('/preview', [\App\Http\Controllers\SegmentBuilderController::class, 'preview'])->name('preview');
         Route::get('/{segment}', [\App\Http\Controllers\SegmentBuilderController::class, 'show'])->name('show');
+        Route::get('/{segment}/edit', [\App\Http\Controllers\SegmentBuilderController::class, 'edit'])->name('edit');
+        Route::put('/{segment}', [\App\Http\Controllers\SegmentBuilderController::class, 'update'])->name('update');
         Route::delete('/{segment}', [\App\Http\Controllers\SegmentBuilderController::class, 'destroy'])->name('destroy');
     });
 
@@ -283,6 +298,7 @@ Route::name('admin.')->group(function () {
         Route::get('/{email}', [\App\Http\Controllers\ContactController::class, 'show'])->name('show');
         Route::post('/{email}/notes', [\App\Http\Controllers\ContactController::class, 'addNote'])->name('notes.store');
         Route::post('/{email}/tags', [\App\Http\Controllers\ContactController::class, 'updateTags'])->name('tags.update');
+        Route::post('/{email}/topics', [\App\Http\Controllers\ContactController::class, 'updateTopics'])->name('topics.update');
     });
 
     // Profile

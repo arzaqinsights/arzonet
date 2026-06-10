@@ -34,6 +34,7 @@ if ($response->successful()) {
         echo "Blocks: " . ($stats['blocks'] ?? 0) . "\n";
         echo "Spam Reports: " . ($stats['spam_reports'] ?? 0) . "\n";
         echo "Drops: " . ($stats['drops'] ?? 0) . "\n";
+        echo "Unsubscribes: " . ($stats['unsubscribes'] ?? 0) . "\n";
     } else {
         echo "No stats data returned from SendGrid for today.\n";
     }

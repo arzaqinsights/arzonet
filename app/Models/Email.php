@@ -31,7 +31,6 @@ class Email extends Model
         'archived_at',
         'signup_source',
         'segment_name',
-        'auto_segments',
         'reason',
         'meta',
         'tags',
@@ -39,6 +38,8 @@ class Email extends Model
         'unsubscribed_at',
         'unsubscribe_expires_at',
         'engagement_score',
+        'email_lead_score',
+        'whatsapp_lead_score',
         'last_engaged_at',
         'whatsapp_number',
         'whatsapp_opt_in',
@@ -49,6 +50,7 @@ class Email extends Model
         'bounce_count',
         'complaint_count',
         'last_bounce_type',
+        'subscribed_topics',
     ];
 
     protected function casts(): array
@@ -56,7 +58,7 @@ class Email extends Model
         return [
             'meta' => 'array',
             'tags' => 'array',
-            'auto_segments' => 'array',
+            'subscribed_topics' => 'array',
             'is_archived' => 'boolean',
             'archived_at' => 'datetime',
             'unsubscribed_at' => 'datetime',
@@ -64,6 +66,8 @@ class Email extends Model
             'last_active_at' => 'datetime',
             'last_engaged_at' => 'datetime',
             'engagement_score' => 'integer',
+            'email_lead_score' => 'integer',
+            'whatsapp_lead_score' => 'integer',
         ];
     }
 
@@ -71,11 +75,31 @@ class Email extends Model
     {
         static::created(function ($email) {
             \App\Jobs\UpdateContactSegmentsJob::dispatch($email->id);
+            \App\Jobs\CalculateLeadScoreJob::dispatch($email->id);
         });
 
         static::updated(function ($email) {
             if ($email->isDirty(['status', 'email_status', 'email_score', 'subscription_status', 'bounce_count', 'complaint_count', 'whatsapp_number', 'whatsapp_opt_in', 'whatsapp_subscription_status', 'email'])) {
                 \App\Jobs\UpdateContactSegmentsJob::dispatch($email->id);
+                \App\Jobs\CalculateLeadScoreJob::dispatch($email->id);
+            }
+
+            if ($email->isDirty('subscribed_topics')) {
+                $oldTopics = $email->getOriginal('subscribed_topics') ?: [];
+                $newTopics = $email->subscribed_topics ?: [];
+                $added = array_diff(array_map('strval', $newTopics), array_map('strval', $oldTopics));
+                foreach ($added as $topicId) {
+                    \App\Models\Workflow::trigger('topic_subscribe', $email, $topicId);
+                }
+            }
+
+            if ($email->isDirty('tags')) {
+                $oldTags = $email->getOriginal('tags') ?: [];
+                $newTags = $email->tags ?: [];
+                $added = array_diff($newTags, $oldTags);
+                foreach ($added as $tag) {
+                    \App\Models\Workflow::trigger('tag_added', $email, $tag);
+                }
             }
         });
     }

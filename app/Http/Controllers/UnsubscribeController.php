@@ -35,7 +35,9 @@ class UnsubscribeController extends Controller
             abort(403, 'Invalid unsubscribe link.');
         }
 
-        return view('auth.unsubscribe', compact('email', 'token', 'logId'));
+        $topics = \App\Models\SubscriptionTopic::where('email_list_id', $email->email_list_id)->get();
+
+        return view('auth.unsubscribe', compact('email', 'token', 'logId', 'topics'));
     }
 
     public function confirm(Request $request, $id)
@@ -61,24 +63,28 @@ class UnsubscribeController extends Controller
             abort(403, 'Invalid request.');
         }
 
-        $duration = $request->input('duration', 'forever');
-        $expiresAt = null;
+        $globalUnsubscribe = $request->has('global_unsubscribe');
+        $selectedTopicIds = $request->input('topics', []);
         $durationText = 'permanently';
 
-        if ($duration !== 'forever') {
-            $days = (int) $duration;
-            if ($days > 0) {
-                $expiresAt = now()->addDays($days);
-                $durationText = "for {$days} days (until " . $expiresAt->format('F d, Y') . ")";
-            }
+        if ($globalUnsubscribe) {
+            // Mark ONLY this specific record as unsubscribed (Isolated to this list/workspace)
+            $email->update([
+                'subscription_status' => 'unsubscribed',
+                'unsubscribed_at' => now(),
+                'subscribed_topics' => [], // Empty means subscribed to nothing
+            ]);
+            $durationText = 'from all updates';
+        } else {
+            // Keep status as subscribed, but update their specific topic list
+            $email->update([
+                'subscription_status' => 'subscribed',
+                'unsubscribed_at' => null,
+                'unsubscribe_expires_at' => null,
+                'subscribed_topics' => array_map('intval', $selectedTopicIds),
+            ]);
+            $durationText = 'for selected topics';
         }
-
-        // 1. Mark ONLY this specific record as unsubscribed (Isolated to this list)
-        $email->update([
-            'subscription_status' => 'unsubscribed',
-            'unsubscribed_at' => now(),
-            'unsubscribe_expires_at' => $expiresAt,
-        ]);
 
         // Trigger segment recalculation for this contact
         \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $email->id);
@@ -88,21 +94,24 @@ class UnsubscribeController extends Controller
             $log = EmailLog::find($logId);
             if ($log) {
                 // Campaign Specific Analytics
-                Unsubscribe::create([
-                    'email' => $email->email,
-                    'campaign_id' => $log->campaign_id,
-                    'unsubscribed_at' => now(),
-                ]);
+                if ($globalUnsubscribe) {
+                    Unsubscribe::create([
+                        'email' => $email->email,
+                        'campaign_id' => $log->campaign_id,
+                        'unsubscribed_at' => now(),
+                    ]);
+                }
 
                 // Activity Feed
                 ContactActivity::create([
                     'email_id' => $email->id,
                     'campaign_id' => $log->campaign_id,
-                    'type' => 'unsubscribed',
+                    'type' => $globalUnsubscribe ? 'unsubscribed' : 'preferences_updated',
                 ]);
             }
         }
 
-        return view('auth.unsubscribe-success', compact('email', 'durationText', 'expiresAt'));
+        return view('auth.unsubscribe-success', compact('email', 'durationText', 'globalUnsubscribe'));
     }
 }
+

@@ -13,7 +13,11 @@
 
 @section('header-actions')
     <div class="flex items-center gap-3">
-        <a href="{{ route('admin.templates.index') }}" class="btn btn-ghost px-6 py-2 text-sm font-bold">Cancel</a>
+        @if(request()->has('return_to_campaign'))
+            <a href="{{ route('admin.campaigns.wizard', request('return_to_campaign')) }}" class="btn btn-ghost px-6 py-2 text-sm font-bold">Cancel & Return</a>
+        @else
+            <a href="{{ route('admin.templates.index') }}" class="btn btn-ghost px-6 py-2 text-sm font-bold">Cancel</a>
+        @endif
         <button onclick="saveTemplate()" id="save-btn" class="btn btn-primary px-8 py-2 text-sm font-black shadow-xl shadow-brand/20 flex items-center justify-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
             Update Template
@@ -31,6 +35,9 @@
         <input type="hidden" name="name" id="hidden-name">
         <input type="hidden" name="html_content" id="html-content">
         <input type="hidden" name="json_design" id="json-design">
+        @if(request()->has('return_to_campaign'))
+            <input type="hidden" name="return_to_campaign" value="{{ request('return_to_campaign') }}">
+        @endif
     </form>
 </div>
 

@@ -53,6 +53,7 @@
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <a href="{{ route('admin.segments.show', $segment) }}" class="btn btn-sm btn-ghost">View</a>
+                                    <a href="{{ route('admin.segments.edit', $segment) }}" class="btn btn-sm btn-ghost">Edit</a>
                                     <form action="{{ route('admin.segments.destroy', $segment) }}" method="POST" onsubmit="return confirm('Delete this segment?')">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-sm btn-ghost text-red-500 hover:text-red-700 cursor-pointer">Delete</button>

@@ -76,7 +76,7 @@ class AdvancedUnsubscribeTest extends TestCase
         $this->assertEquals(Carbon::now()->addDays(7)->toDateString(), $email1->unsubscribe_expires_at->toDateString());
     }
 
-    public function test_individual_unsubscribe_confirm_sets_snooze()
+    public function test_individual_unsubscribe_confirm_global()
     {
         $email = Email::create([
             'user_id' => $this->user->id,
@@ -92,7 +92,7 @@ class AdvancedUnsubscribeTest extends TestCase
 
         $response = $this->post($url, [
             'token' => $token,
-            'duration' => '30',
+            'global_unsubscribe' => '1',
             'lid' => null
         ]);
 
@@ -102,9 +102,125 @@ class AdvancedUnsubscribeTest extends TestCase
 
         $email->refresh();
         $this->assertEquals('unsubscribed', $email->subscription_status);
-        $this->assertNotNull($email->unsubscribe_expires_at);
-        $this->assertEquals(Carbon::now()->addDays(30)->toDateString(), $email->unsubscribe_expires_at->toDateString());
     }
+
+    public function test_individual_unsubscribe_confirm_topics()
+    {
+        $email = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'email' => 'contact3_topics@example.com',
+            'status' => 'valid',
+            'subscription_status' => 'subscribed'
+        ]);
+
+        $topic1 = \App\Models\SubscriptionTopic::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'name' => 'Newsletter',
+        ]);
+
+        $token = hash_hmac('sha256', $email->id . $email->email, config('app.key'));
+
+        $url = route('unsubscribe.confirm', ['id' => $email->id]);
+
+        $response = $this->post($url, [
+            'token' => $token,
+            'topics' => [$topic1->id],
+            'lid' => null
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertSee('Preferences Updated');
+
+        $email->refresh();
+        $this->assertEquals('subscribed', $email->subscription_status);
+        $this->assertEquals([$topic1->id], $email->subscribed_topics);
+    }
+
+    public function test_post_one_click_unsubscribe_global()
+    {
+        $email = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'email' => 'contact_oneclick@example.com',
+            'status' => 'valid',
+            'subscription_status' => 'subscribed'
+        ]);
+
+        $campaign = Campaign::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'name' => 'Test Campaign',
+            'subject' => 'Test Subject',
+            'status' => 'draft'
+        ]);
+
+        $log = \App\Models\EmailLog::create([
+            'email_id' => $email->id,
+            'campaign_id' => $campaign->id,
+            'email_address' => $email->email,
+            'status' => 'sent',
+            'tracking_token' => 'one-click-token-123'
+        ]);
+
+        $url = route('unsubscribe', ['token' => 'one-click-token-123']);
+
+        $response = $this->post($url);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $email->refresh();
+        $this->assertEquals('unsubscribed', $email->subscription_status);
+    }
+
+    public function test_post_one_click_unsubscribe_topic()
+    {
+        $email = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'email' => 'contact_oneclick_topic@example.com',
+            'status' => 'valid',
+            'subscription_status' => 'subscribed',
+            'subscribed_topics' => null
+        ]);
+
+        $topic = \App\Models\SubscriptionTopic::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'name' => 'Newsletter',
+        ]);
+
+        $campaign = Campaign::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'name' => 'Test Campaign',
+            'subject' => 'Test Subject',
+            'status' => 'draft',
+            'subscription_topic_id' => $topic->id
+        ]);
+
+        $log = \App\Models\EmailLog::create([
+            'email_id' => $email->id,
+            'campaign_id' => $campaign->id,
+            'email_address' => $email->email,
+            'status' => 'sent',
+            'tracking_token' => 'one-click-topic-token-123'
+        ]);
+
+        $url = route('unsubscribe', ['token' => 'one-click-topic-token-123']);
+
+        $response = $this->post($url);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $email->refresh();
+        $this->assertEquals('subscribed', $email->subscription_status);
+        $this->assertNotContains($topic->id, $email->subscribed_topics);
+    }
+
 
     public function test_expired_unsubscribe_resubscribes_automatically()
     {

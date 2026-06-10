@@ -25,11 +25,16 @@ Route::domain(config('app.domain'))->group(function () {
 // 2. Public Tracking & Webhooks (Global)
 Route::get('/t/o/{token}', [TrackingController::class, 'open'])->name('track.open');
 Route::get('/t/c/{token}', [TrackingController::class, 'click'])->name('track.click');
-Route::get('/unsubscribe/{token}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
+Route::match(['GET', 'POST'], '/unsubscribe/{token}', [TrackingController::class, 'unsubscribe'])->name('unsubscribe');
 Route::get('/unsubscribe/confirm/{id}', [UnsubscribeController::class, 'show'])->name('unsubscribe.show');
 Route::post('/unsubscribe/confirm/{id}', [UnsubscribeController::class, 'confirm'])->name('unsubscribe.confirm');
 Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('webhooks.ses');
 // Route::post('/webhooks/cashfree', [\App\Http\Controllers\WebhookController::class, 'handleCashfree'])->name('webhooks.cashfree');
+
+// Public Signup Forms & Opt-In Confirmations
+Route::get('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'show'])->name('public.forms.show');
+Route::post('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'submit'])->name('public.forms.submit');
+Route::get('/confirm-subscription/{token}', [\App\Http\Controllers\PublicFormController::class, 'confirm'])->name('public.confirm-subscription');
 
 // 3. Auth Routes (Account Subdomain)
 Route::domain('account.' . config('app.domain'))->group(function () {

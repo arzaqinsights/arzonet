@@ -16,17 +16,21 @@ class ContactController extends Controller
     public function index(Request $request)
     {
         $query = Email::with(['emailList'])
-            ->withCount(['activities as opens_count' => function($q) {
-                $q->where('type', 'opened');
-            }])
-            ->withCount(['activities as clicks_count' => function($q) {
-                $q->where('type', 'clicked');
-            }]);
+            ->withCount([
+                'activities as opens_count' => function ($q) {
+                    $q->where('type', 'opened');
+                }
+            ])
+            ->withCount([
+                'activities as clicks_count' => function ($q) {
+                    $q->where('type', 'clicked');
+                }
+            ]);
 
         if ($request->search) {
-            $query->where(function($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $q->where('email', 'like', "%{$request->search}%")
-                  ->orWhere('name', 'like', "%{$request->search}%");
+                    ->orWhere('name', 'like', "%{$request->search}%");
             });
         }
 
@@ -45,7 +49,7 @@ class ContactController extends Controller
     public function show(Email $email)
     {
         $email->load(['emailList', 'activities.campaign', 'notes.user']);
-        
+
         $stats = [
             'total_sent' => $email->logs()->where('status', 'sent')->count(),
             'total_opens' => $email->activities()->where('type', 'opened')->count(),
@@ -62,7 +66,7 @@ class ContactController extends Controller
     {
         $request->validate(['content' => 'required|string']);
 
-        ContactNote::create([
+        ContactNote::query()->create([
             'email_id' => $email->id,
             'user_id' => Auth::id(),
             'content' => $request->content,
@@ -80,5 +84,18 @@ class ContactController extends Controller
         $email->update(['tags' => array_map('trim', $tags)]);
 
         return back()->with('success', 'Tags updated.');
+    }
+    /**
+     * CRM: Update Topics
+     */
+    public function updateTopics(Request $request, Email $email)
+    {
+        $topicIds = $request->input('topics', []);
+
+        $email->update([
+            'subscribed_topics' => array_map('intval', $topicIds),
+        ]);
+
+        return back()->with('success', 'Subscription topics updated.');
     }
 }

@@ -32,7 +32,23 @@ class EmailList extends Model
         'is_public',
         'created_by_id',
         'team_permissions',
+        'double_opt_in',
+        'signup_form_token',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($emailList) {
+            if (empty($emailList->signup_form_token)) {
+                $emailList->signup_form_token = \Illuminate\Support\Str::random(32);
+            }
+        });
+
+        static::created(function ($emailList) {
+            \App\Models\SubscriptionTopic::seedDefaultsFor($emailList->id, $emailList->user_id);
+            \App\Models\Segment::seedDefaultsFor($emailList->id, $emailList->user_id);
+        });
+    }
 
     // --- Helper Methods ---
     public function isEmailList(): bool    { return in_array($this->list_type, [self::TYPE_EMAIL, self::TYPE_DUAL]); }

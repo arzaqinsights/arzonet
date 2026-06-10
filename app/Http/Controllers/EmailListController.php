@@ -346,10 +346,16 @@ class EmailListController extends Controller
 
         session(['last_opened_list_id' => $emailList->id]);
 
+        if (empty($emailList->signup_form_token)) {
+            $emailList->signup_form_token = \Illuminate\Support\Str::random(32);
+            $emailList->save();
+        }
+
         $stats = $emailList->getStatistics();
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
         $emails = $emailList->emails()->with(['deals.stage.pipeline'])->where('is_archived', false)->orderBy('created_at', 'desc')->paginate(50);
+        $emails = $this->loadDynamicSegments($emails, $emailList);
 
         // Cache filters (segments, tags, sources) in Redis with 15s TTL
         $filterCacheKey = "list_filters:{$emailList->id}";
@@ -361,9 +367,17 @@ class EmailListController extends Controller
             $tags = $decodedFilters['tags'] ?? [];
             $sources = $decodedFilters['sources'] ?? [];
         } else {
+            $dbSegments = \App\Models\Segment::where(function($q) use ($emailList) {
+                $q->whereNull('email_list_id')->orWhere('email_list_id', $emailList->id);
+            })->pluck('name')->toArray();
+            $dbSegments = array_filter($dbSegments, function($name) {
+                return !str_starts_with($name, 'Auto: ');
+            });
             $customSegments = $emailList->emails()->whereNotNull('segment_name')->distinct()->pluck('segment_name')->toArray();
-            $autoSegments = \App\Services\SegmentService::getAutoSegmentsList();
-            $segments = array_merge($customSegments, $autoSegments);
+            $customSegments = array_filter($customSegments, function($name) {
+                return !str_starts_with($name, 'Auto: ');
+            });
+            $segments = array_values(array_unique(array_merge($dbSegments, $customSegments)));
             
             // Normalize and unique tags
             $rawTags = $emailList->emails()->whereNotNull('tags')->distinct()->pluck('tags')->toArray();
@@ -393,71 +407,147 @@ class EmailListController extends Controller
             \Illuminate\Support\Facades\Redis::setex($filterCacheKey, 86400, json_encode($decodedFilters));
         }
 
-        return view('email-lists.show', compact('emailList', 'stats', 'emails', 'segments', 'tags', 'sources'));
+        $topics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
+
+        $addedByUserIds = $emailList->emails()->whereNotNull('user_id')->distinct()->pluck('user_id')->toArray();
+        $addedByOptions = \App\Models\User::whereIn('id', $addedByUserIds)->pluck('name', 'id')->toArray();
+
+        $pipelines = \App\Models\Pipeline::with('stages')->where('user_id', auth()->id())->get();
+        $destinationLists = \App\Models\EmailList::where('user_id', auth()->id())->where('id', '!=', $emailList->id)->get();
+
+        return view('email-lists.show', compact('emailList', 'stats', 'emails', 'segments', 'tags', 'sources', 'topics', 'addedByOptions', 'pipelines', 'destinationLists'));
     }
 
-    public function filterEmails(Request $request, EmailList $emailList)
+
+
+    private function loadDynamicSegments($emails, $emailList)
     {
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+        $visibleIds = $emails->pluck('id')->toArray();
+        if (empty($visibleIds)) return $emails;
 
-        $query = $emailList->emails()->with(['deals.stage.pipeline'])->orderBy('created_at', 'desc');
-
-        // Health filter
-        if ($request->status && $request->status !== 'all') {
-            if (in_array($request->status, ['risky', 'role_based', 'disposable', 'suspicious'])) {
-                if ($request->status === 'role_based') $query->where('is_role_based', true);
-                elseif ($request->status === 'disposable') $query->where('is_disposable', true);
-                else $query->where('email_status', $request->status);
-            } else {
-                $query->where('status', $request->status);
+        $allSegments = \App\Models\Segment::whereNull('email_list_id')->orWhere('email_list_id', $emailList->id)->get();
+        $matchedSegments = [];
+        foreach ($allSegments as $seg) {
+            $matchedIds = \App\Models\Segment::applyRulesToQuery(\App\Models\Email::whereIn('id', $visibleIds), $seg->rules ?? [])->pluck('id');
+            foreach ($matchedIds as $id) {
+                $matchedSegments[$id][] = $seg->name;
             }
+        }
+
+        foreach ($emails as $email) {
+            if (isset($matchedSegments[$email->id])) {
+                $email->segment_name = implode(', ', $matchedSegments[$email->id]);
+            } else {
+                $email->segment_name = null;
+            }
+        }
+
+        return $emails;
+    }
+
+    private function applyFiltersToQuery($query, Request $request, EmailList $emailList)
+    {
+        if ($request->added_by && $request->added_by !== 'all' && (!is_array($request->added_by) || count($request->added_by) > 0)) {
+            $addedBy = is_array($request->added_by) ? $request->added_by : [$request->added_by];
+            $query->whereIn('user_id', $addedBy);
+        }
+
+        if ($request->status && $request->status !== 'all' && (!is_array($request->status) || count($request->status) > 0)) {
+            $statuses = is_array($request->status) ? $request->status : [$request->status];
+            $query->where(function($q) use ($statuses) {
+                foreach ($statuses as $st) {
+                    if ($st === 'role_based') $q->orWhere('is_role_based', true);
+                    elseif ($st === 'disposable') $q->orWhere('is_disposable', true);
+                    elseif (in_array($st, ['risky', 'suspicious', 'cross_duplicate'])) $q->orWhere('email_status', $st);
+                    else $q->orWhere('status', $st);
+                }
+            });
         }
 
         // Subscription status filter
-        if ($request->subscription && $request->subscription !== 'all') {
-            if (in_array($request->subscription, ['hard_bounce', 'soft_bounce', 'complaint'])) {
-                $query->where('email_status', $request->subscription);
-            } else {
-                $query->where('subscription_status', $request->subscription);
-            }
+        if ($request->subscription && $request->subscription !== 'all' && (!is_array($request->subscription) || count($request->subscription) > 0)) {
+            $subs = is_array($request->subscription) ? $request->subscription : [$request->subscription];
+            $query->where(function($q) use ($subs) {
+                foreach ($subs as $sub) {
+                    if (in_array($sub, ['hard_bounce', 'soft_bounce', 'complaint'])) {
+                        $q->orWhere('email_status', $sub);
+                    } else {
+                        $q->orWhere('subscription_status', $sub);
+                    }
+                }
+            });
         }
 
         // Archive filter
-        if ($request->archived === 'yes') {
-            $query->where('is_archived', true);
-        } elseif ($request->archived === 'no') {
-            $query->where('is_archived', false);
+        if ($request->archived && $request->archived !== 'all' && (!is_array($request->archived) || count($request->archived) > 0)) {
+            $archives = is_array($request->archived) ? $request->archived : [$request->archived];
+            if (in_array('yes', $archives) && !in_array('no', $archives)) {
+                $query->where('is_archived', true);
+            } elseif (in_array('no', $archives) && !in_array('yes', $archives)) {
+                $query->where('is_archived', false);
+            }
         }
 
         // Segment filter
-        if ($request->segment && $request->segment !== 'all') {
-            $value = $request->segment;
-            $query->where(function($q) use ($value) {
-                $q->where('segment_name', $value)
-                  ->orWhereJsonContains('auto_segments', $value);
+        if ($request->segment && $request->segment !== 'all' && (!is_array($request->segment) || count($request->segment) > 0)) {
+            $segments = is_array($request->segment) ? $request->segment : [$request->segment];
+            $query->where(function($q) use ($segments, $emailList) {
+                foreach ($segments as $value) {
+                    $segmentModel = \App\Models\Segment::where(function($sq) use ($emailList) {
+                            $sq->whereNull('email_list_id')->orWhere('email_list_id', $emailList->id);
+                        })->where('name', $value)->first();
+
+                    if ($segmentModel) {
+                        $q->orWhere(function($subQ) use ($segmentModel) {
+                            \App\Models\Segment::applyRulesToQuery($subQ, $segmentModel->rules ?? []);
+                        });
+                    } else {
+                        $q->orWhere('segment_name', $value);
+                    }
+                }
+            });
+        }
+
+        // Topic filter
+        if ($request->topic && $request->topic !== 'all' && (!is_array($request->topic) || count($request->topic) > 0)) {
+            $topics = is_array($request->topic) ? $request->topic : [$request->topic];
+            $query->where(function($q) use ($topics) {
+                foreach ($topics as $t) {
+                    $q->orWhereJsonContains('subscribed_topics', (string) $t);
+                }
             });
         }
 
         // Source filter
-        if ($request->source && $request->source !== 'all') {
-            $query->where('signup_source', $request->source);
+        if ($request->source && $request->source !== 'all' && (!is_array($request->source) || count($request->source) > 0)) {
+            $sources = is_array($request->source) ? $request->source : [$request->source];
+            $query->whereIn('signup_source', $sources);
         }
 
         // Tag filter
-        if ($request->tag && $request->tag !== 'all') {
-            $query->where('tags', 'like', "%{$request->tag}%");
+        if ($request->tag && $request->tag !== 'all' && (!is_array($request->tag) || count($request->tag) > 0)) {
+            $tags = is_array($request->tag) ? $request->tag : [$request->tag];
+            $query->where(function($q) use ($tags) {
+                foreach ($tags as $t) {
+                    $q->orWhere('tags', 'like', "%{$t}%");
+                }
+            });
         }
 
-        // Channel filter (Presence)
-        if ($request->channel === 'only_email') {
-            $query->whereNotNull('email')->where('email', '!=', '');
-        } elseif ($request->channel === 'only_whatsapp') {
-            $query->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '');
+        // Channel filter
+        if ($request->channel && $request->channel !== 'all' && (!is_array($request->channel) || count($request->channel) > 0)) {
+            $channels = is_array($request->channel) ? $request->channel : [$request->channel];
+            if (in_array('only_email', $channels) && !in_array('only_whatsapp', $channels)) {
+                $query->whereNotNull('email')->where('email', '!=', '');
+            } elseif (in_array('only_whatsapp', $channels) && !in_array('only_email', $channels)) {
+                $query->whereNotNull('whatsapp_number')->where('whatsapp_number', '!=', '');
+            }
         }
 
         // WhatsApp Subscription Status filter
-        if ($request->wa_status && $request->wa_status !== 'all') {
-            $query->where('whatsapp_subscription_status', $request->wa_status);
+        if ($request->wa_status && $request->wa_status !== 'all' && (!is_array($request->wa_status) || count($request->wa_status) > 0)) {
+            $waStatuses = is_array($request->wa_status) ? $request->wa_status : [$request->wa_status];
+            $query->whereIn('whatsapp_subscription_status', $waStatuses);
         }
 
         // Targeted Search
@@ -479,13 +569,97 @@ class EmailListController extends Controller
                 } elseif ($field === 'source') {
                     $q->whereRaw("LOWER(signup_source) LIKE ?", ["%" . strtolower($search) . "%"]);
                 } else {
-                    // Search in meta JSON for specific keys (city, company, country, etc)
                     $q->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}'))) LIKE ?", ["%" . strtolower($search) . "%"]);
                 }
             });
         }
+        // Advanced Rules (Dynamic Multi-Condition)
+        if ($request->has('advanced_rules') && is_array($request->advanced_rules)) {
+            foreach ($request->advanced_rules as $rule) {
+                if (empty($rule['field']) || empty($rule['operator'])) continue;
+                
+                $field = $rule['field'];
+                $operator = $rule['operator'];
+                $value = $rule['value'] ?? '';
+
+                $query->where(function ($q) use ($field, $operator, $value) {
+                    $isCustom = str_starts_with($field, 'custom_');
+                    $dbField = $isCustom ? "LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}')))" : "LOWER({$field})";
+                    $dbValue = strtolower($value);
+
+                    switch ($operator) {
+                        case 'equals':
+                            if ($isCustom) {
+                                $q->whereRaw("$dbField = ?", [$dbValue]);
+                            } else {
+                                $q->where($field, 'LIKE', $value); // Case insensitive in MySQL usually, but fallback
+                            }
+                            break;
+                        case 'not_equals':
+                            if ($isCustom) {
+                                $q->whereRaw("$dbField != ? OR JSON_EXTRACT(meta, '$.{$field}') IS NULL", [$dbValue]);
+                            } else {
+                                $q->where($field, 'NOT LIKE', $value)->orWhereNull($field);
+                            }
+                            break;
+                        case 'contains':
+                            $q->whereRaw("$dbField LIKE ?", ["%{$dbValue}%"]);
+                            break;
+                        case 'not_contains':
+                            $q->whereRaw("$dbField NOT LIKE ? OR $dbField IS NULL", ["%{$dbValue}%"]);
+                            break;
+                        case 'starts_with':
+                            $q->whereRaw("$dbField LIKE ?", ["{$dbValue}%"]);
+                            break;
+                        case 'ends_with':
+                            $q->whereRaw("$dbField LIKE ?", ["%{$dbValue}"]);
+                            break;
+                        case 'is_empty':
+                            if ($isCustom) {
+                                $q->whereRaw("JSON_EXTRACT(meta, '$.{$field}') IS NULL OR $dbField = ''");
+                            } else {
+                                $q->whereNull($field)->orWhere($field, '');
+                            }
+                            break;
+                        case 'is_not_empty':
+                            if ($isCustom) {
+                                $q->whereRaw("JSON_EXTRACT(meta, '$.{$field}') IS NOT NULL AND $dbField != ''");
+                            } else {
+                                $q->whereNotNull($field)->where($field, '!=', '');
+                            }
+                            break;
+                        case 'greater_than':
+                            if ($isCustom) {
+                                $q->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}')) AS DECIMAL) > ?", [(float)$value]);
+                            } else {
+                                $q->where($field, '>', $value);
+                            }
+                            break;
+                        case 'less_than':
+                            if ($isCustom) {
+                                $q->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}')) AS DECIMAL) < ?", [(float)$value]);
+                            } else {
+                                $q->where($field, '<', $value);
+                            }
+                            break;
+                    }
+                });
+            }
+        }
+
+        return $query;
+    }
+
+    public function filterEmails(Request $request, EmailList $emailList)
+    {
+        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+
+        $query = $emailList->emails()->with(['deals.stage.pipeline'])->orderBy('created_at', 'desc');
+
+        $query = $this->applyFiltersToQuery($query, $request, $emailList);
 
         $stats = $emailList->getStatistics();
+
 
         // 1. Calculate stats for the FULL LIST (ignoring current filters)
         $globalStats = [
@@ -544,6 +718,7 @@ class EmailListController extends Controller
             ($request->tag && $request->tag !== 'all') ||
             ($request->channel && $request->channel !== 'all') ||
             ($request->wa_status && $request->wa_status !== 'all') ||
+            ($request->advanced_rules && !empty($request->advanced_rules)) ||
             $request->search) {
             $isFiltered = true;
         }
@@ -555,8 +730,10 @@ class EmailListController extends Controller
             ->count(DB::raw($groupExpr)) : 0;
 
         $emails = $query->paginate(50);
+        $emails = $this->loadDynamicSegments($emails, $emailList);
+        $topics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
         return response()->json([
-            'html' => view('email-lists.partials.email-table-rows', ['emails' => $emails, 'emailList' => $emailList])->render(),
+            'html' => view('email-lists.partials.email-table-rows', ['emails' => $emails, 'emailList' => $emailList, 'topics' => $topics])->render(),
             'links' => $emails->links()->toHtml(),
             'stats' => $dynamicStats,
             'global_stats' => $globalStats
@@ -567,47 +744,7 @@ class EmailListController extends Controller
     {
         $query = $emailList->emails()->orderBy('created_at', 'desc');
 
-        if ($request->status && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
-        if ($request->subscription && $request->subscription !== 'all') {
-            $query->where('subscription_status', $request->subscription);
-        }
-        if ($request->segment && $request->segment !== 'all') {
-            $value = $request->segment;
-            $query->where(function($q) use ($value) {
-                $q->where('segment_name', $value)
-                  ->orWhereJsonContains('auto_segments', $value);
-            });
-        }
-        if ($request->source && $request->source !== 'all') {
-            $query->where('signup_source', $request->source);
-        }
-        if ($request->tag && $request->tag !== 'all') {
-            $query->where('tags', 'like', "%{$request->tag}%");
-        }
-        if ($request->search) {
-            $search = $request->search;
-            $field = $request->search_field ?? 'name';
-
-            $query->where(function ($q) use ($search, $field) {
-                if ($field === 'email') {
-                    $q->whereRaw("LOWER(email) LIKE ?", ["%" . strtolower($search) . "%"]);
-                } elseif ($field === 'name') {
-                    $q->whereRaw("LOWER(name) LIKE ?", ["%" . strtolower($search) . "%"]);
-                } elseif ($field === 'whatsapp_number') {
-                    $q->whereRaw("LOWER(whatsapp_number) LIKE ?", ["%" . strtolower($search) . "%"]);
-                } elseif ($field === 'segment') {
-                    $q->whereRaw("LOWER(segment_name) LIKE ?", ["%" . strtolower($search) . "%"]);
-                } elseif ($field === 'tag') {
-                    $q->whereRaw("LOWER(tags) LIKE ?", ["%" . strtolower($search) . "%"]);
-                } elseif ($field === 'source') {
-                    $q->whereRaw("LOWER(signup_source) LIKE ?", ["%" . strtolower($search) . "%"]);
-                } else {
-                    $q->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}'))) LIKE ?", ["%" . strtolower($search) . "%"]);
-                }
-            });
-        }
+        $query = $this->applyFiltersToQuery($query, $request, $emailList);
 
         // Determine extra CRM fields from the list's column mapping
         // This ensures we export exactly what the user mapped/sees in the grid
@@ -850,8 +987,22 @@ class EmailListController extends Controller
 
         $data = $request->only([
             'email', 'name', 'whatsapp_number', 'segment_name', 
-            'signup_source', 'subscription_status', 'whatsapp_subscription_status', 'tags'
+            'signup_source', 'subscription_status', 'whatsapp_subscription_status', 'tags', 'subscribed_topics'
         ]);
+
+        if (array_key_exists('tags', $data)) {
+            if (is_string($data['tags'])) {
+                $tagsArray = array_map('trim', array_filter(explode(',', $data['tags'])));
+                $data['tags'] = !empty($tagsArray) ? array_values($tagsArray) : null;
+            } elseif (is_array($data['tags'])) {
+                $data['tags'] = array_values(array_filter($data['tags']));
+            }
+        }
+
+        if ($request->has('subscribed_topics')) {
+            $topics = $request->input('subscribed_topics');
+            $data['subscribed_topics'] = is_array($topics) ? $topics : [];
+        }
 
         if (!empty($data['whatsapp_number']) && $email->original_row_id) {
             $phoneExistsInGroup = $emailList->emails()
@@ -1226,46 +1377,53 @@ class EmailListController extends Controller
     public function bulkAction(Request $request, EmailList $emailList)
     {
         $request->validate([
-            'action' => 'required|in:unsubscribe,subscribe,archive,unarchive,permanent_delete,edit_column,update_column'
+            'action' => 'required|in:unsubscribe,subscribe,archive,unarchive,permanent_delete,edit_column,update_column,add_tags,remove_tags,add_topics,remove_topics,create_deals,transfer,add_note,add_task'
         ]);
 
         if ($request->global && $request->filters) {
-            $query = $emailList->emails();
-            $filters = $request->filters;
+            $query = clone $emailList->emails();
+            
+            // Create a pseudo-request using the filters array to reuse applyFiltersToQuery
+            $filterRequest = new Request($request->filters);
+            $query = $this->applyFiltersToQuery($query, $filterRequest, $emailList);
 
-            if (isset($filters['status']) && $filters['status'] !== 'all')
-                $query->where('status', $filters['status']);
-            if (isset($filters['subscription']) && $filters['subscription'] !== 'all')
-                $query->where('subscription_status', $filters['subscription']);
-            if (isset($filters['segment']) && $filters['segment'] !== 'all')
-                $query->where('segment_name', $filters['segment']);
-            if (isset($filters['tag']) && $filters['tag'] !== 'all')
-                $query->where('tags', 'like', '%' . $filters['tag'] . '%');
-            if (isset($filters['source']) && $filters['source'] !== 'all')
-                $query->where('signup_source', $filters['source']);
-            if (isset($filters['archived'])) {
-                if ($filters['archived'] === 'yes')
-                    $query->where('is_archived', true);
-                elseif ($filters['archived'] === 'no')
-                    $query->where('is_archived', false);
-            }
-
-            if (!empty($filters['search'])) {
-                $search = $filters['search'];
-                $field = $filters['search_field'] ?? 'all';
-                $query->where(function ($q) use ($search, $field) {
-                    if ($field === 'all' || $field === 'email')
-                        $q->orWhere('email', 'like', "%$search%");
-                    if ($field === 'all' || $field === 'name')
-                        $q->orWhere('name', 'like', "%$search%");
-                });
-            }
-            $emails = $query;
+            $emails = clone $query;
         } else {
             $emails = $emailList->emails()->whereIn('id', $request->ids);
         }
 
         $count = $emails->count();
+
+        $advancedActions = ['add_tags', 'remove_tags', 'add_topics', 'remove_topics', 'create_deals', 'transfer', 'add_note', 'add_task'];
+
+        if (in_array($request->action, $advancedActions)) {
+            \App\Jobs\AdvancedBulkActionJob::dispatch(
+                $emailList->id,
+                $request->action,
+                $request->global ? true : false,
+                $request->global ? $request->filters : null,
+                $request->global ? [] : $request->ids,
+                $request->payload ?? [],
+                auth()->id()
+            );
+
+            $emailList->activityLogs()->create([
+                'user_id' => auth()->id(),
+                'type' => 'bulk_action',
+                'details' => [
+                    'action' => $request->action,
+                    'count' => $count,
+                    'scope' => $request->global ? 'global' : 'selection',
+                    'filters' => $request->global ? $request->filters : null,
+                    'payload' => $request->payload ?? []
+                ]
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'The bulk action process has started in the background. It will be completed shortly.'
+            ]);
+        }
 
         if ($request->action === 'unsubscribe') {
             $duration = $request->input('duration', 'forever');
@@ -1735,5 +1893,142 @@ class EmailListController extends Controller
         ]);
 
         return response()->json(['success' => true]);
+    }
+
+    public function updateSettings(Request $request, EmailList $emailList)
+    {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if ($emailList->created_by_id !== $teamUserId && !$emailList->canPerformAction('edit')) {
+                abort(403, 'Unauthorized.');
+            }
+        }
+
+        $emailList->update([
+            'double_opt_in' => $request->has('double_opt_in'),
+        ]);
+
+        return back()->with('success', 'List settings updated successfully.');
+    }
+
+    // ──────────────────────────────────────────────────────
+    // Contact Profile & Merge
+    // ──────────────────────────────────────────────────────
+    public function getProfile(EmailList $emailList, $emailId)
+    {
+        $email = $emailList->emails()->with(['user', 'activities', 'notes' => function($q) {
+            $q->with('user')->latest();
+        }, 'tasks' => function($q) {
+            $q->latest();
+        }])->findOrFail($emailId);
+
+        return response()->json($email);
+    }
+
+    public function addNote(Request $request, EmailList $emailList, $emailId)
+    {
+        $request->validate(['content' => 'required|string']);
+        $email = $emailList->emails()->findOrFail($emailId);
+        
+        $note = \App\Models\ContactNote::create([
+            'email_id' => $email->id,
+            'user_id' => auth()->id(),
+            'content' => $request->content,
+        ]);
+
+        return response()->json(['success' => true, 'note' => $note->load('user')]);
+    }
+
+    public function addTask(Request $request, EmailList $emailList, $emailId)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'due_date' => 'nullable|date',
+        ]);
+        
+        $email = $emailList->emails()->findOrFail($emailId);
+        
+        $task = \App\Models\ContactTask::create([
+            'email_id' => $email->id,
+            'user_id' => auth()->id(),
+            'title' => $request->title,
+            'description' => $request->description,
+            'due_date' => $request->due_date,
+        ]);
+
+        return response()->json(['success' => true, 'task' => $task]);
+    }
+
+    public function mergeDuplicates(Request $request, EmailList $emailList)
+    {
+        $request->validate([
+            'merge_by' => 'required|in:email,whatsapp',
+        ]);
+
+        $field = $request->merge_by === 'email' ? 'email' : 'whatsapp_number';
+
+        // Find duplicates
+        $duplicates = \Illuminate\Support\Facades\DB::table('emails')
+            ->select($field)
+            ->where('email_list_id', $emailList->id)
+            ->whereNotNull($field)
+            ->where($field, '!=', '')
+            ->groupBy($field)
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck($field);
+
+        if ($duplicates->isEmpty()) {
+            return response()->json(['success' => true, 'message' => 'No duplicates found to merge.']);
+        }
+
+        $mergedCount = 0;
+
+        foreach ($duplicates as $duplicateValue) {
+            $contacts = $emailList->emails()->where($field, $duplicateValue)->orderBy('updated_at', 'desc')->get();
+            if ($contacts->count() < 2) continue;
+
+            $master = $contacts->first();
+            $duplicatesToMerge = $contacts->slice(1);
+
+            foreach ($duplicatesToMerge as $dup) {
+                // Merge tags
+                $masterTags = $master->tags ?? [];
+                $dupTags = $dup->tags ?? [];
+                $master->tags = array_values(array_unique(array_merge($masterTags, $dupTags)));
+
+                // Merge topics
+                $masterTopics = $master->subscribed_topics ?? [];
+                $dupTopics = $dup->subscribed_topics ?? [];
+                $master->subscribed_topics = array_values(array_unique(array_merge($masterTopics, $dupTopics)));
+
+                // Merge null fields
+                $fillableFields = [
+                    'name', 'whatsapp_number', 'email', 'status', 'email_status', 'email_score', 
+                    'whatsapp_subscription_status', 'subscription_status', 'last_active_at', 'last_engaged_at'
+                ];
+                foreach ($fillableFields as $f) {
+                    if (empty($master->$f) && !empty($dup->$f)) {
+                        $master->$f = $dup->$f;
+                    }
+                }
+
+                $master->save();
+
+                // Re-assign relationships
+                \App\Models\ContactActivity::where('email_id', $dup->id)->update(['email_id' => $master->id]);
+                \App\Models\ContactNote::where('email_id', $dup->id)->update(['email_id' => $master->id]);
+                \App\Models\ContactTask::where('email_id', $dup->id)->update(['email_id' => $master->id]);
+                \App\Models\Deal::where('email_id', $dup->id)->update(['email_id' => $master->id]);
+
+                // Delete duplicate
+                $dup->delete();
+                $mergedCount++;
+            }
+        }
+
+        $emailList->recalculateStats();
+
+        return response()->json(['success' => true, 'message' => "Merged $mergedCount duplicate records successfully."]);
     }
 }

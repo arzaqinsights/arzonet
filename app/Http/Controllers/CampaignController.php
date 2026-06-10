@@ -56,6 +56,18 @@ class CampaignController extends Controller
             return redirect()->route('admin.campaigns.show', $campaign);
         }
 
+        $activeWorkspaceId = session('last_opened_list_id') ?: $campaign->email_list_id;
+        if ($activeWorkspaceId) {
+            $topicsCount = \App\Models\SubscriptionTopic::where('email_list_id', $activeWorkspaceId)->count();
+            if ($topicsCount === 0) {
+                $emailList = \App\Models\EmailList::find($activeWorkspaceId);
+                if ($emailList) {
+                    \App\Models\SubscriptionTopic::seedDefaultsFor($activeWorkspaceId, $emailList->user_id);
+                }
+            }
+        }
+        $subscriptionTopics = \App\Models\SubscriptionTopic::where('email_list_id', $activeWorkspaceId)->get();
+
         $emailLists = EmailList::forEmail()
             ->where('status', 'completed')
             ->withCount(['emails as emails_count' => function ($query) {
@@ -88,16 +100,26 @@ class CampaignController extends Controller
         $templates = Template::all();
         $senders = Sender::all();
 
-        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments'));
+        return view('campaigns.wizard', compact('campaign', 'emailLists', 'templates', 'senders', 'allTags', 'allSegments', 'subscriptionTopics'));
     }
 
     public function saveStep(Request $request, Campaign $campaign)
     {
-        $data = $request->only(['name', 'subject', 'email_list_id', 'template_id', 'sender_id', 'scheduled_at', 'audience_config']);
+        $data = $request->only(['name', 'from_name', 'subject', 'email_list_id', 'template_id', 'sender_id', 'scheduled_at', 'audience_config', 'subscription_topic_id']);
         
-        $data = array_filter($data, fn($value) => !is_null($value));
+        // We want to allow null values for subscription_topic_id to allow resetting it
+        $cleanedData = [];
+        foreach ($data as $key => $val) {
+            if ($key === 'subscription_topic_id') {
+                $cleanedData[$key] = $val ?: null;
+            } elseif ($key === 'from_name') {
+                $cleanedData[$key] = $val ?: null;
+            } elseif (!is_null($val)) {
+                $cleanedData[$key] = $val;
+            }
+        }
 
-        $campaign->update($data);
+        $campaign->update($cleanedData);
 
         $sampleContact = null;
         $personalizedSubject = $campaign->subject;
@@ -556,6 +578,7 @@ class CampaignController extends Controller
             // Full update from wizard/edit page
             $request->validate([
                 'name'              => 'required|string|max:255',
+                'from_name'         => 'nullable|string|max:255',
                 'email_list_id'     => 'required|exists:email_lists,id',
                 'template_id'       => 'required|exists:templates,id',
                 'sender_id'         => 'required|exists:senders,id',

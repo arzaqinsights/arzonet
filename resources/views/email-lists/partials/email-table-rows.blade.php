@@ -89,61 +89,74 @@
             $isLastSub = $loop->last;
         @endphp
         <tr x-data="{ 
-                                editing: false, 
-                                saving: false,
-                                row: {
-                                    id: {{ $email->id }},
-                                    email: '{{ $email->email }}',
-                                    whatsapp_number: '{{ $email->whatsapp_number ?? '' }}',
-                                    name: '{{ $email->name ?? '' }}',
-                                    segment_name: '{{ $email->segment_name ?? '' }}',
-                                    auto_segments: @js($email->auto_segments ?? []),
-                                    tags: '{{ is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '') }}',
-                                    subscription_status: '{{ $email->subscription_status ?? 'subscribed' }}',
-                                    unsubscribe_duration: 'forever',
-                                    whatsapp_subscription_status: '{{ $email->whatsapp_subscription_status ?? 'subscribed' }}',
-                                    is_archived: {{ $email->is_archived ? 'true' : 'false' }},
-                                    original_row_id: '{{ $email->original_row_id }}' || '{{ $email->id }}',
-                                    meta: @js($email->meta ?? [])
-                                },
-                                save() {
-                                     this.saving = true;
-                                     fetch(`{{ route('admin.email-lists.update-email', [$emailList, ':id']) }}`.replace(':id', this.row.id), {
-                                         method: 'PUT',
-                                         headers: {
-                                             'Content-Type': 'application/json',
-                                             'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').content,
-                                         },
-                                         body: JSON.stringify(this.row)
-                                     })
-                                     .then(r => {
-                                         if (!r.ok) {
-                                             return r.json().then(err => { throw err; });
+                                        editing: false, 
+                                        saving: false,
+                                        row: {
+                                            id: {{ $email->id }},
+                                            email: '{{ $email->email }}',
+                                            whatsapp_number: '{{ $email->whatsapp_number ?? '' }}',
+                                            name: '{{ $email->name ?? '' }}',
+                                            segment_name: '{{ $email->segment_name ?? '' }}',
+                                            tags: '{{ is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '') }}',
+                                            subscription_status: '{{ $email->subscription_status ?? 'subscribed' }}',
+                                            unsubscribe_duration: 'forever',
+                                            whatsapp_subscription_status: '{{ $email->whatsapp_subscription_status ?? 'subscribed' }}',
+                                            is_archived: {{ $email->is_archived ? 'true' : 'false' }},
+                                            original_row_id: '{{ $email->original_row_id }}' || '{{ $email->id }}',
+                                            meta: {{ json_encode($email->meta ?? new \stdClass()) }},
+                                            subscribed_topics: {{ json_encode(is_array($email->subscribed_topics) ? array_map('strval', $email->subscribed_topics) : (json_decode($email->subscribed_topics ?? '[]', true) ?: [])) }},
+                                            added_by: '{{ addslashes($email->user->name ?? "System") }}',
+                                            get tagsArray() {
+                                                if (!this.tags) return [];
+                                                return this.tags.split(',').map(t => t.trim()).filter(t => t);
+                                            },
+                                            get topicNames() {
+                                                let map = {
+                                                    @foreach($topics ?? [] as $t)
+                                                        '{{ (string) $t->id }}': '{{ addslashes($t->name) }}',
+                                                    @endforeach
+                                                };
+                                                return this.subscribed_topics.map(id => map[id] || ('Topic ' + id));
+                                            }
+                                        },
+                                        save() {
+                                             this.saving = true;
+                                             fetch(`{{ route('admin.email-lists.update-email', [$emailList, ':id']) }}`.replace(':id', this.row.id), {
+                                                 method: 'PUT',
+                                                 headers: {
+                                                     'Content-Type': 'application/json',
+                                                     'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').content,
+                                                 },
+                                                 body: JSON.stringify(this.row)
+                                             })
+                                             .then(r => {
+                                                 if (!r.ok) {
+                                                     return r.json().then(err => { throw err; });
+                                                 }
+                                                 return r.json();
+                                             })
+                                             .then(() => {
+                                                 this.saving = false;
+                                                 this.editing = false;
+                                                 fetchEmails();
+                                                 refreshStats();
+                                             })
+                                             .catch(err => {
+                                                 this.saving = false;
+                                                 let msg = 'Failed to save contact.';
+                                                 if (err && err.message) {
+                                                     msg = err.message;
+                                                 } else if (err && err.errors) {
+                                                     msg = Object.values(err.errors).flat().join('\n');
+                                                 }
+                                                 alert(msg);
+                                             });
                                          }
-                                         return r.json();
-                                     })
-                                     .then(() => {
-                                         this.saving = false;
-                                         this.editing = false;
-                                         fetchEmails();
-                                         refreshStats();
-                                     })
-                                     .catch(err => {
-                                         this.saving = false;
-                                         let msg = 'Failed to save contact.';
-                                         if (err && err.message) {
-                                             msg = err.message;
-                                         } else if (err && err.errors) {
-                                             msg = Object.values(err.errors).flat().join('\n');
-                                         }
-                                         alert(msg);
-                                     });
-                                 }
-                            }" class="group transition-all duration-200 border-y" :class="[
-                                editing ? 'bg-[#fafafa]' : (selectedIds.includes({{ $email->id }}) ? 'selected bg-[#f6f1ec]' : ({{ $isMaster ? 'true' : 'false' }} ? 'bg-white' : 'bg-slate-100')),
-                                editing ? 'hover:bg-[#fafafa]' : (selectedIds.includes({{ $email->id }}) ? 'hover:bg-[#f6f1ec]' : ({{ $isMaster ? 'true' : 'false' }} ? 'hover:bg-slate-50/50' : 'hover:bg-slate-150')),
-                                {{ $isLastSub ? 'true' : 'false' }} ? 'border-gray-200' : 'border-dashed border-gray-100/80'
-                            ]">
+                                    }" class="group transition-all duration-200 border-y" :class="[
+                                        editing ? 'bg-[#fafafa]' : (selectedIds.includes({{ $email->id }}) ? 'selected bg-[#f6f1ec]' : ({{ $isMaster ? 'true' : 'false' }} ? 'bg-white' : 'bg-slate-100')),
+                                        editing ? 'hover:bg-[#fafafa]' : (selectedIds.includes({{ $email->id }}) ? 'hover:bg-[#f6f1ec]' : ({{ $isMaster ? 'true' : 'false' }} ? 'hover:bg-slate-50/50' : 'hover:bg-slate-150')),
+                                        {{ $isLastSub ? 'true' : 'false' }} ? 'border-gray-200' : 'border-dashed border-gray-100/80'
+                                    ]">
 
             {{-- Checkbox Column --}}
             <td
@@ -198,100 +211,57 @@
 
             {{-- Segment Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
-                <div>
-                    <div class="flex flex-col items-center gap-1">
-                        <template x-if="!row.auto_segments || row.auto_segments.length === 0">
+                <template x-if="!editing">
+                    <div class="flex items-center justify-center">
+                        <template x-if="row.segment_name">
+                            <span
+                                class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50"
+                                x-text="row.segment_name"></span>
+                        </template>
+                        <template x-if="!row.segment_name">
                             <span class="text-[10px] font-bold text-surface-400 uppercase tracking-widest">—</span>
                         </template>
-
-                        <!-- Dynamic tooltip for auto segments -->
-                        <template x-if="row.auto_segments && row.auto_segments.length > 0">
-                            <div x-data="{ tooltipOpen: false, mouseX: 0, mouseY: 0 }" @mouseenter="tooltipOpen = true"
-                                @mouseleave="tooltipOpen = false" @mousemove="mouseX = $event.clientX; mouseY = $event.clientY">
-                                <div class="flex items-center gap-1 justify-center cursor-help">
-                                    <!-- Show the first auto segment -->
-                                    <span
-                                        class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50"
-                                        x-text="row.auto_segments[0].replace('Auto: ', '')"></span>
-
-                                    <!-- If there are more, show count badge -->
-                                    <template x-if="row.auto_segments.length > 1">
-                                        <span
-                                            class="inline-flex px-1 py-0.5 rounded-sm bg-slate-100 text-slate-600 text-[8px] font-bold border border-slate-200"
-                                            x-text="`+${row.auto_segments.length - 1}`"></span>
-                                    </template>
-                                </div>
-
-                                <!-- Tooltip Content -->
-                                <template x-teleport="body">
-                                    <div x-show="tooltipOpen" x-transition:enter="transition ease-out duration-100"
-                                        x-transition:enter-start="opacity-0 translate-y-1"
-                                        x-transition:enter-end="opacity-100 translate-y-0"
-                                        x-transition:leave="transition ease-in duration-75"
-                                        x-transition:leave-start="opacity-100 translate-y-0"
-                                        x-transition:leave-end="opacity-0 translate-y-1"
-                                        class="fixed z-[99999] pointer-events-none"
-                                        :style="`top: ${mouseY + 15}px; left: ${mouseX}px; transform: translateX(-50%);`">
-
-                                        <div
-                                            class="bg-slate-900 text-white p-2.5 rounded-sm border border-slate-700 shadow-2xl min-w-[120px] text-left flex flex-col">
-                                            <template x-if="row.auto_segments.some(s => !s.toLowerCase().includes('whatsapp'))">
-                                                <div class="mb-2">
-                                                    <p
-                                                        class="text-[8px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-700/50 pb-1 mb-1.5">
-                                                        Email Segments</p>
-                                                    <div class="flex flex-col gap-1.5">
-                                                        <template
-                                                            x-for="seg in row.auto_segments.filter(s => !s.toLowerCase().includes('whatsapp'))"
-                                                            :key="seg">
-                                                            <div
-                                                                class="flex items-center gap-1.5 text-[9px] font-semibold text-slate-200">
-                                                                <span
-                                                                    class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
-                                                                <span x-text="seg.replace('Auto: ', '')"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </template>
-
-                                            <template x-if="row.auto_segments.some(s => s.toLowerCase().includes('whatsapp'))">
-                                                <div>
-                                                    <p
-                                                        class="text-[8px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-700/50 pb-1 mb-1.5 mt-1">
-                                                        WhatsApp Segments</p>
-                                                    <div class="flex flex-col gap-1.5">
-                                                        <template
-                                                            x-for="seg in row.auto_segments.filter(s => s.toLowerCase().includes('whatsapp'))"
-                                                            :key="seg">
-                                                            <div
-                                                                class="flex items-center gap-1.5 text-[9px] font-semibold text-slate-200">
-                                                                <span
-                                                                    class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                                                                <span x-text="seg.replace('Auto: ', '')"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
                     </div>
-                </div>
+                </template>
+                <template x-if="editing">
+                    <input type="text" x-model="row.segment_name"
+                        class="w-24 px-2 py-1 bg-white border border-gray-100 rounded-sm text-xs font-bold focus:ring-0 focus:outline-none">
+                </template>
             </td>
 
             {{-- Tag Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
                 <template x-if="!editing">
-                    <div class="inline-flex px-2 py-0.5 rounded-sm bg-brand/5 text-brand text-[9px] font-black uppercase tracking-widest border border-brand/10"
-                        x-text="row.tags || '—'"></div>
+                    <div class="flex items-center justify-center">
+                        <template x-if="row.tagsArray.length === 0">
+                            <span class="text-[10px] font-bold text-surface-400 uppercase tracking-widest">—</span>
+                        </template>
+                        <template x-if="row.tagsArray.length > 0">
+                            <div class="segment-tooltip">
+                                <div class="inline-flex items-center gap-1">
+                                    <span
+                                        class="inline-flex px-2 py-0.5 rounded-sm bg-brand/5 text-brand text-[9px] font-black uppercase tracking-widest border border-brand/10"
+                                        x-text="row.tagsArray[0]"></span>
+                                    <template x-if="row.tagsArray.length > 1">
+                                        <span
+                                            class="inline-flex px-1.5 py-0.5 rounded-sm bg-brand/10 text-brand text-[8px] font-black border border-brand/20"
+                                            x-text="'+' + (row.tagsArray.length - 1)"></span>
+                                    </template>
+                                </div>
+                                <template x-if="row.tagsArray.length > 1">
+                                    <div class="tooltip-content flex flex-col gap-1">
+                                        <template x-for="tag in row.tagsArray" :key="tag">
+                                            <span class="text-[9px] uppercase tracking-widest" x-text="tag"></span>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
                 </template>
                 <template x-if="editing">
-                    <input type="text" x-model="row.tags"
-                        class="w-20 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[9px] font-bold uppercase focus:ring-0 focus:outline-none">
+                    <input type="text" x-model="row.tags" placeholder="tag1, tag2"
+                        class="w-24 px-2 py-1 bg-white border border-gray-100 rounded-sm text-[9px] font-bold uppercase focus:ring-0 focus:outline-none">
                 </template>
             </td>
 
@@ -377,14 +347,33 @@
             <td class="px-8 py-4 whitespace-nowrap text-center">
                 <template x-if="!editing">
                     <div class="flex flex-col items-center justify-center gap-1">
-                        <div class="flex items-center justify-center gap-2" :class="{
-                                            'text-emerald-500': row.subscription_status === 'subscribed',
-                                            'text-red-400': row.subscription_status === 'unsubscribed',
-                                            'text-amber-500': row.subscription_status === 'bounced'
-                                        }">
-                            <span class="text-[10px] font-black uppercase tracking-tighter"
-                                x-text="row.subscription_status"></span>
-                        </div>
+                        <template x-if="row.topicNames.length === 0">
+                            <div class="flex items-center justify-center gap-2 text-red-500">
+                                <span class="text-[10px] font-black uppercase tracking-tighter">Unsubscribed</span>
+                            </div>
+                        </template>
+                        <template x-if="row.topicNames.length > 0">
+                            <div class="segment-tooltip">
+                                <div class="inline-flex items-center gap-1">
+                                    <span
+                                        class="inline-flex px-2 py-0.5 rounded-sm bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest border border-emerald-100/50"
+                                        x-text="row.topicNames[0]"></span>
+                                    <template x-if="row.topicNames.length > 1">
+                                        <span
+                                            class="inline-flex px-1 py-0.5 rounded-sm bg-emerald-100 text-emerald-700 text-[8px] font-black border border-emerald-200"
+                                            x-text="'+' + (row.topicNames.length - 1)"></span>
+                                    </template>
+                                </div>
+                                <template x-if="row.topicNames.length > 1">
+                                    <div class="tooltip-content flex flex-col gap-1">
+                                        <template x-for="t in row.topicNames" :key="t">
+                                            <span class="text-[9px] uppercase tracking-widest text-emerald-300"
+                                                x-text="t"></span>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
                         @if($email->subscription_status === 'unsubscribed' && $email->unsubscribe_expires_at)
                             <span
                                 class="text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-100/50 rounded-sm px-1.5 py-0.5 mt-1 block max-w-fit mx-auto"
@@ -395,16 +384,48 @@
                     </div>
                 </template>
                 <template x-if="editing">
-                    <div class="flex flex-col gap-1 items-center justify-center">
-                        <select x-model="row.subscription_status"
-                            class="bg-white border border-gray-100 text-[10px] font-black uppercase rounded-sm focus:ring-0 focus:outline-none p-1">
-                            <option value="subscribed">Subscribed</option>
-                            <option value="unsubscribed">Unsubscribed</option>
-                            <option value="bounced">Bounced</option>
-                        </select>
+                    <div class="flex flex-col gap-1 items-center justify-center relative" x-data="{ openTopicSelect: false }">
+                        <button @click="openTopicSelect = !openTopicSelect" type="button"
+                            class="bg-white border border-gray-100 text-[10px] font-black uppercase rounded-sm focus:ring-0 focus:outline-none px-2 py-1 flex items-center justify-between gap-1 w-[110px] shadow-sm">
+                            <span
+                                x-text="row.subscribed_topics.length > 0 && row.subscription_status !== 'bounced' ? row.subscribed_topics.length + ' Topics' : (row.subscription_status === 'bounced' ? 'Bounced' : 'Unsubscribed')"></span>
+                            <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div x-show="openTopicSelect" @click.away="openTopicSelect = false"
+                            class="absolute z-[100] top-full mt-1 left-1/2 -translate-x-1/2 w-48 bg-white border border-gray-200 rounded-sm shadow-xl text-left p-1"
+                            style="display: none;">
+                            <div class="max-h-40 overflow-y-auto p-1 space-y-0.5">
+                                @if(isset($topics) && $topics->isNotEmpty())
+                                    @foreach($topics as $t)
+                                        <label
+                                            class="flex items-start gap-2 text-[10px] font-bold text-gray-700 cursor-pointer hover:bg-gray-50 p-1.5 rounded-sm transition-colors w-full">
+                                            <input type="checkbox" x-model="row.subscribed_topics" value="{{ (string) $t->id }}"
+                                                @change="row.subscription_status = row.subscribed_topics.length > 0 ? 'subscribed' : 'unsubscribed'"
+                                                class="rounded-sm border-gray-300 text-brand focus:ring-brand w-3 h-3 mt-0.5 cursor-pointer">
+                                            <span class="leading-tight">{{ $t->name }}</span>
+                                        </label>
+                                    @endforeach
+                                @else
+                                    <div class="text-[10px] text-gray-500 font-medium text-center py-2">No topics created.</div>
+                                @endif
+                            </div>
+                            <div class="mt-1 pt-1 border-t border-gray-100 p-1">
+                                <label
+                                    class="flex items-center gap-2 text-[10px] font-bold text-red-600 cursor-pointer hover:bg-red-50 p-1.5 rounded-sm transition-colors w-full">
+                                    <input type="checkbox" :checked="row.subscription_status === 'bounced'"
+                                        @change="row.subscription_status = $event.target.checked ? 'bounced' : (row.subscribed_topics.length > 0 ? 'subscribed' : 'unsubscribed')"
+                                        class="rounded-sm border-red-300 text-red-500 focus:ring-red-500 w-3 h-3 cursor-pointer">
+                                    Mark as Bounced
+                                </label>
+                            </div>
+                        </div>
+
                         <template x-if="row.subscription_status === 'unsubscribed'">
                             <select x-model="row.unsubscribe_duration"
-                                class="bg-white border border-gray-150 text-[9px] font-bold rounded-sm focus:ring-0 focus:outline-none p-1 w-24 cursor-pointer mt-1">
+                                class="bg-white border border-gray-150 text-[9px] font-bold rounded-sm focus:ring-0 focus:outline-none p-1 w-[110px] cursor-pointer mt-1">
                                 <option value="forever">Forever</option>
                                 <option value="1">1 Day</option>
                                 <option value="3">3 Days</option>
@@ -450,20 +471,51 @@
                 </template>
             </td>
 
+            {{-- Email Lead Score Column --}}
+            <td class="px-8 py-4 whitespace-nowrap text-center">
+                @if(!empty($email->email))
+                    <div class="flex flex-col items-center gap-1">
+                        <span class="text-xs font-black text-primary-600">{{ $email->email_lead_score ?? 1 }}/10</span>
+                        <div class="w-16 bg-surface-200/50 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-gradient-to-r from-primary-500 to-indigo-500 h-full rounded-full"
+                                style="width: {{ ($email->email_lead_score ?? 1) * 10 }}%"></div>
+                        </div>
+                    </div>
+                @else
+                    <span class="text-surface-300 text-xs">—</span>
+                @endif
+            </td>
+
+            {{-- WhatsApp Lead Score Column --}}
+            <td class="px-8 py-4 whitespace-nowrap text-center">
+                @if(!empty($email->whatsapp_number))
+                    <div class="flex flex-col items-center gap-1">
+                        <span class="text-xs font-black text-emerald-600">{{ $email->whatsapp_lead_score ?? 1 }}/10</span>
+                        <div class="w-16 bg-surface-200/50 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full"
+                                style="width: {{ ($email->whatsapp_lead_score ?? 1) * 10 }}%"></div>
+                        </div>
+                    </div>
+                @else
+                    <span class="text-surface-300 text-xs">—</span>
+                @endif
+            </td>
+
             {{-- Pipeline / Stage Column --}}
             <td class="px-8 py-4 whitespace-nowrap">
                 @if($email->deals && $email->deals->isNotEmpty())
                     <div class="flex flex-col gap-1.5">
                         @foreach($email->deals as $deal)
                             @if($deal->stage && $deal->stage->pipeline)
-                                <a href="{{ route('admin.pipelines.show', $deal->stage->pipeline) }}#deal-{{ $deal->id }}" 
-                                   class="flex items-center gap-1.5 text-xs font-bold text-surface-700 hover:scale-[1.02] transition-transform active:scale-[0.98]">
-                                    <span class="px-1.5 py-0.5 rounded-sm bg-brand/5 border border-brand/10 text-brand text-[9px] font-black uppercase tracking-wider">
+                                <a href="{{ route('admin.pipelines.show', $deal->stage->pipeline) }}#deal-{{ $deal->id }}"
+                                    class="flex items-center gap-1.5 text-xs font-bold text-surface-700 hover:scale-[1.02] transition-transform active:scale-[0.98]">
+                                    <span
+                                        class="px-1.5 py-0.5 rounded-sm bg-brand/5 border border-brand/10 text-brand text-[9px] font-black uppercase tracking-wider">
                                         {{ $deal->stage->pipeline->name }}
                                     </span>
                                     <span class="text-surface-400">/</span>
-                                    <span class="inline-flex px-1.5 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-wider border" 
-                                          style="background-color: {{ $deal->stage->color }}10; border-color: {{ $deal->stage->color }}30; color: {{ $deal->stage->color }}">
+                                    <span class="inline-flex px-1.5 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-wider border"
+                                        style="background-color: {{ $deal->stage->color }}10; border-color: {{ $deal->stage->color }}30; color: {{ $deal->stage->color }}">
                                         {{ $deal->stage->name }}
                                     </span>
                                 </a>
@@ -494,6 +546,11 @@
                 @endif
             </td>
 
+            {{-- Added By Column --}}
+            <td class="px-8 py-4 whitespace-nowrap text-[11px] font-semibold text-surface-500 text-center">
+                <span x-text="row.added_by"></span>
+            </td>
+
             {{-- Actions Column --}}
             <td class="px-8 py-4 text-right">
                 <div class="flex justify-end gap-1">
@@ -510,6 +567,14 @@
                             <!-- Dropdown Menu -->
                             <div x-show="open" x-transition x-cloak style="display: none;"
                                 class="absolute right-0 top-full mt-1 w-48 bg-white rounded-sm shadow-lg border border-gray-100 py-1 z-50 text-left">
+
+                                <button @click="$dispatch('open-profile', row.id); open = false"
+                                    class="w-full flex items-center px-4 py-2 text-[10px] font-black uppercase tracking-widest text-surface-600 hover:bg-surface-50 hover:text-brand transition-colors">
+                                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    View Profile
+                                </button>
 
                                 @if($emailList->canPerformAction('edit_contact'))
                                     <button @click="editing = true; open = false"

@@ -11,7 +11,7 @@
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
                             <p class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1.5">Dashboard Overview</p>
-                            <h1 class="text-3xl md:text-4xl font-black mb-2 text-surface-900 tracking-tight" style="font-family:'Outfit',sans-serif;">Welcome Back, <span class="text-brand">{{ explode(' ', Auth::user()->name)[0] }}</span> 👋</h1>
+                            <h1 class="text-3xl md:text-4xl font-black mb-2 text-surface-900 tracking-tight" style="font-family:'Outfit',sans-serif;">Welcome Back, <span class="text-brand">{{ explode(' ', app()->has('team_user') ? app('team_user')->name : auth()->user()->name)[0] }}</span> 👋</h1>
                             <p class="text-xs text-surface-600 font-medium max-w-xl leading-relaxed">Monitor your real-time performance, manage your audience, and orchestrate campaigns from your intelligent command center.</p>
                         </div>
 

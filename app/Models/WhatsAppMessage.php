@@ -38,4 +38,13 @@ class WhatsAppMessage extends Model
     {
         return $this->belongsTo(Email::class, 'contact_id');
     }
+
+    protected static function booted()
+    {
+        static::created(function ($message) {
+            if ($message->contact_id) {
+                \App\Jobs\CalculateLeadScoreJob::dispatch($message->contact_id);
+            }
+        });
+    }
 }
