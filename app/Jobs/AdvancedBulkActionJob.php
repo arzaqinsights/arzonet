@@ -39,24 +39,65 @@ class AdvancedBulkActionJob implements ShouldQueue
     public function handle()
     {
         $emailList = EmailList::find($this->emailListId);
-        if (!$emailList) return;
+        if (!$emailList)
+            return;
 
         // Build the base query
         if ($this->isGlobal && $this->filters) {
             $query = clone $emailList->emails();
-            
+
             // Re-apply filters manually since we don't have access to the controller
             $filters = $this->filters;
+            // Normalize filter values coming from frontend
+            foreach ($filters as $key => $value) {
+
+                if (is_array($value)) {
+
+                    // Empty array => null
+                    if (count($value) === 0) {
+                        $filters[$key] = null;
+                        continue;
+                    }
+
+                    // Single value array => first value
+                    if (count($value) === 1) {
+                        $filters[$key] = reset($value);
+                    }
+                }
+            }
 
             if (isset($filters['status']) && $filters['status'] !== 'all')
                 $query->where('status', $filters['status']);
-            if (isset($filters['subscription']) && $filters['subscription'] !== 'all')
+            if (!empty($filters['subscription']) && $filters['subscription'] !== 'all')
                 $query->where('subscription_status', $filters['subscription']);
-            if (isset($filters['segment']) && $filters['segment'] !== 'all')
+            if (!empty($filters['segment']) && $filters['segment'] !== 'all')
                 $query->where('segment_name', $filters['segment']);
-            if (isset($filters['tag']) && $filters['tag'] !== 'all')
-                $query->where('tags', 'like', '%' . $filters['tag'] . '%');
-            if (isset($filters['source']) && $filters['source'] !== 'all')
+            if (!empty($filters['tag']) && $filters['tag'] !== 'all') {
+
+                if (is_array($filters['tag'])) {
+
+                    $query->where(function ($q) use ($filters) {
+
+                        foreach ($filters['tag'] as $tag) {
+
+                            if (is_array($tag)) {
+                                $tag = $tag['value'] ?? $tag['label'] ?? null;
+                            }
+
+                            if (!$tag) {
+                                continue;
+                            }
+
+                            $q->orWhere('tags', 'like', '%' . $tag . '%');
+                        }
+                    });
+
+                } else {
+
+                    $query->where('tags', 'like', '%' . $filters['tag'] . '%');
+                }
+            }
+            if (!empty($filters['source']) && $filters['source'] !== 'all')
                 $query->where('signup_source', $filters['source']);
             if (isset($filters['archived'])) {
                 if ($filters['archived'] === 'yes')
@@ -79,8 +120,9 @@ class AdvancedBulkActionJob implements ShouldQueue
             // Dynamic Advanced Rules
             if (isset($filters['advanced_rules']) && is_array($filters['advanced_rules'])) {
                 foreach ($filters['advanced_rules'] as $rule) {
-                    if (empty($rule['field']) || empty($rule['operator'])) continue;
-                    
+                    if (empty($rule['field']) || empty($rule['operator']))
+                        continue;
+
                     $field = $rule['field'];
                     $operator = $rule['operator'];
                     $value = $rule['value'] ?? '';
@@ -92,12 +134,16 @@ class AdvancedBulkActionJob implements ShouldQueue
 
                         switch ($operator) {
                             case 'equals':
-                                if ($isCustom) $q->whereRaw("$dbField = ?", [$dbValue]);
-                                else $q->where($field, 'LIKE', $value);
+                                if ($isCustom)
+                                    $q->whereRaw("$dbField = ?", [$dbValue]);
+                                else
+                                    $q->where($field, 'LIKE', $value);
                                 break;
                             case 'not_equals':
-                                if ($isCustom) $q->whereRaw("$dbField != ? OR JSON_EXTRACT(meta, '$.{$field}') IS NULL", [$dbValue]);
-                                else $q->where($field, 'NOT LIKE', $value)->orWhereNull($field);
+                                if ($isCustom)
+                                    $q->whereRaw("$dbField != ? OR JSON_EXTRACT(meta, '$.{$field}') IS NULL", [$dbValue]);
+                                else
+                                    $q->where($field, 'NOT LIKE', $value)->orWhereNull($field);
                                 break;
                             case 'contains':
                                 $q->whereRaw("$dbField LIKE ?", ["%{$dbValue}%"]);
@@ -112,20 +158,28 @@ class AdvancedBulkActionJob implements ShouldQueue
                                 $q->whereRaw("$dbField LIKE ?", ["%{$dbValue}"]);
                                 break;
                             case 'is_empty':
-                                if ($isCustom) $q->whereRaw("JSON_EXTRACT(meta, '$.{$field}') IS NULL OR $dbField = ''");
-                                else $q->whereNull($field)->orWhere($field, '');
+                                if ($isCustom)
+                                    $q->whereRaw("JSON_EXTRACT(meta, '$.{$field}') IS NULL OR $dbField = ''");
+                                else
+                                    $q->whereNull($field)->orWhere($field, '');
                                 break;
                             case 'is_not_empty':
-                                if ($isCustom) $q->whereRaw("JSON_EXTRACT(meta, '$.{$field}') IS NOT NULL AND $dbField != ''");
-                                else $q->whereNotNull($field)->where($field, '!=', '');
+                                if ($isCustom)
+                                    $q->whereRaw("JSON_EXTRACT(meta, '$.{$field}') IS NOT NULL AND $dbField != ''");
+                                else
+                                    $q->whereNotNull($field)->where($field, '!=', '');
                                 break;
                             case 'greater_than':
-                                if ($isCustom) $q->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}')) AS DECIMAL) > ?", [(float)$value]);
-                                else $q->where($field, '>', $value);
+                                if ($isCustom)
+                                    $q->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}')) AS DECIMAL) > ?", [(float) $value]);
+                                else
+                                    $q->where($field, '>', $value);
                                 break;
                             case 'less_than':
-                                if ($isCustom) $q->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}')) AS DECIMAL) < ?", [(float)$value]);
-                                else $q->where($field, '<', $value);
+                                if ($isCustom)
+                                    $q->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.{$field}')) AS DECIMAL) < ?", [(float) $value]);
+                                else
+                                    $q->where($field, '<', $value);
                                 break;
                         }
                     });
@@ -160,7 +214,8 @@ class AdvancedBulkActionJob implements ShouldQueue
 
                     case 'manage_subscriptions':
                         $newTopics = $this->payload['topics'] ?? [];
-                        if (!is_array($newTopics)) $newTopics = [];
+                        if (!is_array($newTopics))
+                            $newTopics = [];
 
                         if (empty($newTopics)) {
                             $email->update([
@@ -199,7 +254,7 @@ class AdvancedBulkActionJob implements ShouldQueue
                     case 'transfer':
                         if (!empty($this->payload['target_list_id'])) {
                             $targetListId = $this->payload['target_list_id'];
-                            
+
                             // Fetch target list's topics or seed defaults if none exist
                             $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetListId)
                                 ->pluck('id')
@@ -247,7 +302,7 @@ class AdvancedBulkActionJob implements ShouldQueue
                                 if ($firstStep) {
                                     $delay = $firstStep->delay_days;
                                     $scheduledAt = now()->addDays($delay);
-                                    
+
                                     $existing = \App\Models\SequenceEnrollment::where('sequence_id', $sequence->id)
                                         ->where('email_id', $email->id)
                                         ->first();
