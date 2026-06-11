@@ -34,6 +34,30 @@ class Deal extends Model
         ];
     }
 
+    protected static function booted()
+    {
+        static::created(function ($deal) {
+            if ($deal->email_id) {
+                \App\Jobs\CalculateLeadScoreJob::dispatch($deal->email_id);
+            }
+        });
+
+        static::updated(function ($deal) {
+            if ($deal->email_id) {
+                \App\Jobs\CalculateLeadScoreJob::dispatch($deal->email_id);
+            }
+            if ($deal->isDirty('email_id') && $deal->getOriginal('email_id')) {
+                \App\Jobs\CalculateLeadScoreJob::dispatch($deal->getOriginal('email_id'));
+            }
+        });
+
+        static::deleted(function ($deal) {
+            if ($deal->email_id) {
+                \App\Jobs\CalculateLeadScoreJob::dispatch($deal->email_id);
+            }
+        });
+    }
+
     public function stage(): BelongsTo
     {
         return $this->belongsTo(PipelineStage::class, 'pipeline_stage_id');

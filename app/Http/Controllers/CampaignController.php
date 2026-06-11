@@ -28,7 +28,7 @@ class CampaignController extends Controller
 
         if (auth()->check() && !auth()->user()->isAdmin()) {
             $query->whereHas('sender', function ($q) {
-                $q->where('user_id', auth()->id());
+                $q->where('user_id', auth()->user()->getOwnerId());
             });
         }
 

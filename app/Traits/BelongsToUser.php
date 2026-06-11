@@ -13,13 +13,15 @@ trait BelongsToUser
     protected static function bootBelongsToUser()
     {
         static::creating(function ($model) {
-            if (Auth::check() && !$model->user_id) {
+            if (Auth::check()) {
                 $user = Auth::user();
                 $userId = $user->id;
                 if ($user->role === 'team' && $user->parent_id) {
                     $userId = $user->parent_id;
                 }
-                $model->user_id = $userId;
+                if (!$model->user_id || $model->user_id == $user->id) {
+                    $model->user_id = $userId;
+                }
             }
         });
 

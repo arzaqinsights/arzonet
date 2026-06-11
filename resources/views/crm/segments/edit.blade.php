@@ -74,11 +74,16 @@
                                 <optgroup label="Activity Metrics">
                                     <option value="last_engaged_at">Last Engaged (Opens/Clicks)</option>
                                     <option value="last_active_at">Last Active (Clicks)</option>
+                                    <option value="last_sent_at">Last Email Sent Time</option>
+                                    <option value="email_lead_score">Email Lead Score</option>
+                                    <option value="whatsapp_lead_score">WhatsApp Lead Score</option>
+                                    <option value="last_campaign_status">Last Campaign Status</option>
+                                    <option value="last_bounce_type">Last Bounce Type</option>
                                 </optgroup>
                                 @if($customFields->isNotEmpty())
                                     <optgroup label="Custom Attributes">
                                         @foreach($customFields as $cf)
-                                            <option value="{{ $cf->name }}">{{ $cf->label }}</option>
+                                            <option value="{{ $cf->key }}">{{ $cf->name }}</option>
                                         @endforeach
                                     </optgroup>
                                 @endif
@@ -156,7 +161,7 @@ function segmentBuilder() {
         },
 
         getOperators(field) {
-            const dateFields = ['last_engaged_at', 'last_active_at'];
+            const dateFields = ['last_engaged_at', 'last_active_at', 'last_sent_at'];
             if (dateFields.includes(field)) {
                 return [
                     { value: 'recent_days', label: 'In the last X days' }

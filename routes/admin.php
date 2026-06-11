@@ -320,4 +320,58 @@ Route::name('admin.')->group(function () {
         Route::get('/settings', [\App\Http\Controllers\SuperAdminController::class, 'settings'])->name('settings');
         Route::post('/settings', [\App\Http\Controllers\SuperAdminController::class, 'updateSettings'])->name('settings.update');
     });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Tags Management
+    // ──────────────────────────────────────────────────────
+    Route::prefix('tags')->name('tags.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\TagController::class, 'index'])->name('index')->middleware('permission:crm.view');
+        Route::post('/rename', [\App\Http\Controllers\TagController::class, 'rename'])->name('rename')->middleware('permission:crm.edit');
+        Route::post('/merge', [\App\Http\Controllers\TagController::class, 'merge'])->name('merge')->middleware('permission:crm.edit');
+        Route::post('/delete', [\App\Http\Controllers\TagController::class, 'delete'])->name('delete')->middleware('permission:crm.edit');
+    });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Signup Forms Builder
+    // ──────────────────────────────────────────────────────
+    Route::prefix('signup-forms')->name('signup-forms.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SignupFormController::class, 'index'])->name('index')->middleware('permission:crm.view');
+        Route::get('/create', [\App\Http\Controllers\SignupFormController::class, 'create'])->name('create')->middleware('permission:crm.edit');
+        Route::post('/', [\App\Http\Controllers\SignupFormController::class, 'store'])->name('store')->middleware('permission:crm.edit');
+        Route::get('/{signupForm}/edit', [\App\Http\Controllers\SignupFormController::class, 'edit'])->name('edit')->middleware('permission:crm.edit');
+        Route::put('/{signupForm}', [\App\Http\Controllers\SignupFormController::class, 'update'])->name('update')->middleware('permission:crm.edit');
+        Route::delete('/{signupForm}', [\App\Http\Controllers\SignupFormController::class, 'destroy'])->name('destroy')->middleware('permission:crm.edit');
+    });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Audience Insights
+    // ──────────────────────────────────────────────────────
+    Route::get('/insights', [\App\Http\Controllers\AudienceInsightsController::class, 'index'])->name('insights.index')->middleware('permission:crm.view');
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Sales Email Sequences (Drip Campaigns)
+    // ──────────────────────────────────────────────────────
+    Route::prefix('sequences')->name('sequences.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SequenceController::class, 'index'])->name('index')->middleware('permission:campaigns.view');
+        Route::get('/create', [\App\Http\Controllers\SequenceController::class, 'create'])->name('create')->middleware('permission:campaigns.manage');
+        Route::post('/', [\App\Http\Controllers\SequenceController::class, 'store'])->name('store')->middleware('permission:campaigns.manage');
+        Route::get('/{sequence}', [\App\Http\Controllers\SequenceController::class, 'show'])->name('show')->middleware('permission:campaigns.view');
+        Route::get('/{sequence}/edit', [\App\Http\Controllers\SequenceController::class, 'edit'])->name('edit')->middleware('permission:campaigns.manage');
+        Route::put('/{sequence}', [\App\Http\Controllers\SequenceController::class, 'update'])->name('update')->middleware('permission:campaigns.manage');
+        Route::delete('/{sequence}', [\App\Http\Controllers\SequenceController::class, 'destroy'])->name('destroy')->middleware('permission:campaigns.manage');
+        
+        // Sequence Steps
+        Route::post('/{sequence}/steps', [\App\Http\Controllers\SequenceController::class, 'storeStep'])->name('steps.store')->middleware('permission:campaigns.manage');
+        Route::put('/steps/{step}', [\App\Http\Controllers\SequenceController::class, 'updateStep'])->name('steps.update')->middleware('permission:campaigns.manage');
+        Route::delete('/steps/{step}', [\App\Http\Controllers\SequenceController::class, 'destroyStep'])->name('steps.destroy')->middleware('permission:campaigns.manage');
+        
+        // Enroll / Unenroll contacts
+        Route::post('/{sequence}/enroll', [\App\Http\Controllers\SequenceController::class, 'enrollContact'])->name('enroll')->middleware('permission:crm.edit');
+        Route::post('/{sequence}/unenroll', [\App\Http\Controllers\SequenceController::class, 'unenrollContact'])->name('unenroll')->middleware('permission:crm.edit');
+    });
+
+    // ──────────────────────────────────────────────────────
+    // CRM: Win/Loss Forecasting & Reports
+    // ──────────────────────────────────────────────────────
+    Route::get('/crm-reports', [\App\Http\Controllers\CRMReportController::class, 'index'])->name('crm-reports.index')->middleware('permission:pipelines.view');
 });

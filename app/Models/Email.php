@@ -84,6 +84,14 @@ class Email extends Model
                 \App\Jobs\CalculateLeadScoreJob::dispatch($email->id);
             }
 
+            if ($email->isDirty(['subscription_status', 'email_status'])) {
+                $unsubscribed = $email->subscription_status === 'unsubscribed';
+                $bouncedOrComplaint = in_array($email->email_status, ['hard_bounce', 'soft_bounce', 'bounce', 'complaint']);
+                if ($unsubscribed || $bouncedOrComplaint) {
+                    $email->sequenceEnrollments()->where('status', 'active')->update(['status' => 'cancelled']);
+                }
+            }
+
             if ($email->isDirty('subscribed_topics')) {
                 $oldTopics = $email->getOriginal('subscribed_topics') ?: [];
                 $newTopics = $email->subscribed_topics ?: [];
@@ -155,6 +163,11 @@ class Email extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(ContactTask::class, 'email_id');
+    }
+
+    public function sequenceEnrollments(): HasMany
+    {
+        return $this->hasMany(SequenceEnrollment::class, 'email_id');
     }
 
     public function scopeValid($query)

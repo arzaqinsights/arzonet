@@ -317,15 +317,15 @@
                     $audienceSub = [];
                     if ($can('crm.view')) {
                         $audienceSub[] = ['title' => 'Contacts', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'];
+                        $audienceSub[] = ['title' => 'Tags', 'route' => 'admin.tags.index', 'active' => 'admin.tags.*'];
                     }
                     if ($can('segments.view')) {
                         $audienceSub[] = ['title' => 'Segments', 'route' => 'admin.segments.index', 'active' => 'admin.segments.*'];
                     }
                     if ($can('crm.view')) {
+                        $audienceSub[] = ['title' => 'Forms', 'route' => 'admin.signup-forms.index', 'active' => 'admin.signup-forms.*'];
                         $audienceSub[] = ['title' => 'Topics', 'route' => 'admin.subscription-topics.index', 'active' => 'admin.subscription-topics.*'];
-                    }
-                    if ($can('custom_fields.manage')) {
-                        $audienceSub[] = ['title' => 'Custom Fields', 'route' => 'admin.custom-fields.index', 'active' => 'admin.custom-fields.*'];
+                        $audienceSub[] = ['title' => 'Insights', 'route' => 'admin.insights.index', 'active' => 'admin.insights.*'];
                     }
                     if ($can('blacklist.manage')) {
                         $audienceSub[] = ['title' => 'Blacklist', 'route' => 'admin.blacklist.index', 'active' => 'admin.blacklist.*'];
@@ -334,11 +334,11 @@
                         $sidebarMenu[] = [
                             'title' => 'Audience',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
-                            'active' => ['admin.email-lists.*', 'admin.contacts.*', 'admin.blacklist.*', 'admin.segments.*', 'admin.custom-fields.*', 'admin.subscription-topics.*'],
+                            'active' => ['admin.email-lists.*', 'admin.contacts.*', 'admin.blacklist.*', 'admin.segments.*', 'admin.custom-fields.*', 'admin.subscription-topics.*', 'admin.tags.*', 'admin.signup-forms.*', 'admin.insights.*'],
                             'submenu' => $audienceSub
                         ];
                     }
-
+ 
                     $campaignsSub = [];
                     if ($can('campaigns.view')) {
                         $campaignsSub[] = ['title' => 'Email', 'route' => 'admin.campaigns.index', 'active' => 'admin.campaigns.*'];
@@ -354,28 +354,34 @@
                             'submenu' => $campaignsSub
                         ];
                     }
-
+ 
                     if ($can('workflows.view')) {
                         $sidebarMenu[] = [
-                            'title' => 'Workflows',
+                            'title' => 'Automations',
                             'route' => 'admin.workflows.index',
                             'active' => 'admin.workflows.*',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />',
                         ];
                     }
-
+ 
                     $crmSub = [];
                     if ($can('pipelines.view')) {
                         $crmSub[] = ['title' => 'Deals Pipeline', 'route' => 'admin.pipelines.index', 'active' => 'admin.pipelines.*'];
                     }
+                    if ($can('campaigns.view')) {
+                        $crmSub[] = ['title' => 'Sequences', 'route' => 'admin.sequences.index', 'active' => 'admin.sequences.*'];
+                    }
                     if ($can('tasks.view')) {
                         $crmSub[] = ['title' => 'Tasks & Calendar', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*'];
+                    }
+                    if ($can('pipelines.view')) {
+                        $crmSub[] = ['title' => 'Reports & Forecasting', 'route' => 'admin.crm-reports.index', 'active' => 'admin.crm-reports.*'];
                     }
                     if (!empty($crmSub)) {
                         $sidebarMenu[] = [
                             'title' => 'CRM & Sales',
                             'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
-                            'active' => ['admin.pipelines.*', 'admin.tasks.*'],
+                            'active' => ['admin.pipelines.*', 'admin.tasks.*', 'admin.sequences.*', 'admin.crm-reports.*'],
                             'submenu' => $crmSub
                         ];
                     }

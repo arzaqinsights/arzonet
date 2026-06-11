@@ -12,9 +12,14 @@ use Illuminate\Support\Facades\DB;
 
 class PipelineController extends Controller
 {
+    private function getActiveListId()
+    {
+        return session('last_opened_list_id') ?? \App\Models\EmailList::orderBy('id', 'asc')->first()->id ?? 1;
+    }
+
     public function index()
     {
-        $activeWorkspaceId = session('last_opened_list_id');
+        $activeWorkspaceId = $this->getActiveListId();
         $query = Pipeline::with(['stages', 'creator'])->withCount([
             'deals',
             'deals as open_deals_count' => function ($q) { $q->where('status', 'open'); },
@@ -22,12 +27,7 @@ class PipelineController extends Controller
             'deals as lost_deals_count' => function ($q) { $q->where('status', 'lost'); }
         ])->withSum('deals', 'value');
 
-        if ($activeWorkspaceId) {
-            $query->where(function ($q) use ($activeWorkspaceId) {
-                $q->where('email_list_id', $activeWorkspaceId)
-                  ->orWhereNull('email_list_id');
-            });
-        }
+        $query->where('email_list_id', $activeWorkspaceId);
 
         if (app()->has('team_user')) {
             $teamUserId = app('team_user')->id;
@@ -64,7 +64,7 @@ class PipelineController extends Controller
 
     public function store(Request $request)
     {
-        $activeWorkspaceId = session('last_opened_list_id');
+        $activeWorkspaceId = $this->getActiveListId();
         $request->validate([
             'name' => 'required|string|max:255',
             'is_public' => 'nullable',
@@ -94,7 +94,7 @@ class PipelineController extends Controller
 
     public function show(Pipeline $pipeline)
     {
-        $activeWorkspaceId = session('last_opened_list_id');
+        $activeWorkspaceId = $pipeline->email_list_id ?? $this->getActiveListId();
         if (app()->has('team_user')) {
             $teamUserId = app('team_user')->id;
             if (!$pipeline->is_public && $pipeline->created_by_id !== $teamUserId) {

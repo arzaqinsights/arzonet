@@ -48,7 +48,8 @@ class Segment extends Model
                 'subscription_status', 'whatsapp_subscription_status',
                 'is_role_based', 'is_disposable', 'is_catch_all', 'has_typo',
                 'bounce_count', 'complaint_count', 'email_score',
-                'last_engaged_at', 'last_active_at', 'whatsapp_number'
+                'last_engaged_at', 'last_active_at', 'whatsapp_number',
+                'email_lead_score', 'whatsapp_lead_score', 'last_campaign_status', 'last_bounce_type'
             ];
 
             if (in_array($field, $standardFields)) {
@@ -78,6 +79,16 @@ class Segment extends Model
                     'equals', 'contains' => $query->whereJsonContains('subscribed_topics', (string)$value),
                     'not_equals'         => $query->whereJsonDoesntContain('subscribed_topics', (string)$value),
                     default              => null,
+                };
+            } elseif ($field === 'last_sent_at') {
+                match ($operator) {
+                    'recent_days' => $query->whereExists(function ($q) use ($value) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->where('email_logs.sent_at', '>=', now()->subDays((int)$value));
+                    }),
+                    default => null,
                 };
             } else {
                 // Custom field — stored in meta JSON
@@ -121,7 +132,8 @@ class Segment extends Model
                 'subscription_status', 'whatsapp_subscription_status',
                 'is_role_based', 'is_disposable', 'is_catch_all', 'has_typo',
                 'bounce_count', 'complaint_count', 'email_score',
-                'last_engaged_at', 'last_active_at', 'whatsapp_number'
+                'last_engaged_at', 'last_active_at', 'whatsapp_number',
+                'email_lead_score', 'whatsapp_lead_score', 'last_campaign_status', 'last_bounce_type'
             ];
 
             if (in_array($field, $standardFields)) {
@@ -148,6 +160,9 @@ class Segment extends Model
                     if ($hasTopic) return false;
                 }
                 continue;
+            } elseif ($field === 'last_sent_at') {
+                $lastLog = $email->logs()->latest('sent_at')->first();
+                $contactValue = $lastLog ? $lastLog->sent_at : null;
             } else {
                 $meta = $email->meta ?? [];
                 $contactValue = $meta[$field] ?? null;

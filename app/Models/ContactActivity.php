@@ -22,6 +22,16 @@ class ContactActivity extends Model
         'meta' => 'array',
     ];
 
+    protected static function booted()
+    {
+        static::created(function ($activity) {
+            if ($activity->email_id) {
+                \App\Jobs\CalculateLeadScoreJob::dispatch($activity->email_id);
+                \App\Jobs\UpdateContactSegmentsJob::dispatch($activity->email_id);
+            }
+        });
+    }
+
     public function email(): BelongsTo
     {
         return $this->belongsTo(Email::class);

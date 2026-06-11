@@ -40,6 +40,7 @@
                     <button @click="profileActiveTab = 'activity'" :class="{'border-brand text-brand': profileActiveTab === 'activity', 'border-transparent text-surface-400 hover:text-surface-700': profileActiveTab !== 'activity'}" class="pb-3 text-[11px] font-black uppercase tracking-widest border-b-2 transition-colors">Activity</button>
                     <button @click="profileActiveTab = 'notes'" :class="{'border-brand text-brand': profileActiveTab === 'notes', 'border-transparent text-surface-400 hover:text-surface-700': profileActiveTab !== 'notes'}" class="pb-3 text-[11px] font-black uppercase tracking-widest border-b-2 transition-colors">Notes</button>
                     <button @click="profileActiveTab = 'tasks'" :class="{'border-brand text-brand': profileActiveTab === 'tasks', 'border-transparent text-surface-400 hover:text-surface-700': profileActiveTab !== 'tasks'}" class="pb-3 text-[11px] font-black uppercase tracking-widest border-b-2 transition-colors">Tasks</button>
+                    <button @click="profileActiveTab = 'sequences'" :class="{'border-brand text-brand': profileActiveTab === 'sequences', 'border-transparent text-surface-400 hover:text-surface-700': profileActiveTab !== 'sequences'}" class="pb-3 text-[11px] font-black uppercase tracking-widest border-b-2 transition-colors">Sequences</button>
                 </div>
 
                 <!-- Tab Content -->
@@ -177,6 +178,61 @@
                                             </p>
                                         </template>
                                     </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- SEQUENCES TAB -->
+                    <div x-show="profileActiveTab === 'sequences'" class="space-y-4">
+                        <!-- Enroll Form -->
+                        <div class="bg-white border border-surface-200 rounded-sm p-4 shadow-sm space-y-3">
+                            <h4 class="text-[10px] font-black text-surface-500 uppercase tracking-widest">Enroll in Sequence</h4>
+                            <div class="flex gap-2">
+                                <select x-model="enrollSequenceId" class="flex-1 text-xs font-bold text-surface-900 border-surface-200 rounded-sm focus:border-brand focus:ring-1 focus:ring-brand">
+                                    <option value="">-- Select Sequence --</option>
+                                    @foreach($sequencesList as $seq)
+                                        <option value="{{ $seq->id }}">{{ $seq->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button @click="enrollInSequence()" :disabled="enrollingInSeq || !enrollSequenceId" class="bg-surface-900 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-sm disabled:opacity-50 transition-colors">
+                                    <span x-show="!enrollingInSeq">Enroll</span>
+                                    <span x-show="enrollingInSeq">Enrolling...</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Enrollment List -->
+                        <div class="space-y-3 mt-4">
+                            <h4 class="text-[10px] font-black text-surface-500 uppercase tracking-widest">Active Enrollments</h4>
+                            <template x-if="profileContact && (!profileContact.sequence_enrollments || profileContact.sequence_enrollments.length === 0)">
+                                <div class="text-center py-8 text-surface-400 text-xs font-bold">Not enrolled in any sequences.</div>
+                            </template>
+                            <template x-if="profileContact && profileContact.sequence_enrollments && profileContact.sequence_enrollments.length > 0">
+                                <div class="space-y-3">
+                                    <template x-for="enrollment in profileContact.sequence_enrollments" :key="enrollment.id">
+                                        <div class="bg-white border border-surface-100 rounded-sm p-3 shadow-sm flex flex-col gap-2">
+                                            <div class="flex justify-between items-center">
+                                                <p class="text-xs font-bold text-surface-900" x-text="enrollment.sequence ? enrollment.sequence.name : 'Unknown Sequence'"></p>
+                                                <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-sm"
+                                                    :class="{
+                                                        'bg-emerald-50 text-emerald-700 border border-emerald-200': enrollment.status === 'active',
+                                                        'bg-amber-50 text-amber-700 border border-amber-200': enrollment.status === 'paused',
+                                                        'bg-gray-50 text-gray-700 border border-gray-200': enrollment.status === 'completed' || enrollment.status === 'cancelled'
+                                                    }"
+                                                    x-text="enrollment.status"></span>
+                                            </div>
+                                            <div class="flex justify-between items-center text-[10px] text-surface-500 font-semibold">
+                                                <span x-text="'Current Step: ' + enrollment.current_step_number"></span>
+                                                <span x-show="enrollment.scheduled_at" x-text="'Next Send: ' + new Date(enrollment.scheduled_at).toLocaleDateString()"></span>
+                                            </div>
+                                            <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-surface-50" x-show="enrollment.status === 'active' || enrollment.status === 'paused'">
+                                                <button @click="unenrollFromSequence(enrollment.sequence_id)" class="text-red-600 hover:text-red-700 text-[10px] font-black uppercase tracking-widest">
+                                                    Cancel Sequence
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>

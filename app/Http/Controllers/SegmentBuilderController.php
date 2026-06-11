@@ -10,10 +10,41 @@ use Illuminate\Support\Facades\DB;
 
 class SegmentBuilderController extends Controller
 {
+    private function getActiveListId()
+    {
+        return session('last_opened_list_id') ?? \App\Models\EmailList::orderBy('id', 'asc')->first()->id ?? 1;
+    }
+
+    private function getCustomFieldsForActiveList($listId)
+    {
+        $list = \App\Models\EmailList::find($listId);
+        if (!$list) return [];
+        
+        $fields = [];
+        $mapping = $list->column_mapping ?? [];
+        foreach ($mapping as $header => $key) {
+            if (str_starts_with($key, 'custom_')) {
+                // If mapping is header => internal key
+                $fields[] = (object)['name' => $header, 'key' => $key];
+            } else if (str_starts_with($header, 'custom_')) {
+                // If mapping is internal key => header
+                $fields[] = (object)['name' => $key, 'key' => $header];
+            }
+        }
+        
+        // Ensure uniqueness
+        $unique = [];
+        foreach ($fields as $f) {
+            $unique[$f->key] = $f;
+        }
+        return array_values($unique);
+    }
+
     public function index()
     {
-        $segments = Segment::latest()->get()->map(function ($segment) {
-            $segment->contact_count = $this->countMatchingContacts($segment->rules ?? []);
+        $listId = $this->getActiveListId();
+        $segments = Segment::where('email_list_id', $listId)->latest()->get()->map(function ($segment) use ($listId) {
+            $segment->contact_count = $this->countMatchingContacts($segment->rules ?? [], $listId);
             return $segment;
         });
 
@@ -22,7 +53,8 @@ class SegmentBuilderController extends Controller
 
     public function create()
     {
-        $customFields = CustomField::all();
+        $listId = $this->getActiveListId();
+        $customFields = collect($this->getCustomFieldsForActiveList($listId));
         return view('crm.segments.create', compact('customFields'));
     }
 
@@ -33,10 +65,14 @@ class SegmentBuilderController extends Controller
             'rules' => 'required|array|min:1',
         ]);
 
+        $listId = $this->getActiveListId();
+
         Segment::create([
-            'name'        => $request->name,
-            'description' => $request->description,
-            'rules'       => $request->rules,
+            'user_id'       => auth()->id(),
+            'email_list_id' => $listId,
+            'name'          => $request->name,
+            'description'   => $request->description,
+            'rules'         => $request->rules,
         ]);
 
         return redirect()
@@ -46,7 +82,8 @@ class SegmentBuilderController extends Controller
 
     public function edit(Segment $segment)
     {
-        $customFields = CustomField::all();
+        $listId = $segment->email_list_id ?? $this->getActiveListId();
+        $customFields = collect($this->getCustomFieldsForActiveList($listId));
         return view('crm.segments.edit', compact('segment', 'customFields'));
     }
 
@@ -70,7 +107,8 @@ class SegmentBuilderController extends Controller
 
     public function show(Segment $segment)
     {
-        $query = Email::query();
+        $listId = $segment->email_list_id ?? $this->getActiveListId();
+        $query = Email::where('email_list_id', $listId);
         $query = Segment::applyRulesToQuery($query, $segment->rules ?? []);
         $contacts = $query->paginate(50);
 
@@ -83,7 +121,8 @@ class SegmentBuilderController extends Controller
     public function preview(Request $request)
     {
         $rules = $request->input('rules', []);
-        $count = $this->countMatchingContacts($rules);
+        $listId = $this->getActiveListId();
+        $count = $this->countMatchingContacts($rules, $listId);
         return response()->json(['count' => $count]);
     }
 
@@ -95,10 +134,10 @@ class SegmentBuilderController extends Controller
             ->with('success', 'Segment deleted.');
     }
 
-    private function countMatchingContacts(array $rules): int
+    private function countMatchingContacts(array $rules, $listId): int
     {
         if (empty($rules)) return 0;
-        $query = Email::query();
+        $query = Email::where('email_list_id', $listId);
         return Segment::applyRulesToQuery($query, $rules)->count();
     }
 }

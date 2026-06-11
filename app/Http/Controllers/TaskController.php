@@ -10,11 +10,19 @@ class TaskController extends Controller
 {
     public function index()
     {
+        $workspaceId = session('last_opened_list_id');
+
         $tasks = ContactTask::with('contact')
+            ->whereHas('contact', function ($q) use ($workspaceId) {
+                $q->where('email_list_id', $workspaceId);
+            })
             ->orderByRaw("is_completed ASC, FIELD(priority, 'high', 'medium', 'low'), due_date ASC")
             ->get();
 
-        $contacts = Email::select('id', 'name', 'email')->limit(500)->get();
+        $contacts = Email::where('email_list_id', $workspaceId)
+            ->select('id', 'name', 'email')
+            ->limit(500)
+            ->get();
 
         return view('crm.tasks.index', compact('tasks', 'contacts'));
     }
@@ -26,7 +34,7 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date'    => 'nullable|date',
             'priority'    => 'required|in:low,medium,high',
-            'email_id'    => 'nullable|exists:emails,id',
+            'email_id'    => 'required|exists:emails,id',
         ]);
 
         ContactTask::create($request->only([
@@ -45,7 +53,7 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date'    => 'nullable|date',
             'priority'    => 'required|in:low,medium,high',
-            'email_id'    => 'nullable|exists:emails,id',
+            'email_id'    => 'required|exists:emails,id',
         ]);
 
         $task->update($request->only([
@@ -79,7 +87,12 @@ class TaskController extends Controller
      */
     public function calendarEvents()
     {
+        $workspaceId = session('last_opened_list_id');
+
         $tasks = ContactTask::with('contact')
+            ->whereHas('contact', function ($q) use ($workspaceId) {
+                $q->where('email_list_id', $workspaceId);
+            })
             ->whereNotNull('due_date')
             ->get()
             ->map(function ($task) {

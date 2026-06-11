@@ -179,22 +179,98 @@ class AdvancedBulkActionJob implements ShouldQueue
 
                     case 'create_deals':
                         if (!empty($this->payload['pipeline_id']) && !empty($this->payload['stage_id'])) {
+                            $targetUserId = $this->userId;
+                            $userModel = \App\Models\User::find($this->userId);
+                            if ($userModel) {
+                                $targetUserId = $userModel->getOwnerId();
+                            }
                             Deal::create([
                                 'email_id' => $email->id,
-                                'email_list_id' => $emailList->id,
-                                'pipeline_id' => $this->payload['pipeline_id'],
-                                'stage_id' => $this->payload['stage_id'],
+                                'pipeline_stage_id' => $this->payload['stage_id'],
                                 'title' => ($email->name ?: 'Deal for ' . ($email->email ?: $email->whatsapp_number)) . ' Deal',
                                 'value' => 0,
                                 'currency' => 'USD',
-                                'status' => 'open'
+                                'status' => 'open',
+                                'user_id' => $targetUserId,
                             ]);
                         }
                         break;
 
                     case 'transfer':
                         if (!empty($this->payload['target_list_id'])) {
-                            $email->update(['email_list_id' => $this->payload['target_list_id']]);
+                            $targetListId = $this->payload['target_list_id'];
+                            
+                            // Fetch target list's topics or seed defaults if none exist
+                            $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetListId)
+                                ->pluck('id')
+                                ->map('strval')
+                                ->toArray();
+
+                            if (empty($targetTopicIds)) {
+                                $targetList = \App\Models\EmailList::find($targetListId);
+                                if ($targetList) {
+                                    \App\Models\SubscriptionTopic::seedDefaultsFor($targetList->id, $targetList->user_id);
+                                    $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetList->id)
+                                        ->pluck('id')
+                                        ->map('strval')
+                                        ->toArray();
+                                }
+                            }
+
+                            // Fetch all associated emails in the same group sharing original_row_id
+                            $emailsToTransfer = collect([$email]);
+                            if (!empty($email->original_row_id)) {
+                                $subRows = \App\Models\Email::where('email_list_id', $email->email_list_id)
+                                    ->where('original_row_id', $email->original_row_id)
+                                    ->where('id', '!=', $email->id)
+                                    ->get();
+                                $emailsToTransfer = $emailsToTransfer->merge($subRows);
+                            }
+
+                            // Move contact and alternate channels
+                            foreach ($emailsToTransfer as $e) {
+                                $e->update([
+                                    'email_list_id' => $targetListId,
+                                    'subscribed_topics' => $targetTopicIds,
+                                    'meta' => [], // reset custom columns
+                                ]);
+                            }
+                        }
+                        break;
+
+                    case 'enroll_sequence':
+                        if (!empty($this->payload['sequence_id'])) {
+                            $sequenceId = $this->payload['sequence_id'];
+                            $sequence = \App\Models\Sequence::find($sequenceId);
+                            if ($sequence) {
+                                $firstStep = $sequence->steps()->where('step_number', 1)->first();
+                                if ($firstStep) {
+                                    $delay = $firstStep->delay_days;
+                                    $scheduledAt = now()->addDays($delay);
+                                    
+                                    $existing = \App\Models\SequenceEnrollment::where('sequence_id', $sequence->id)
+                                        ->where('email_id', $email->id)
+                                        ->first();
+
+                                    if ($existing) {
+                                        if ($existing->status !== 'active') {
+                                            $existing->update([
+                                                'status' => 'active',
+                                                'current_step_number' => 1,
+                                                'scheduled_at' => $scheduledAt,
+                                            ]);
+                                        }
+                                    } else {
+                                        \App\Models\SequenceEnrollment::create([
+                                            'sequence_id' => $sequence->id,
+                                            'email_id' => $email->id,
+                                            'current_step_number' => 1,
+                                            'status' => 'active',
+                                            'scheduled_at' => $scheduledAt,
+                                        ]);
+                                    }
+                                }
+                            }
                         }
                         break;
 

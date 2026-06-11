@@ -25,7 +25,7 @@ class CustomFieldController extends Controller
         $name = Str::slug($request->label, '_');
 
         // Ensure uniqueness per user
-        $existing = CustomField::withoutGlobalScopes()->where('name', $name)->where('user_id', auth()->id())->exists();
+        $existing = CustomField::withoutGlobalScopes()->where('name', $name)->where('user_id', auth()->user()->getOwnerId())->exists();
         if ($existing) {
             return back()->withErrors(['label' => 'A field with this name already exists.']);
         }

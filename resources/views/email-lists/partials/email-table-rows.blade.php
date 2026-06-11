@@ -121,7 +121,7 @@
                                         },
                                         save() {
                                              this.saving = true;
-                                             fetch(`{{ route('admin.email-lists.update-email', [$emailList, ':id']) }}`.replace(':id', this.row.id), {
+                                             fetch(`{{ route('admin.email-lists.update-email', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, this.row.id), {
                                                  method: 'PUT',
                                                  headers: {
                                                      'Content-Type': 'application/json',

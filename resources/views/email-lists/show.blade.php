@@ -89,11 +89,6 @@
                 <span
                     class="px-1.5 py-0.5 bg-surface-200 text-surface-700 rounded-full text-[10px]">{{ $emailList->activityLogs()->count() }}</span>
             </button>
-            <button @click="activeTab = 'forms'"
-                :class="activeTab === 'forms' ? 'border-brand text-brand' : 'border-transparent text-surface-700 hover:text-surface-600'"
-                class="pb-3 pt-4 px-1 border-b-4 text-xs tracking-widest transition-all focus:outline-none cursor-pointer">
-                Signup Forms
-            </button>
             <button @click="activeTab = 'opt_out'"
                 :class="activeTab === 'opt_out' ? 'border-brand text-brand' : 'border-transparent text-surface-700 hover:text-surface-600'"
                 class="pb-3 pt-4 px-1 border-b-4 text-xs tracking-widest transition-all focus:outline-none cursor-pointer">
@@ -897,84 +892,6 @@
             </div>
         </div>
 
-        {{-- ── SIGNUP FORMS TAB ── --}}
-        <div x-show="activeTab === 'forms'" x-cloak class="space-y-6 animate-slide-up">
-            <div class="glass-card rounded-md">
-                <div class="p-8 space-y-6">
-                    <div>
-                        <h3 class="text-xl font-bold text-surface-900 tracking-tight">Public Signup Forms</h3>
-                        <p class="text-sm text-surface-500 mt-1">Grow your list organically by placing signup forms on your
-                            site or sharing direct signup page links.</p>
-                    </div>
-
-                    {{-- Settings Form --}}
-                    <form action="{{ route('admin.email-lists.update-settings', $emailList) }}" method="POST"
-                        class="space-y-6 pt-4 border-t border-surface-100">
-                        @csrf
-                        <div class="flex items-start gap-3">
-                            <input type="checkbox" name="double_opt_in" id="double_opt_in" value="1" {{ $emailList->double_opt_in ? 'checked' : '' }} onchange="this.form.submit()"
-                                class="mt-1 w-4 h-4 text-brand border-surface-300 rounded focus:ring-brand">
-                            <div>
-                                <label for="double_opt_in" class="text-sm font-bold text-surface-750">Enable Double Opt-In
-                                    Verification</label>
-                                <p class="text-xs text-surface-450 mt-1">If enabled, new contacts will receive a
-                                    confirmation email and will remain in a pending state until verified. Works perfectly
-                                    with visual workflows.</p>
-                            </div>
-                        </div>
-                    </form>
-
-                    {{-- Public Links --}}
-                    <div class="space-y-6 pt-6 border-t border-surface-100"
-                        x-data="{ copiedLink: false, copiedEmbed: false }">
-                        <div class="space-y-2">
-                            <label class="text-xs font-black text-surface-400 uppercase tracking-widest block">Hosted Signup
-                                Page Link</label>
-                            <div class="flex gap-2 max-w-2xl">
-                                <input type="text" readonly
-                                    value="{{ route('public.forms.show', $emailList->signup_form_token) }}"
-                                    id="signup-link-input"
-                                    class="form-input rounded-md !bg-surface-50 border-surface-200 text-xs font-mono py-2.5">
-                                <button type="button" @click="
-                                        navigator.clipboard.writeText(document.getElementById('signup-link-input').value);
-                                        copiedLink = true;
-                                        setTimeout(() => copiedLink = false, 2000);
-                                    "
-                                    class="btn btn-secondary rounded-md px-6 py-2.5 text-xs font-black uppercase tracking-widest shrink-0 border border-surface-200 bg-white">
-                                    <span x-show="!copiedLink">Copy Link</span>
-                                    <span x-show="copiedLink" class="text-emerald-600">Copied!</span>
-                                </button>
-                                <a href="{{ route('public.forms.show', $emailList->signup_form_token) }}" target="_blank"
-                                    class="btn btn-secondary rounded-md px-6 py-2.5 text-xs font-black uppercase tracking-widest shrink-0 border border-surface-200 bg-white hover:bg-surface-50 flex items-center justify-center">
-                                    Preview
-                                </a>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="text-xs font-black text-surface-400 uppercase tracking-widest block">Embed iframe
-                                Widget HTML</label>
-                            <div class="flex gap-2 max-w-2xl">
-                                <input type="text" readonly
-                                    value='<iframe src="{{ route('public.forms.show', $emailList->signup_form_token) }}" width="100%" height="650px" style="border:none;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);"></iframe>'
-                                    id="signup-embed-input"
-                                    class="form-input rounded-md !bg-surface-50 border-surface-200 text-xs font-mono py-2.5">
-                                <button type="button" @click="
-                                        navigator.clipboard.writeText(document.getElementById('signup-embed-input').value);
-                                        copiedEmbed = true;
-                                        setTimeout(() => copiedEmbed = false, 2000);
-                                    "
-                                    class="btn btn-secondary rounded-md px-6 py-2.5 text-xs font-black uppercase tracking-widest shrink-0 border border-surface-200 bg-white">
-                                    <span x-show="!copiedEmbed">Copy Code</span>
-                                    <span x-show="copiedEmbed" class="text-emerald-600">Copied!</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         {{-- ── OPT-OUT ANALYTICS TAB ── --}}
         <div x-show="activeTab === 'opt_out'" x-cloak class="space-y-6 animate-slide-up">
             @php
@@ -1566,6 +1483,7 @@
                                                     <option value="add_task">Add Task</option>
                                                     <option value="create_deals">Send to Pipeline (Create Deals)</option>
                                                     <option value="transfer">Transfer to Another List</option>
+                                                    <option value="enroll_sequence">Enroll in Sales Sequence</option>
                                                 </optgroup>
                                             @endif
                                             @if($emailList->canPerformAction('delete_contact'))
@@ -1780,6 +1698,20 @@
                                                 <option value="">-- Select Target List --</option>
                                                 @foreach($destinationLists as $list)
                                                     <option value="{{ $list->id }}">{{ $list->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <template x-if="bulkActionType === 'enroll_sequence'">
+                                    <div class="bg-gray-50 border border-gray-200 p-4 rounded-sm animate-fade-in space-y-4">
+                                        <div>
+                                            <label class="block text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1.5">Sales Sequence</label>
+                                            <select x-model="bulkPayload.sequence_id" class="w-full px-3 py-2 border border-gray-300 rounded-sm bg-white text-sm font-bold text-gray-900 focus:border-brand focus:ring-0 transition-all">
+                                                <option value="">-- Select Sequence --</option>
+                                                @foreach($sequencesList as $seq)
+                                                    <option value="{{ $seq->id }}">{{ $seq->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -2219,7 +2151,7 @@
                 bulkActionType: '',
                 bulkUpdateColumn: '',
                 bulkUpdateValue: '',
-                bulkPayload: { tags: [], topics: [], pipeline_id: '', stage_id: '', target_list_id: '', note: '', title: '', description: '', due_date: '' },
+                bulkPayload: { tags: [], topics: [], pipeline_id: '', stage_id: '', target_list_id: '', note: '', title: '', description: '', due_date: '', sequence_id: '' },
 
                 showAddChannelModal: false,
                 addChannelType: 'email',
@@ -2247,6 +2179,10 @@
                 newTask: { title: '', description: '', due_date: '' },
                 addingNote: false,
                 addingTask: false,
+
+                // Profile Sequence enrollment state
+                enrollSequenceId: '',
+                enrollingInSeq: false,
 
                 // Merge State
                 showMergeModal: false,
@@ -2351,7 +2287,11 @@
 
                     fetch(`{{ route('admin.email-lists.bulk-action', $emailList) }}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+                        },
                         body: JSON.stringify({
                             ids: this.selectedIds,
                             action: action,
@@ -2377,7 +2317,11 @@
                 fetchEmails() {
                     fetch('{{ route("admin.email-lists.filter", $emailList) }}', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+                        },
                         body: JSON.stringify({
                             status: this.filter, search: this.search, search_field: this.searchField,
                             segment: this.segment, tag: this.tag, source: this.source,
@@ -2706,9 +2650,13 @@
                         return;
                     }
                     this.transferring = true;
-                    fetch(`{{ route('admin.email-lists.transfer-contact', [$emailList, ':id']) }}`.replace(':id', this.transferContact.id), {
+                    fetch(`{{ route('admin.email-lists.transfer-contact', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, this.transferContact.id), {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+                        },
                         body: JSON.stringify({ target_list_id: this.transferContact.target_list_id })
                     })
                         .then(r => r.json())
@@ -2744,9 +2692,13 @@
                         return;
                     }
                     this.sendingToPipeline = true;
-                    fetch(`{{ route('admin.email-lists.send-to-pipeline', [$emailList, ':id']) }}`.replace(':id', this.sendPipelineContact.id), {
+                    fetch(`{{ route('admin.email-lists.send-to-pipeline', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, this.sendPipelineContact.id), {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+                        },
                         body: JSON.stringify(this.sendPipelineContact)
                     })
                         .then(r => r.json())
@@ -2780,10 +2732,11 @@
 
                     if (this.deleteTargetId) {
                         // Single delete
-                        fetch(`{{ route('admin.email-lists.destroy-email', [$emailList, ':id']) }}`.replace(':id', this.deleteTargetId), {
+                        fetch(`{{ route('admin.email-lists.destroy-email', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, this.deleteTargetId), {
                             method: 'DELETE',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Accept': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
                             body: JSON.stringify({ reason: this.permanentDeleteReason })
@@ -2798,7 +2751,11 @@
                         // Bulk delete
                         fetch('{{ route("admin.email-lists.bulk-action", $emailList) }}', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+                            },
                             body: JSON.stringify({
                                 ids: this.selectedIds,
                                 action: 'permanent_delete',
@@ -2828,7 +2785,9 @@
                     this.profileActiveTab = 'details';
                     this.profileContact = null;
                     
-                    fetch(`{{ route('admin.email-lists.contact.profile', [$emailList, ':id']) }}`.replace(':id', id))
+                    fetch(`{{ route('admin.email-lists.contact.profile', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, id), {
+                        headers: { 'Accept': 'application/json' }
+                    })
                         .then(r => r.json())
                         .then(data => {
                             this.profileContact = data;
@@ -2849,9 +2808,13 @@
                 addNote() {
                     if (!this.newNoteContent.trim() || !this.profileContact) return;
                     this.addingNote = true;
-                    fetch(`{{ route('admin.email-lists.contact.note', [$emailList, ':id']) }}`.replace(':id', this.profileContact.id), {
+                    fetch(`{{ route('admin.email-lists.contact.note', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, this.profileContact.id), {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+                        },
                         body: JSON.stringify({ content: this.newNoteContent })
                     }).then(r => r.json()).then(res => {
                         this.addingNote = false;
@@ -2865,9 +2828,13 @@
                 addTask() {
                     if (!this.newTask.title.trim() || !this.profileContact) return;
                     this.addingTask = true;
-                    fetch(`{{ route('admin.email-lists.contact.task', [$emailList, ':id']) }}`.replace(':id', this.profileContact.id), {
+                    fetch(`{{ route('admin.email-lists.contact.task', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, this.profileContact.id), {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+                        },
                         body: JSON.stringify(this.newTask)
                     }).then(r => r.json()).then(res => {
                         this.addingTask = false;
@@ -2875,7 +2842,46 @@
                             this.newTask = { title: '', description: '', due_date: '' };
                             this.profileContact.tasks.unshift(res.task);
                         }
-                    }).catch(() => this.addingTask = false);
+                    }).catch(() => { this.addingTask = false; });
+                },
+
+                enrollInSequence() {
+                    if (!this.enrollSequenceId || !this.profileContact) return;
+                    this.enrollingInSeq = true;
+                    fetch(`{{ route('admin.sequences.enroll', [':seqId']) }}`.replace(':seqId', this.enrollSequenceId), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        body: JSON.stringify({ email_ids: [this.profileContact.id] })
+                    })
+                        .then(r => r.json())
+                        .then(res => {
+                            this.enrollingInSeq = false;
+                            this.enrollSequenceId = '';
+                            if (res.success) {
+                                // Reload profile to reflect new enrollment
+                                this.openProfile(this.profileContact.id);
+                            } else {
+                                alert(res.message || 'Failed to enroll contact.');
+                            }
+                        })
+                        .catch(() => { this.enrollingInSeq = false; });
+                },
+
+                unenrollFromSequence(seqId) {
+                    if (!confirm('Are you sure you want to cancel enrollment for this sequence?')) return;
+                    fetch(`{{ route('admin.sequences.unenroll', [':seqId']) }}`.replace(':seqId', seqId), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                        body: JSON.stringify({ email_id: this.profileContact.id })
+                    })
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.success) {
+                                this.openProfile(this.profileContact.id);
+                            } else {
+                                alert(res.message || 'Failed to cancel enrollment.');
+                            }
+                        });
                 },
 
                 submitMergeDuplicates() {

@@ -419,10 +419,19 @@ class EmailListController extends Controller
         $addedByUserIds = $emailList->emails()->whereNotNull('user_id')->distinct()->pluck('user_id')->toArray();
         $addedByOptions = \App\Models\User::whereIn('id', $addedByUserIds)->pluck('name', 'id')->toArray();
 
-        $pipelines = \App\Models\Pipeline::with('stages')->where('user_id', auth()->id())->get();
-        $destinationLists = \App\Models\EmailList::where('user_id', auth()->id())->where('id', '!=', $emailList->id)->get();
+        $pipelines = \App\Models\Pipeline::with('stages')->get();
+        $destinationListsQuery = \App\Models\EmailList::where('id', '!=', $emailList->id);
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            $destinationListsQuery->where(function($q) use ($teamUserId) {
+                $q->where('is_public', true)
+                  ->orWhere('created_by_id', $teamUserId);
+            });
+        }
+        $destinationLists = $destinationListsQuery->get();
+        $sequencesList = \App\Models\Sequence::where('email_list_id', $emailList->id)->get();
 
-        return view('email-lists.show', compact('emailList', 'stats', 'emails', 'segments', 'tags', 'sources', 'topics', 'addedByOptions', 'pipelines', 'destinationLists'));
+        return view('email-lists.show', compact('emailList', 'stats', 'emails', 'segments', 'tags', 'sources', 'topics', 'addedByOptions', 'pipelines', 'destinationLists', 'sequencesList'));
     }
 
 
@@ -1384,7 +1393,7 @@ class EmailListController extends Controller
     public function bulkAction(Request $request, EmailList $emailList)
     {
         $request->validate([
-            'action' => 'required|in:archive,unarchive,unsubscribe,subscribe,permanent_delete,edit_column,update_column,add_tags,remove_tags,manage_subscriptions,create_deals,transfer,add_note,add_task'
+            'action' => 'required|in:archive,unarchive,unsubscribe,subscribe,permanent_delete,edit_column,update_column,add_tags,remove_tags,manage_subscriptions,create_deals,transfer,add_note,add_task,enroll_sequence'
         ]);
 
         if ($request->global && $request->filters) {
@@ -1405,7 +1414,7 @@ class EmailListController extends Controller
         $advancedActions = [
             'add_tags', 'remove_tags', 'manage_subscriptions', 'create_deals', 
             'transfer', 'add_note', 'add_task', 'unsubscribe', 'subscribe', 
-            'archive', 'unarchive', 'edit_column', 'update_column'
+            'archive', 'unarchive', 'edit_column', 'update_column', 'enroll_sequence'
         ];
 
         if (in_array($request->action, $advancedActions)) {
@@ -1791,10 +1800,10 @@ class EmailListController extends Controller
         if (app()->has('team_user')) {
             $teamUserId = app('team_user')->id;
             if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
-                abort(403, 'Source list is private.');
+                return response()->json(['success' => false, 'message' => 'Source list is private.'], 403);
             }
             if (!$targetList->is_public && $targetList->created_by_id !== $teamUserId) {
-                abort(403, 'Target list is private.');
+                return response()->json(['success' => false, 'message' => 'Target list is private.'], 403);
             }
         }
 
@@ -1808,10 +1817,38 @@ class EmailListController extends Controller
 
         $email = $emailList->emails()->findOrFail($emailId);
 
-        // Move contact
-        $email->update([
-            'email_list_id' => $targetList->id,
-        ]);
+        // Fetch target list's topics or seed defaults if none exist
+        $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetList->id)
+            ->pluck('id')
+            ->map('strval')
+            ->toArray();
+
+        if (empty($targetTopicIds)) {
+            \App\Models\SubscriptionTopic::seedDefaultsFor($targetList->id, $targetList->user_id);
+            $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetList->id)
+                ->pluck('id')
+                ->map('strval')
+                ->toArray();
+        }
+
+        // Fetch all associated emails in the same group sharing original_row_id
+        $emailsToTransfer = collect([$email]);
+        if (!empty($email->original_row_id)) {
+            $subRows = $emailList->emails()
+                ->where('original_row_id', $email->original_row_id)
+                ->where('id', '!=', $email->id)
+                ->get();
+            $emailsToTransfer = $emailsToTransfer->merge($subRows);
+        }
+
+        // Move contact and alternate channels
+        foreach ($emailsToTransfer as $e) {
+            $e->update([
+                'email_list_id' => $targetList->id,
+                'subscribed_topics' => $targetTopicIds,
+                'meta' => [], // reset custom columns
+            ]);
+        }
 
         // Recalculate stats
         $emailList->recalculateStats();
@@ -1835,10 +1872,10 @@ class EmailListController extends Controller
         if (app()->has('team_user')) {
             $teamUserId = app('team_user')->id;
             if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
-                abort(403, 'List is private.');
+                return response()->json(['success' => false, 'message' => 'List is private.'], 403);
             }
             if (!$pipeline->is_public && $pipeline->created_by_id !== $teamUserId) {
-                abort(403, 'Pipeline is private.');
+                return response()->json(['success' => false, 'message' => 'Pipeline is private.'], 403);
             }
         }
 
@@ -1889,7 +1926,7 @@ class EmailListController extends Controller
             $q->with('user')->latest();
         }, 'tasks' => function($q) {
             $q->latest();
-        }])->findOrFail($emailId);
+        }, 'sequenceEnrollments.sequence'])->findOrFail($emailId);
 
         return response()->json($email);
     }

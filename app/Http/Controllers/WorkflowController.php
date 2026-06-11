@@ -48,7 +48,9 @@ class WorkflowController extends Controller
             ->values()
             ->toArray();
 
-        return view('workflows.create', compact('templates', 'topics', 'tags'));
+        $pipelines = \App\Models\Pipeline::with('stages')->get();
+
+        return view('workflows.create', compact('templates', 'topics', 'tags', 'pipelines'));
     }
 
     public function store(Request $request)
@@ -103,7 +105,9 @@ class WorkflowController extends Controller
             ->values()
             ->toArray();
 
-        return view('workflows.edit', compact('workflow', 'templates', 'topics', 'tags'));
+        $pipelines = \App\Models\Pipeline::with('stages')->get();
+
+        return view('workflows.edit', compact('workflow', 'templates', 'topics', 'tags', 'pipelines'));
     }
 
     public function update(Request $request, Workflow $workflow)

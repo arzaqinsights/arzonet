@@ -160,6 +160,14 @@
                                 <div class="p-2 rounded bg-gray-50 text-gray-500 group-hover:bg-gray-500 group-hover:text-white transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></div>
                                 <div><h5 class="font-bold text-surface-900 text-sm">Add Note</h5><p class="text-[10px] text-surface-500 mt-1">Append a note to the profile.</p></div>
                             </button>
+                            <button type="button" @click="addNode('create_deal')" class="text-left p-4 rounded border border-surface-200 hover:border-indigo-500 hover:ring-1 hover:ring-indigo-500 transition-all flex gap-3 items-start group">
+                                <div class="p-2 rounded bg-indigo-50 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+                                <div><h5 class="font-bold text-surface-900 text-sm">Create Deal</h5><p class="text-[10px] text-surface-500 mt-1">Add contact to sales pipeline stage.</p></div>
+                            </button>
+                            <button type="button" @click="addNode('create_task')" class="text-left p-4 rounded border border-surface-200 hover:border-rose-500 hover:ring-1 hover:ring-rose-500 transition-all flex gap-3 items-start group">
+                                <div class="p-2 rounded bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+                                <div><h5 class="font-bold text-surface-900 text-sm">Create Task</h5><p class="text-[10px] text-surface-500 mt-1">Create a user CRM task for this contact.</p></div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -256,6 +264,51 @@
                                 <div>
                                     <label class="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Note Content</label>
                                     <textarea x-model="editingNodeData.details.note" rows="3" class="form-input rounded-md border-surface-200 py-2 text-sm font-semibold w-full focus:border-brand" placeholder="Type the note to add to the contact's profile..."></textarea>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Create Deal Details -->
+                        <template x-if="editingNodeData.type === 'create_deal'">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Target Pipeline Stage</label>
+                                    <select x-model="editingNodeData.details.stage_id" class="form-input rounded-md border-surface-200 py-2 text-sm font-semibold w-full focus:border-brand">
+                                        <option value="">-- Choose Pipeline Stage --</option>
+                                        @foreach($pipelines ?? [] as $pipeline)
+                                            <optgroup label="{{ $pipeline->name }}">
+                                                @foreach($pipeline->stages as $stage)
+                                                    <option value="{{ $stage->id }}">{{ $stage->name }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Deal Title (Optional)</label>
+                                    <input type="text" x-model="editingNodeData.details.title" class="form-input rounded-md border-surface-200 py-2 text-sm font-semibold w-full focus:border-brand" placeholder="e.g. Lead Inbound Deal">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Deal Value (Optional)</label>
+                                    <input type="number" x-model="editingNodeData.details.value" class="form-input rounded-md border-surface-200 py-2 text-sm font-semibold w-full focus:border-brand" placeholder="e.g. 5000">
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Create Task Details -->
+                        <template x-if="editingNodeData.type === 'create_task'">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Task Title</label>
+                                    <input type="text" x-model="editingNodeData.details.title" class="form-input rounded-md border-surface-200 py-2 text-sm font-semibold w-full focus:border-brand" placeholder="e.g. Follow up on proposal">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Description (Optional)</label>
+                                    <textarea x-model="editingNodeData.details.description" rows="2" class="form-input rounded-md border-surface-200 py-2 text-sm font-semibold w-full focus:border-brand" placeholder="Enter task instructions..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Due in Days (Optional)</label>
+                                    <input type="number" x-model="editingNodeData.details.due_in_days" class="form-input rounded-md border-surface-200 py-2 text-sm font-semibold w-full focus:border-brand" placeholder="e.g. 3">
                                 </div>
                             </div>
                         </template>
@@ -392,8 +445,9 @@
                 if (type === 'wait') details = { delay: 1, unit: 'days' };
                 else if (type === 'send_email') details = { template_id: '', subject: '' };
                 else if (type === 'if_else') details = { condition_type: 'has_tag', value: '' };
-                else if (type === 'add_tag' || type === 'remove_tag') details = { tag: '' };
                 else if (type === 'add_note') details = { note: '' };
+                else if (type === 'create_deal') details = { stage_id: '', title: '', value: 0 };
+                else if (type === 'create_task') details = { title: '', description: '', due_in_days: 3 };
 
                 const newNode = {
                     type: type,
@@ -473,7 +527,9 @@
                     'add_tag': 'Add Tag',
                     'remove_tag': 'Remove Tag',
                     'if_else': 'If / Else',
-                    'add_note': 'Add Note'
+                    'add_note': 'Add Note',
+                    'create_deal': 'Create Deal',
+                    'create_task': 'Create Task'
                 };
                 return labels[type] || type;
             },
@@ -485,7 +541,9 @@
                     'add_tag': 'bg-emerald-500',
                     'remove_tag': 'bg-emerald-500',
                     'if_else': 'bg-purple-500',
-                    'add_note': 'bg-gray-700'
+                    'add_note': 'bg-gray-700',
+                    'create_deal': 'bg-indigo-600',
+                    'create_task': 'bg-rose-500'
                 };
                 return colors[type] || 'bg-gray-700';
             },
@@ -503,6 +561,8 @@
                     return "Condition?";
                 }
                 if (node.type === 'add_note') return `Add Note`;
+                if (node.type === 'create_deal') return `Create Deal: <span class="text-brand font-black">\${d.title || 'Inbound'}</span> (Val: \${d.value || 0})`;
+                if (node.type === 'create_task') return `Create Task: <span class="text-brand font-black">\${d.title || 'Task'}</span>`;
                 return "Config missing";
             }
         }

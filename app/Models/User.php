@@ -201,6 +201,11 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->role === self::ROLE_ADMIN;
     }
+
+    public function getOwnerId(): int
+    {
+        return $this->role === self::ROLE_TEAM && $this->parent_id ? (int) $this->parent_id : (int) $this->id;
+    }
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 

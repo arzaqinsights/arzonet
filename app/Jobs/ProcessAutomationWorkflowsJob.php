@@ -164,6 +164,45 @@ class ProcessAutomationWorkflowsJob implements ShouldQueue
                         'scheduled_at' => now(),
                         'last_executed_at' => now(),
                     ]);
+                } elseif ($type === 'create_deal') {
+                    $stageId = $details['stage_id'] ?? null;
+                    if (!empty($stageId)) {
+                        \App\Models\Deal::create([
+                            'pipeline_stage_id' => $stageId,
+                            'email_id' => $contact->id,
+                            'email_list_id' => $contact->email_list_id,
+                            'title' => $details['title'] ?? (($contact->name ?: $contact->email) . ' Deal'),
+                            'value' => $details['value'] ?? 0,
+                            'currency' => 'USD',
+                            'status' => 'open',
+                            'user_id' => $workflow->user_id,
+                            'order' => \App\Models\Deal::where('pipeline_stage_id', $stageId)->count(),
+                        ]);
+                    }
+
+                    $nextNodeId = $node['next'] ?? null;
+                    $run->update([
+                        'current_node_id' => $nextNodeId,
+                        'scheduled_at' => now(),
+                        'last_executed_at' => now(),
+                    ]);
+                } elseif ($type === 'create_task') {
+                    $title = $details['title'] ?? 'Workflow Task';
+                    \App\Models\ContactTask::create([
+                        'email_id' => $contact->id,
+                        'user_id' => $workflow->user_id,
+                        'title' => $title,
+                        'description' => $details['description'] ?? null,
+                        'due_date' => isset($details['due_in_days']) ? now()->addDays((int)$details['due_in_days']) : null,
+                        'status' => 'pending'
+                    ]);
+
+                    $nextNodeId = $node['next'] ?? null;
+                    $run->update([
+                        'current_node_id' => $nextNodeId,
+                        'scheduled_at' => now(),
+                        'last_executed_at' => now(),
+                    ]);
                 } elseif ($type === 'if_else') {
                     $conditionType = $details['condition_type'] ?? '';
                     $value = $details['value'] ?? '';
