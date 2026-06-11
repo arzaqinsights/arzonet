@@ -218,6 +218,53 @@ class AdvancedBulkActionJob implements ShouldQueue
                             ]);
                         }
                         break;
+
+                    case 'unsubscribe':
+                        $duration = $this->payload['duration'] ?? 'forever';
+                        $expiresAt = null;
+                        if ($duration !== 'forever') {
+                            $days = (int) $duration;
+                            if ($days > 0) {
+                                $expiresAt = now()->addDays($days);
+                            }
+                        }
+                        $email->update([
+                            'subscription_status' => 'unsubscribed',
+                            'unsubscribed_at' => now(),
+                            'unsubscribe_expires_at' => $expiresAt
+                        ]);
+                        break;
+
+                    case 'subscribe':
+                        $email->update([
+                            'subscription_status' => 'subscribed',
+                            'unsubscribed_at' => null,
+                            'unsubscribe_expires_at' => null
+                        ]);
+                        break;
+
+                    case 'archive':
+                        $email->update(['is_archived' => true, 'archived_at' => now()]);
+                        break;
+
+                    case 'unarchive':
+                        $email->update(['is_archived' => false, 'archived_at' => null]);
+                        break;
+
+                    case 'update_column':
+                    case 'edit_column':
+                        $column = $this->payload['column'] ?? null;
+                        $value = $this->payload['value'] ?? '';
+                        if ($column) {
+                            if (in_array($column, ['name', 'company', 'job_title', 'phone', 'city', 'tags', 'country'])) {
+                                $email->update([$column => $value]);
+                            } else if (str_starts_with($column, 'custom_')) {
+                                $meta = $email->meta ?? [];
+                                $meta[$column] = $value;
+                                $email->update(['meta' => $meta]);
+                            }
+                        }
+                        break;
                 }
             }
         });

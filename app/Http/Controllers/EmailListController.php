@@ -1401,16 +1401,31 @@ class EmailListController extends Controller
 
         $count = $emails->count();
 
-        $advancedActions = ['add_tags', 'remove_tags', 'manage_subscriptions', 'create_deals', 'transfer', 'add_note', 'add_task'];
+        // All bulk actions except permanent_delete
+        $advancedActions = [
+            'add_tags', 'remove_tags', 'manage_subscriptions', 'create_deals', 
+            'transfer', 'add_note', 'add_task', 'unsubscribe', 'subscribe', 
+            'archive', 'unarchive', 'edit_column', 'update_column'
+        ];
 
         if (in_array($request->action, $advancedActions)) {
+            $payload = $request->payload ?? [];
+            
+            // Map extra parameters for specific actions to the payload
+            if ($request->action === 'unsubscribe') {
+                $payload['duration'] = $request->input('duration', 'forever');
+            } elseif (in_array($request->action, ['update_column', 'edit_column'])) {
+                $payload['column'] = $request->input('column') ?? $request->input('target_column');
+                $payload['value'] = $request->input('value') ?? $request->input('new_value');
+            }
+
             \App\Jobs\AdvancedBulkActionJob::dispatch(
                 $emailList->id,
                 $request->action,
                 $request->global ? true : false,
                 $request->global ? $request->filters : null,
                 $request->global ? [] : $request->ids,
-                $request->payload ?? [],
+                $payload,
                 auth()->id()
             );
 
@@ -1422,7 +1437,7 @@ class EmailListController extends Controller
                     'count' => $count,
                     'scope' => $request->global ? 'global' : 'selection',
                     'filters' => $request->global ? $request->filters : null,
-                    'payload' => $request->payload ?? []
+                    'payload' => $payload
                 ]
             ]);
 
@@ -1432,42 +1447,7 @@ class EmailListController extends Controller
             ]);
         }
 
-        if ($request->action === 'unsubscribe') {
-            $duration = $request->input('duration', 'forever');
-            $expiresAt = null;
-            if ($duration !== 'forever') {
-                $days = (int) $duration;
-                if ($days > 0) {
-                    $expiresAt = now()->addDays($days);
-                }
-            }
-
-            $emailIds = $emails->pluck('id')->toArray();
-
-            $emails->update([
-                'subscription_status' => 'unsubscribed',
-                'unsubscribed_at' => now(),
-                'unsubscribe_expires_at' => $expiresAt
-            ]);
-
-            foreach ($emailIds as $id) {
-                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $id);
-            }
-        } elseif ($request->action === 'subscribe') {
-            $emailIds = $emails->pluck('id')->toArray();
-            $emails->update([
-                'subscription_status' => 'subscribed',
-                'unsubscribed_at' => null,
-                'unsubscribe_expires_at' => null
-            ]);
-            foreach ($emailIds as $id) {
-                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $id);
-            }
-        } elseif ($request->action === 'archive') {
-            $emails->update(['is_archived' => true, 'archived_at' => now()]);
-        } elseif ($request->action === 'unarchive') {
-            $emails->update(['is_archived' => false, 'archived_at' => null]);
-        } elseif ($request->action === 'permanent_delete' || $request->action === 'delete') {
+        if ($request->action === 'permanent_delete' || $request->action === 'delete') {
             $reason = $request->input('delete_reason', $request->input('reason', 'User requested permanent deletion'));
             
             \App\Jobs\BulkPermanentDeleteJob::dispatch(
@@ -1493,24 +1473,6 @@ class EmailListController extends Controller
                 'success' => true,
                 'message' => 'The permanent delete process has started in the background. Depending on the size, it may take a few minutes.'
             ]);
-        } elseif ($request->action === 'edit_column' || $request->action === 'update_column') {
-            $column = $request->input('column') ?? $request->input('target_column');
-            $value = $request->input('value') ?? $request->input('new_value');
-            if ($column) {
-                // If value is empty or null, we might want to clear it
-                if ($value === null) $value = '';
-                
-                // standard columns
-                if (in_array($column, ['name', 'company', 'job_title', 'phone', 'city', 'tags', 'country'])) {
-                    $emails->update([$column => $value]);
-                } else if (str_starts_with($column, 'custom_')) {
-                    // Updating JSON column 'meta' in bulk
-                    // We can use JSON_SET in MySQL for better performance and atomicity
-                    $emails->update([
-                        'meta' => DB::raw("JSON_SET(COALESCE(meta, '{}'), '$.$column', " . DB::getPdo()->quote($value) . ")")
-                    ]);
-                }
-            }
         }
 
         $emailList->recalculateStats();
