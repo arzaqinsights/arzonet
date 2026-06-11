@@ -18,25 +18,43 @@ class SegmentBuilderController extends Controller
     private function getCustomFieldsForActiveList($listId)
     {
         $list = \App\Models\EmailList::find($listId);
-        if (!$list) return [];
-        
+
+        if (!$list) {
+            return [];
+        }
+
         $fields = [];
         $mapping = $list->column_mapping ?? [];
+
         foreach ($mapping as $header => $key) {
-            if (str_starts_with($key, 'custom_')) {
-                // If mapping is header => internal key
-                $fields[] = (object)['name' => $header, 'key' => $key];
-            } else if (str_starts_with($header, 'custom_')) {
-                // If mapping is internal key => header
-                $fields[] = (object)['name' => $key, 'key' => $header];
+
+            // Skip invalid values
+            if (is_array($key) || is_object($key)) {
+                continue;
+            }
+
+            if (is_string($key) && str_starts_with($key, 'custom_')) {
+
+                $fields[] = (object) [
+                    'name' => $header,
+                    'key' => $key
+                ];
+
+            } elseif (is_string($header) && str_starts_with($header, 'custom_')) {
+
+                $fields[] = (object) [
+                    'name' => $key,
+                    'key' => $header
+                ];
             }
         }
-        
-        // Ensure uniqueness
+
         $unique = [];
+
         foreach ($fields as $f) {
             $unique[$f->key] = $f;
         }
+
         return array_values($unique);
     }
 
@@ -61,18 +79,18 @@ class SegmentBuilderController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'  => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'rules' => 'required|array|min:1',
         ]);
 
         $listId = $this->getActiveListId();
 
         Segment::create([
-            'user_id'       => auth()->id(),
+            'user_id' => auth()->id(),
             'email_list_id' => $listId,
-            'name'          => $request->name,
-            'description'   => $request->description,
-            'rules'         => $request->rules,
+            'name' => $request->name,
+            'description' => $request->description,
+            'rules' => $request->rules,
         ]);
 
         return redirect()
@@ -90,14 +108,14 @@ class SegmentBuilderController extends Controller
     public function update(Request $request, Segment $segment)
     {
         $request->validate([
-            'name'  => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'rules' => 'required|array|min:1',
         ]);
 
         $segment->update([
-            'name'        => $request->name,
+            'name' => $request->name,
             'description' => $request->description,
-            'rules'       => $request->rules,
+            'rules' => $request->rules,
         ]);
 
         return redirect()
@@ -136,7 +154,8 @@ class SegmentBuilderController extends Controller
 
     private function countMatchingContacts(array $rules, $listId): int
     {
-        if (empty($rules)) return 0;
+        if (empty($rules))
+            return 0;
         $query = Email::where('email_list_id', $listId);
         return Segment::applyRulesToQuery($query, $rules)->count();
     }
