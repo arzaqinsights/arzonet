@@ -134,6 +134,7 @@ class Email extends Model
             if ($email->email_list_id) {
                 \Illuminate\Support\Facades\Redis::del("list_stats:{$email->email_list_id}");
                 \Illuminate\Support\Facades\Redis::del("list_filters:{$email->email_list_id}");
+                \Illuminate\Support\Facades\Redis::del("opt_out_stats:{$email->email_list_id}");
             }
             \App\Jobs\CalculateLeadScoreJob::dispatch($email->id);
         });
@@ -143,6 +144,7 @@ class Email extends Model
                 if ($email->email_list_id) {
                     \Illuminate\Support\Facades\Redis::del("list_stats:{$email->email_list_id}");
                     \Illuminate\Support\Facades\Redis::del("list_filters:{$email->email_list_id}");
+                    \Illuminate\Support\Facades\Redis::del("opt_out_stats:{$email->email_list_id}");
                 }
                 \App\Jobs\CalculateLeadScoreJob::dispatch($email->id);
             }

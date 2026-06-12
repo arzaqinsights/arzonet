@@ -181,6 +181,7 @@ class EmailList extends Model
         // Invalidate Redis cache
         \Illuminate\Support\Facades\Redis::del("list_stats:{$this->id}");
         \Illuminate\Support\Facades\Redis::del("list_filters:{$this->id}");
+        \Illuminate\Support\Facades\Redis::del("opt_out_stats:{$this->id}");
     }
 
     public function getStatistics(): array

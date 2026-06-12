@@ -357,7 +357,7 @@ class EmailListController extends Controller
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
         // simplePaginate avoids COUNT(*) on millions of rows — only checks for next page
-        $emails = $emailList->emails()->with(['deals.stage.pipeline'])->where('is_archived', false)->orderBy('created_at', 'desc')->simplePaginate(50);
+        $emails = $emailList->emails()->with(['deals.stage.pipeline', 'user'])->where('is_archived', false)->orderBy('created_at', 'desc')->simplePaginate(50);
         // Skip loadDynamicSegments on initial load — uses stored segment_name column instead
 
         // Cache filters (segments, tags, sources, addedBy) in Redis with 24h TTL
@@ -430,6 +430,70 @@ class EmailListController extends Controller
         $sequencesList = \App\Models\Sequence::where('email_list_id', $emailList->id)->get();
 
         return view('email-lists.show', compact('emailList', 'stats', 'emails', 'segments', 'tags', 'sources', 'topics', 'addedByOptions', 'pipelines', 'destinationLists', 'sequencesList'));
+    }
+
+    public function optOutAnalytics(EmailList $emailList)
+    {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'This list is private.');
+            }
+        }
+
+        $cacheKey = "opt_out_stats:{$emailList->id}";
+        $isProcessing = $emailList->status === 'processing';
+        $cacheTtl = $isProcessing ? 2 : 86400;
+
+        $cached = \Illuminate\Support\Facades\Redis::get($cacheKey);
+        if ($cached) {
+            $stats = json_decode($cached, true);
+            if ($stats) {
+                return response()->json($stats);
+            }
+        }
+
+        $listTopics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
+        $topicStats = [];
+
+        foreach ($listTopics as $topic) {
+            $subCount = \App\Models\Email::where('email_list_id', $emailList->id)
+                ->where('subscription_status', 'subscribed')
+                ->whereJsonContains('subscribed_topics', (string) $topic->id)
+                ->count();
+
+            $unsubCount = \App\Models\Email::where('email_list_id', $emailList->id)
+                ->where('subscription_status', 'unsubscribed')
+                ->whereJsonContains('subscribed_topics', (string) $topic->id)
+                ->count();
+
+            $total = $subCount + $unsubCount;
+            $unsubRate = $total > 0 ? round(($unsubCount / $total) * 100, 1) : 0;
+
+            $topicStats[] = [
+                'name' => $topic->name,
+                'description' => $topic->description,
+                'sub_count' => $subCount,
+                'unsub_count' => $unsubCount,
+                'unsub_rate' => $unsubRate,
+            ];
+        }
+
+        $totalUnsubscribed = \App\Models\Email::where('email_list_id', $emailList->id)->where('subscription_status', 'unsubscribed')->count();
+        $totalContacts = \App\Models\Email::where('email_list_id', $emailList->id)->where('is_archived', false)->count();
+        $overallOptOutRate = $totalContacts > 0 ? round(($totalUnsubscribed / $totalContacts) * 100, 1) : 0;
+
+        $stats = [
+            'topic_stats' => $topicStats,
+            'total_unsubscribed' => $totalUnsubscribed,
+            'total_contacts' => $totalContacts,
+            'total_subscribers' => $totalContacts - $totalUnsubscribed,
+            'overall_opt_out_rate' => $overallOptOutRate,
+        ];
+
+        \Illuminate\Support\Facades\Redis::setex($cacheKey, $cacheTtl, json_encode($stats));
+
+        return response()->json($stats);
     }
 
 
@@ -666,7 +730,7 @@ class EmailListController extends Controller
 
     public function filterEmails(Request $request, EmailList $emailList)
     {
-        $query = $emailList->emails()->with(['deals.stage.pipeline'])->orderBy('created_at', 'desc');
+        $query = $emailList->emails()->with(['deals.stage.pipeline', 'user'])->orderBy('created_at', 'desc');
 
         $query = $this->applyFiltersToQuery($query, $request, $emailList);
 

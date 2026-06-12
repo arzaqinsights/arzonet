@@ -89,7 +89,7 @@
                 <span
                     class="px-1.5 py-0.5 bg-surface-200 text-surface-700 rounded-full text-[10px]">{{ $emailList->activityLogs()->count() }}</span>
             </button>
-            <button @click="activeTab = 'opt_out'"
+            <button @click="activeTab = 'opt_out'; fetchOptOutAnalytics()"
                 :class="activeTab === 'opt_out' ? 'border-brand text-brand' : 'border-transparent text-surface-700 hover:text-surface-600'"
                 class="pb-3 pt-4 px-1 border-b-4 text-xs tracking-widest transition-all focus:outline-none cursor-pointer">
                 Opt-Out Analytics
@@ -908,97 +908,77 @@
 
         {{-- ── OPT-OUT ANALYTICS TAB ── --}}
         <div x-show="activeTab === 'opt_out'" x-cloak class="space-y-6 animate-slide-up">
-            @php
-                $listTopics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
-                $topicStats = [];
-
-                foreach ($listTopics as $topic) {
-                    $subCount = \App\Models\Email::where('email_list_id', $emailList->id)
-                        ->where('subscription_status', 'subscribed')
-                        ->whereJsonContains('subscribed_topics', (string) $topic->id)
-                        ->count();
-
-                    $unsubCount = \App\Models\Email::where('email_list_id', $emailList->id)
-                        ->where('subscription_status', 'unsubscribed')
-                        ->whereJsonContains('subscribed_topics', (string) $topic->id)
-                        ->count();
-
-                    $total = $subCount + $unsubCount;
-                    $unsubRate = $total > 0 ? round(($unsubCount / $total) * 100, 1) : 0;
-
-                    $topicStats[] = [
-                        'topic' => $topic,
-                        'sub_count' => $subCount,
-                        'unsub_count' => $unsubCount,
-                        'unsub_rate' => $unsubRate,
-                    ];
-                }
-
-                $totalUnsubscribed = \App\Models\Email::where('email_list_id', $emailList->id)->where('subscription_status', 'unsubscribed')->count();
-                $totalContacts = \App\Models\Email::where('email_list_id', $emailList->id)->where('is_archived', false)->count();
-                $overallOptOutRate = $totalContacts > 0 ? round(($totalUnsubscribed / $totalContacts) * 100, 1) : 0;
-            @endphp
-
-            {{-- Summary Cards --}}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white p-6 border border-surface-200/80 rounded-md">
-                    <h5 class="text-[10px] font-black text-surface-450 uppercase tracking-widest leading-none">Total List
-                        Subscribers</h5>
-                    <p class="text-3xl font-extrabold text-surface-900 mt-2">
-                        {{ number_format($totalContacts - $totalUnsubscribed) }}</p>
-                </div>
-                <div class="bg-white p-6 border border-surface-200/80 rounded-md">
-                    <h5 class="text-[10px] font-black text-surface-450 uppercase tracking-widest leading-none">Total
-                        Opt-Outs</h5>
-                    <p class="text-3xl font-extrabold text-surface-900 mt-2">{{ number_format($totalUnsubscribed) }}</p>
-                </div>
-                <div class="bg-white p-6 border border-surface-200/80 rounded-md">
-                    <h5 class="text-[10px] font-black text-surface-450 uppercase tracking-widest leading-none">Overall List
-                        Opt-Out Rate</h5>
-                    <p
-                        class="text-3xl font-extrabold mt-2 {{ $overallOptOutRate > 15 ? 'text-red-650' : ($overallOptOutRate > 5 ? 'text-amber-600' : 'text-emerald-600') }}">
-                        {{ $overallOptOutRate }}%
-                    </p>
-                </div>
+            
+            {{-- Loading State --}}
+            <div x-show="optOutLoading" class="flex flex-col items-center justify-center p-20 space-y-4">
+                <div class="animate-spin w-8 h-8 border-4 border-brand border-t-transparent rounded-full"></div>
+                <p class="text-xs font-black text-surface-400 uppercase tracking-widest">Loading Opt-Out Analytics...</p>
             </div>
 
-            {{-- Topics Analytics List --}}
-            <div class="glass-card rounded-md">
-                <div class="p-8 space-y-6">
-                    <div>
-                        <h3 class="text-xl font-bold text-surface-900 tracking-tight">Opt-Out Rates by Topic</h3>
-                        <p class="text-sm text-surface-500 mt-1">Review subscription breakdown and opt-out rates across
-                            different email categories.</p>
+            {{-- Loaded Content --}}
+            <template x-if="optOutAnalytics">
+                <div x-show="!optOutLoading" class="space-y-6">
+                    {{-- Summary Cards --}}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 border border-surface-200/80 rounded-md">
+                            <h5 class="text-[10px] font-black text-surface-450 uppercase tracking-widest leading-none">Total List
+                                Subscribers</h5>
+                            <p class="text-3xl font-extrabold text-surface-900 mt-2" x-text="optOutAnalytics.total_subscribers.toLocaleString()"></p>
+                        </div>
+                        <div class="bg-white p-6 border border-surface-200/80 rounded-md">
+                            <h5 class="text-[10px] font-black text-surface-450 uppercase tracking-widest leading-none">Total
+                                Opt-Outs</h5>
+                            <p class="text-3xl font-extrabold text-surface-900 mt-2" x-text="optOutAnalytics.total_unsubscribed.toLocaleString()"></p>
+                        </div>
+                        <div class="bg-white p-6 border border-surface-200/80 rounded-md">
+                            <h5 class="text-[10px] font-black text-surface-450 uppercase tracking-widest leading-none">Overall List
+                                Opt-Out Rate</h5>
+                            <p class="text-3xl font-extrabold mt-2"
+                                :class="optOutAnalytics.overall_opt_out_rate > 15 ? 'text-red-650' : (optOutAnalytics.overall_opt_out_rate > 5 ? 'text-amber-600' : 'text-emerald-600')">
+                                <span x-text="optOutAnalytics.overall_opt_out_rate"></span>%
+                            </p>
+                        </div>
                     </div>
 
-                    <div class="divide-y divide-surface-100 pt-4">
-                        @forelse($topicStats as $stat)
-                            <div class="py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                                <div class="space-y-1 md:w-1/3">
-                                    <h4 class="font-bold text-surface-900 text-sm">{{ $stat['topic']->name }}</h4>
-                                    <p class="text-xs text-surface-450">{{ Str::limit($stat['topic']->description, 80) }}</p>
-                                </div>
-
-                                <div class="flex-1 w-full space-y-2">
-                                    <div class="flex justify-between text-xs font-bold text-surface-700">
-                                        <span>{{ number_format($stat['sub_count']) }} Subscribed</span>
-                                        <span>{{ number_format($stat['unsub_count']) }} Opted Out
-                                            ({{ $stat['unsub_rate'] }}%)</span>
-                                    </div>
-                                    <div class="w-full h-2.5 bg-surface-100 rounded-full overflow-hidden flex">
-                                        <div class="bg-emerald-500 h-full" style="width: {{ 100 - $stat['unsub_rate'] }}%">
-                                        </div>
-                                        <div class="h-full {{ $stat['unsub_rate'] > 15 ? 'bg-red-500' : ($stat['unsub_rate'] > 5 ? 'bg-amber-500' : 'bg-emerald-400') }}"
-                                            style="width: {{ $stat['unsub_rate'] }}%"></div>
-                                    </div>
-                                </div>
+                    {{-- Topics Analytics List --}}
+                    <div class="glass-card rounded-md">
+                        <div class="p-8 space-y-6">
+                            <div>
+                                <h3 class="text-xl font-bold text-surface-900 tracking-tight">Opt-Out Rates by Topic</h3>
+                                <p class="text-sm text-surface-500 mt-1">Review subscription breakdown and opt-out rates across different email categories.</p>
                             </div>
-                        @empty
-                            <p class="text-sm text-surface-500 italic py-6">No subscription topics configured for this list.</p>
-                        @endforelse
+
+                            <div class="divide-y divide-surface-100 pt-4">
+                                <template x-for="stat in optOutAnalytics.topic_stats" :key="stat.name">
+                                    <div class="py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                        <div class="space-y-1 md:w-1/3">
+                                            <h4 class="font-bold text-surface-900 text-sm" x-text="stat.name"></h4>
+                                            <p class="text-xs text-surface-450" x-text="stat.description || ''"></p>
+                                        </div>
+
+                                        <div class="flex-1 w-full space-y-2">
+                                            <div class="flex justify-between text-xs font-bold text-surface-700">
+                                                <span x-text="stat.sub_count.toLocaleString() + ' Subscribed'"></span>
+                                                <span x-text="stat.unsub_count.toLocaleString() + ' Opted Out (' + stat.unsub_rate + '%)'"></span>
+                                            </div>
+                                            <div class="w-full h-2.5 bg-surface-100 rounded-full overflow-hidden flex">
+                                                <div class="bg-emerald-500 h-full" :style="'width: ' + (100 - stat.unsub_rate) + '%'">
+                                                </div>
+                                                <div class="h-full"
+                                                    :class="stat.unsub_rate > 15 ? 'bg-red-500' : (stat.unsub_rate > 5 ? 'bg-amber-500' : 'bg-emerald-400')"
+                                                    :style="'width: ' + stat.unsub_rate + '%'"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="optOutAnalytics.topic_stats.length === 0">
+                                    <p class="text-sm text-surface-500 italic py-6">No subscription topics configured for this list.</p>
+                                </template>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </template>
         </div>
 
         {{-- ── Teleported Modals ── --}}
@@ -2249,6 +2229,23 @@
                     filtered_main_rows: 0,
                     active_bulk_action: null,
                     last_bulk_action_completed: false
+                },
+
+                optOutAnalytics: null,
+                optOutLoading: false,
+
+                fetchOptOutAnalytics() {
+                    if (this.optOutAnalytics) return;
+                    this.optOutLoading = true;
+                    fetch('{{ route("admin.email-lists.opt-out-analytics", $emailList) }}')
+                        .then(r => r.json())
+                        .then(data => {
+                            this.optOutAnalytics = data;
+                            this.optOutLoading = false;
+                        })
+                        .catch(() => {
+                            this.optOutLoading = false;
+                        });
                 },
 
                 init() {

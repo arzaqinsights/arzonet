@@ -35,6 +35,7 @@ Route::name('admin.')->group(function () {
         Route::get('/create', [EmailListController::class, 'create'])->name('create')->middleware('permission:crm.create');
         Route::post('/', [EmailListController::class, 'store'])->name('store')->middleware('permission:crm.create');
         Route::get('/{emailList}', [EmailListController::class, 'show'])->name('show')->middleware('permission:crm.view');
+        Route::get('/{emailList}/opt-out-analytics', [EmailListController::class, 'optOutAnalytics'])->name('opt-out-analytics')->middleware('permission:crm.view');
         Route::post('/{id}/mapping', [EmailListController::class, 'storeMapping'])->name('store-mapping')->middleware('permission:crm.import');
         Route::get('/{emailList}/import-settings', [EmailListController::class, 'showImportSettings'])->name('import-settings')->middleware('permission:crm.import');
         Route::post('/{emailList}/start-import', [EmailListController::class, 'startImport'])->name('start-import')->middleware('permission:crm.import');
