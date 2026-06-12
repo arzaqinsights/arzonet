@@ -70,11 +70,11 @@
                         <td>
                             <div class="flex items-center justify-center gap-4">
                                 <div class="text-center" title="Total Opens">
-                                    <div class="text-xs font-black text-emerald-600">{{ $contact->opens_count }}</div>
+                                    <div class="text-xs font-black text-emerald-600">{{ $contact->opens_count ?? '—' }}</div>
                                     <div class="text-[9px] font-bold text-surface-400 uppercase">Opens</div>
                                 </div>
                                 <div class="text-center" title="Total Clicks">
-                                    <div class="text-xs font-black text-indigo-600">{{ $contact->clicks_count }}</div>
+                                    <div class="text-xs font-black text-indigo-600">{{ $contact->clicks_count ?? '—' }}</div>
                                     <div class="text-[9px] font-bold text-surface-400 uppercase">Clicks</div>
                                 </div>
                             </div>

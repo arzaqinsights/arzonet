@@ -356,10 +356,11 @@ class EmailListController extends Controller
         $stats = $emailList->getStatistics();
 
         // Match Alpine.js default filter: Active Only (is_archived = false)
-        $emails = $emailList->emails()->with(['deals.stage.pipeline'])->where('is_archived', false)->orderBy('created_at', 'desc')->paginate(50);
-        $emails = $this->loadDynamicSegments($emails, $emailList);
+        // simplePaginate avoids COUNT(*) on millions of rows — only checks for next page
+        $emails = $emailList->emails()->with(['deals.stage.pipeline'])->where('is_archived', false)->orderBy('created_at', 'desc')->simplePaginate(50);
+        // Skip loadDynamicSegments on initial load — uses stored segment_name column instead
 
-        // Cache filters (segments, tags, sources) in Redis with 15s TTL
+        // Cache filters (segments, tags, sources, addedBy) in Redis with 24h TTL
         $filterCacheKey = "list_filters:{$emailList->id}";
         $cachedFilters = \Illuminate\Support\Facades\Redis::get($filterCacheKey);
         
@@ -368,6 +369,7 @@ class EmailListController extends Controller
             $segments = $decodedFilters['segments'] ?? [];
             $tags = $decodedFilters['tags'] ?? [];
             $sources = $decodedFilters['sources'] ?? [];
+            $addedByUserIds = $decodedFilters['added_by_user_ids'] ?? [];
         } else {
             $dbSegments = \App\Models\Segment::where(function($q) use ($emailList) {
                 $q->whereNull('email_list_id')->orWhere('email_list_id', $emailList->id);
@@ -399,20 +401,21 @@ class EmailListController extends Controller
             $tags = array_values(array_unique(array_filter($flatTags)));
 
             $sources = $emailList->emails()->whereNotNull('signup_source')->distinct()->pluck('signup_source')->toArray();
+            $addedByUserIds = $emailList->emails()->whereNotNull('user_id')->distinct()->pluck('user_id')->toArray();
 
             $decodedFilters = [
                 'segments' => $segments,
                 'tags' => $tags,
-                'sources' => $sources
+                'sources' => $sources,
+                'added_by_user_ids' => $addedByUserIds
             ];
 
             \Illuminate\Support\Facades\Redis::setex($filterCacheKey, 86400, json_encode($decodedFilters));
         }
 
-        $topics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
-
-        $addedByUserIds = $emailList->emails()->whereNotNull('user_id')->distinct()->pluck('user_id')->toArray();
         $addedByOptions = \App\Models\User::whereIn('id', $addedByUserIds)->pluck('name', 'id')->toArray();
+
+        $topics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
 
         $pipelines = \App\Models\Pipeline::with('stages')->get();
         $destinationListsQuery = \App\Models\EmailList::where('id', '!=', $emailList->id);
@@ -663,8 +666,6 @@ class EmailListController extends Controller
 
     public function filterEmails(Request $request, EmailList $emailList)
     {
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
-
         $query = $emailList->emails()->with(['deals.stage.pipeline'])->orderBy('created_at', 'desc');
 
         $query = $this->applyFiltersToQuery($query, $request, $emailList);
@@ -737,12 +738,11 @@ class EmailListController extends Controller
         }
 
         $dynamicStats['is_filtered'] = $isFiltered;
-        $dynamicStats['filtered_main_rows'] = $isFiltered ? DB::table('emails')
-            ->whereIn('id', (clone $query)->reorder()->select('emails.id'))
-            ->count(DB::raw('DISTINCT ' . $groupExpr)) : 0;
+        // Use simple COUNT(*) instead of expensive COUNT(DISTINCT CASE WHEN ...)
+        $dynamicStats['filtered_main_rows'] = $isFiltered ? (int) ($dbStats->total ?? 0) : 0;
 
-        $emails = $query->paginate(50);
-        $emails = $this->loadDynamicSegments($emails, $emailList);
+        // simplePaginate avoids COUNT(*) — only checks for next page
+        $emails = $query->simplePaginate(50);
         $topics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
         return response()->json([
             'html' => view('email-lists.partials.email-table-rows', ['emails' => $emails, 'emailList' => $emailList, 'topics' => $topics])->render(),

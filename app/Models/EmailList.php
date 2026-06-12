@@ -138,26 +138,21 @@ class EmailList extends Model
     }
     public function getUniqueContactsCountAttribute()
     {
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
-        
-        return \Illuminate\Support\Facades\DB::table('emails')
-            ->where('email_list_id', $this->id)
-            ->where('is_archived', false)
-            ->distinct()
-            ->count(\Illuminate\Support\Facades\DB::raw($groupExpr));
+        // Use pre-calculated total_records (fast, no full-table scan)
+        return $this->total_records ?? 0;
     }
 
     public function recalculateStats(): void
     {
+        // Single aggregate query — uses indexed columns, no DISTINCT or CASE WHEN concat
         $stats = \Illuminate\Support\Facades\DB::table('emails')
             ->where('email_list_id', $this->id)
-            ->where('is_archived', false)
             ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'valid' THEN 1 ELSE 0 END) as valid,
-                SUM(CASE WHEN status = 'invalid' THEN 1 ELSE 0 END) as invalid,
-                SUM(CASE WHEN status = 'duplicate' THEN 1 ELSE 0 END) as duplicate,
-                SUM(CASE WHEN status = 'cross_duplicate' THEN 1 ELSE 0 END) as cross_duplicate
+                SUM(CASE WHEN is_archived = 0 THEN 1 ELSE 0 END) as total,
+                SUM(CASE WHEN is_archived = 0 AND status = 'valid' THEN 1 ELSE 0 END) as valid,
+                SUM(CASE WHEN is_archived = 0 AND status = 'invalid' THEN 1 ELSE 0 END) as invalid,
+                SUM(CASE WHEN is_archived = 0 AND status = 'duplicate' THEN 1 ELSE 0 END) as duplicate,
+                SUM(CASE WHEN is_archived = 0 AND status = 'cross_duplicate' THEN 1 ELSE 0 END) as cross_duplicate
             ")->first();
 
         $this->update([
@@ -188,9 +183,8 @@ class EmailList extends Model
                 return $stats;
             }
         }
-        
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
 
+        // Single aggregate query — no expensive DISTINCT or CONCAT
         $dbStats = \Illuminate\Support\Facades\DB::table('emails')
             ->where('email_list_id', $this->id)
             ->selectRaw("
@@ -211,11 +205,8 @@ class EmailList extends Model
                 SUM(CASE WHEN is_archived = 0 AND whatsapp_number IS NOT NULL AND whatsapp_number != '' AND whatsapp_subscription_status = 'subscribed' THEN 1 ELSE 0 END) as subscribed_whatsapps
             ")->first();
 
-        // Calculate global_main_rows distinct count
-        $globalMainRows = \Illuminate\Support\Facades\DB::table('emails')
-            ->where('email_list_id', $this->id)
-            ->where('is_archived', false)
-            ->count(\Illuminate\Support\Facades\DB::raw('DISTINCT ' . $groupExpr));
+        // Use pre-calculated total_records instead of expensive COUNT(DISTINCT CASE WHEN ...)
+        $globalMainRows = $this->total_records ?? 0;
 
         $stats = [
             'total' => $this->total_records,

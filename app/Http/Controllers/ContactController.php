@@ -20,17 +20,7 @@ class ContactController extends Controller
         $query = Email::with(['emailList'])
             ->when($activeWorkspaceId, function($q) use ($activeWorkspaceId) {
                 $q->where('email_list_id', $activeWorkspaceId);
-            })
-            ->withCount([
-                'activities as opens_count' => function ($q) {
-                    $q->where('type', 'opened');
-                }
-            ])
-            ->withCount([
-                'activities as clicks_count' => function ($q) {
-                    $q->where('type', 'clicked');
-                }
-            ]);
+            });
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
@@ -43,7 +33,7 @@ class ContactController extends Controller
             $query->where('subscription_status', $request->status);
         }
 
-        $contacts = $query->latest('last_active_at')->paginate(20);
+        $contacts = $query->latest('last_active_at')->simplePaginate(20);
 
         return view('contacts.index', compact('contacts'));
     }

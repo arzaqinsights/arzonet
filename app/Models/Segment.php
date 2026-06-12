@@ -373,20 +373,6 @@ class Segment extends Model
                 ]
             ],
             [
-                'name' => 'Opened Any Email',
-                'description' => 'Contacts who have opened at least one email.',
-                'rules' => [
-                    ['field' => 'opened_email', 'operator' => 'equals', 'value' => '1']
-                ]
-            ],
-            [
-                'name' => 'Clicked Any Link',
-                'description' => 'Contacts who have clicked at least one link.',
-                'rules' => [
-                    ['field' => 'clicked_email', 'operator' => 'equals', 'value' => '1']
-                ]
-            ],
-            [
                 'name' => 'Without Name',
                 'description' => 'Contacts with missing names.',
                 'rules' => [
