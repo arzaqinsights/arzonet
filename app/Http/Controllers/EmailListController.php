@@ -54,23 +54,38 @@ class EmailListController extends Controller
             });
         }
 
-        // Redirect to last opened list or first available list
-        $lastOpenedId = session('last_opened_list_id');
-        $list = null;
-        if ($lastOpenedId) {
-            $list = (clone $query)->where('id', $lastOpenedId)->first();
+        $lists = $query->orderBy('name')->paginate(10);
+
+        // Sum up pre-calculated stats from lists
+        $totalReach = 0;
+        $totalValid = 0;
+        $totalInvalid = 0;
+        $totalDuplicate = 0;
+        
+        foreach ($query->get() as $list) {
+            $totalReach += $list->total_records;
+            $totalValid += $list->valid_count;
+            $totalInvalid += $list->invalid_count;
+            $totalDuplicate += $list->duplicate_count;
         }
 
-        if (!$list) {
-            $list = $query->orderBy('name')->first();
+        $listIds = $query->pluck('id')->toArray();
+        if (!empty($listIds)) {
+            $globalSubscribed = \App\Models\Email::whereIn('email_list_id', $listIds)->where('is_archived', false)->where('subscription_status', 'subscribed')->count();
+            $globalBounced = \App\Models\Email::whereIn('email_list_id', $listIds)->where('is_archived', false)->where('subscription_status', 'bounced')->count();
+        } else {
+            $globalSubscribed = 0;
+            $globalBounced = 0;
         }
 
-        if ($list) {
-            session(['last_opened_list_id' => $list->id]);
-            return redirect()->route('admin.email-lists.show', $list);
-        }
+        $globalStats = [
+            'total' => $totalReach,
+            'subscribed' => $globalSubscribed,
+            'bounced' => $globalBounced,
+            'invalid' => $totalInvalid,
+        ];
 
-        return redirect()->route('admin.email-lists.create');
+        return view('email-lists.index', compact('lists', 'globalStats'));
     }
 
     public function create()

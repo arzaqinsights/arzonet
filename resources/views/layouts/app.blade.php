@@ -148,6 +148,11 @@
                                 </svg>
                                 My Profile
                             </a>
+                            <a href="{{ route('admin.email-lists.index') }}"
+                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">
+                                <i class="fa-solid fa-briefcase w-4 h-4 mr-3 text-gray-400"></i>
+                                Workspaces
+                            </a>
                             @if(\App\Models\User::canAccess('domains.view'))
                             <a href="{{ route('admin.domains.index') }}"
                                 class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors">

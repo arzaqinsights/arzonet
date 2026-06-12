@@ -709,7 +709,7 @@
                                                     Import session: <span
                                                         class="text-surface-900">{{ $log->details['source'] ?? 'File Upload' }}</span>
                                                     @if(!empty($log->details['tags'])) • <span
-                                                        class="text-brand font-semibold uppercase text-[9px]">{{ $log->details['tags'] }}</span>
+                                                        class="text-brand font-semibold uppercase text-[9px]">{{ is_array($log->details['tags']) ? implode(', ', $log->details['tags']) : $log->details['tags'] }}</span>
                                                     @endif
                                                 </p>
 
@@ -1162,14 +1162,14 @@
                                     @csrf
                                     <input type="hidden" name="import_type" :value="type">
 
-                                    <div>
+                                    <!-- <div>
                                         <label
                                             class="block text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2">Internal
                                             Tags</label>
                                         <input type="text" name="tags" value="{{ $emailList->tags }}"
                                             class="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-sm text-sm font-bold focus:bg-white focus:border-brand">
                                         <input type="hidden" name="signup_source" value="import">
-                                    </div>
+                                    </div> -->
 
                                     <div x-show="type === 'upload'">
                                         <label
