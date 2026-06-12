@@ -596,7 +596,7 @@
 
             {{-- Contact Data Grid --}}
             <div class="bg-white border border-gray-100 rounded-sm overflow-hidden min-h-[600px]">
-                <div class="overflow-x-auto no-scrollbar">
+                <div class="overflow-x-auto no-scrollbar min-h-screen">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr
