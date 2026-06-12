@@ -110,10 +110,12 @@ class Campaign extends Model
                 SUM(CASE WHEN status IN ('sent','delivered') THEN 1 ELSE 0 END) as sent,
                 SUM(CASE WHEN status IN ('failed') THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN status = 'bounced' THEN 1 ELSE 0 END) as bounced,
+                SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocked,
+                SUM(CASE WHEN status = 'dropped' THEN 1 ELSE 0 END) as dropped,
                 SUM(CASE WHEN status IN ('complaint','spamreport') THEN 1 ELSE 0 END) as complaints,
                 SUM(CASE WHEN open_count > 0 OR click_count > 0 THEN 1 ELSE 0 END) as unique_opens,
                 SUM(CASE WHEN click_count > 0 THEN 1 ELSE 0 END) as unique_clicks,
-                SUM(CASE WHEN status IN ('sent','delivered','failed','bounced','complaint','spamreport','dropped') THEN 1 ELSE 0 END) as processed
+                SUM(CASE WHEN status IN ('sent','delivered','failed','bounced','complaint','spamreport','dropped','blocked','unsubscribed') THEN 1 ELSE 0 END) as processed
             ")->first();
 
         Redis::setex($key, 30, json_encode($stats));
@@ -124,7 +126,7 @@ class Campaign extends Model
     {
         $stats = $this->getCachedStats();
         $sent = (int) $stats->sent;
-        $failed = (int) $stats->failed + (int) $stats->bounced;
+        $failed = (int) $stats->failed + (int) $stats->bounced + (int) ($stats->blocked ?? 0) + (int) ($stats->dropped ?? 0) + (int) ($stats->complaints ?? 0);
         
         if ($sent + $failed === 0) return 0;
         return round(($sent / ($sent + $failed)) * 100, 1);
@@ -134,7 +136,7 @@ class Campaign extends Model
     {
         $stats = $this->getCachedStats();
         $sent = (int) $stats->sent;
-        $failed = (int) $stats->failed + (int) $stats->bounced;
+        $failed = (int) $stats->failed + (int) $stats->bounced + (int) ($stats->blocked ?? 0) + (int) ($stats->dropped ?? 0) + (int) ($stats->complaints ?? 0);
         
         if ($sent + $failed === 0) return 0;
         return round(($failed / ($sent + $failed)) * 100, 1);

@@ -215,8 +215,7 @@ class EmailList extends Model
         $globalMainRows = \Illuminate\Support\Facades\DB::table('emails')
             ->where('email_list_id', $this->id)
             ->where('is_archived', false)
-            ->distinct()
-            ->count(\Illuminate\Support\Facades\DB::raw($groupExpr));
+            ->count(\Illuminate\Support\Facades\DB::raw('DISTINCT ' . $groupExpr));
 
         $stats = [
             'total' => $this->total_records,

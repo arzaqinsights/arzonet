@@ -96,7 +96,8 @@ class WebhookController extends Controller
             // 1. Mark as Unsubscribed
             Email::where('email', $emailAddress)->update([
                 'subscription_status' => 'unsubscribed',
-                'reason' => 'Spam Complaint'
+                'reason' => 'Spam Complaint',
+                'subscribed_topics' => json_encode([]),
             ]);
 
             // 2. Blacklist immediately

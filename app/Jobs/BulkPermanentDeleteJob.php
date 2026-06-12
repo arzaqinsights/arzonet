@@ -21,18 +21,22 @@ class BulkPermanentDeleteJob implements ShouldQueue
     protected $filters;
     protected $ids;
     protected $reason;
+    protected $activityLogId;
 
-    public function __construct($emailListId, $isGlobal, $filters, $ids, $reason)
+    public function __construct($emailListId, $isGlobal, $filters, $ids, $reason, $activityLogId = null)
     {
         $this->emailListId = $emailListId;
         $this->isGlobal = $isGlobal;
         $this->filters = $filters;
         $this->ids = $ids;
         $this->reason = $reason;
+        $this->activityLogId = $activityLogId;
     }
 
     public function handle()
     {
+        DB::connection()->disableQueryLog();
+
         $emailList = EmailList::find($this->emailListId);
         if (!$emailList) return;
 
@@ -120,5 +124,17 @@ class BulkPermanentDeleteJob implements ShouldQueue
         $deleteQuery->delete();
 
         $emailList->recalculateStats();
+
+        // Reset list status and update activity log
+        $emailList->update(['status' => 'completed']);
+        if ($this->activityLogId) {
+            $log = \App\Models\ActivityLog::find($this->activityLogId);
+            if ($log) {
+                $details = $log->details ?? [];
+                $details['status'] = 'completed';
+                $details['finished_at'] = now()->toDateTimeString();
+                $log->update(['details' => $details]);
+            }
+        }
     }
 }

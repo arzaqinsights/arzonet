@@ -100,6 +100,7 @@ class SnsController extends Controller
             if ($bounceType === 'Permanent') {
                 $updateData['email_score'] = 1;
                 $updateData['bounce_count'] = DB::raw('bounce_count + 1');
+                $updateData['subscribed_topics'] = json_encode([]);
             } else {
                 $updateData['email_score'] = DB::raw('GREATEST(1, email_score - 1)');
             }
@@ -155,6 +156,7 @@ class SnsController extends Controller
                 'email_score' => 1,
                 'complaint_count' => DB::raw('complaint_count + 1'),
                 'last_campaign_status' => 'complaint',
+                'subscribed_topics' => json_encode([]),
             ]);
 
             // 3. Update EmailLog (Analytics)

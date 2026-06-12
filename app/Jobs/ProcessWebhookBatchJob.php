@@ -84,7 +84,13 @@ class ProcessWebhookBatchJob implements ShouldQueue
 
         $logsByMessageId = collect();
         if (!empty($messageIds)) {
-            $baseIds = array_unique(array_map(fn($id) => explode('.', $id)[0], $messageIds));
+            $baseIds = array_unique(array_map(function($id) {
+                $parts = explode('.', $id);
+                if (count($parts) > 1 && $parts[0] === 'SG') {
+                    return $parts[0] . '.' . $parts[1];
+                }
+                return $parts[0];
+            }, $messageIds));
             
             $query = EmailLog::with('email');
             $query->where(function($q) use ($baseIds) {
@@ -106,7 +112,10 @@ class ProcessWebhookBatchJob implements ShouldQueue
             
             $messageId = $event['sg_message_id'] ?? null;
             if ($messageId) {
-                $baseId = explode('.', $messageId)[0];
+                $parts = explode('.', $messageId);
+                $baseId = (count($parts) > 1 && $parts[0] === 'SG') 
+                    ? $parts[0] . '.' . $parts[1] 
+                    : $parts[0];
                 return $allLogs->first(fn($l) => str_starts_with($l->message_id, $baseId));
             }
             
@@ -256,24 +265,26 @@ class ProcessWebhookBatchJob implements ShouldQueue
                                     'subscription_status' => 'unsubscribed',
                                     'unsubscribed_at'     => now(),
                                     'email_score'         => 1,
-                                    'validation_reason'   => 'Hard Bounce: ' . $reason
+                                    'validation_reason'   => 'Hard Bounce: ' . $reason,
+                                    'subscribed_topics'   => json_encode([]),
                                 ];
                             }
                         }
                     }
                     break;
-
+ 
                 case 'dropped':
                     $reason = $event['reason'] ?? 'Dropped by SendGrid';
                     $state['status'] = 'dropped';
                     $state['error_message'] = $reason;
-
+ 
                     if ($log->email) {
                         if (stripos($reason, 'Unsubscribed') !== false) {
                             $emailUpdates[$log->email_id] = [
                                 'subscription_status' => 'unsubscribed', 
                                 'unsubscribed_at' => now(),
-                                'email_status' => 'invalid'
+                                'email_status' => 'invalid',
+                                'subscribed_topics' => json_encode([]),
                             ];
                         } elseif (stripos($reason, 'Bounced') !== false || stripos($reason, 'Invalid') !== false) {
                             $emailUpdates[$log->email_id] = [
@@ -282,21 +293,22 @@ class ProcessWebhookBatchJob implements ShouldQueue
                                 'subscription_status' => 'unsubscribed',
                                 'unsubscribed_at' => now(),
                                 'email_score' => 1,
-                                'validation_reason' => $reason
+                                'validation_reason' => $reason,
+                                'subscribed_topics' => json_encode([]),
                             ];
                         }
                     }
                     break;
-
+ 
                 case 'blocked':
                     $state['status'] = 'blocked';
                     $state['error_message'] = $event['reason'] ?? 'Blocked by Receiving MTA';
                     break;
-
+ 
                 case 'spamreport':
                     $state['status'] = 'spamreport';
                     $state['error_message'] = 'Spam Complaint';
-
+ 
                     $unsubscribesToCreate[] = [
                         'email'           => $log->email_address,
                         'campaign_id'     => $log->campaign_id,
@@ -304,29 +316,31 @@ class ProcessWebhookBatchJob implements ShouldQueue
                         'created_at'      => now(),
                         'updated_at'      => now(),
                     ];
-
-                    if ($log->email_id) {
-                        $emailUpdates[$log->email_id] = [
-                            'subscription_status' => 'unsubscribed'
-                        ];
-                    }
-                    break;
-
-                case 'unsubscribe':
-                    $state['status'] = 'unsubscribed';
-
-                    $unsubscribesToCreate[] = [
-                        'email'           => $log->email_address,
-                        'campaign_id'     => $log->campaign_id,
-                        'unsubscribed_at' => now(),
-                        'created_at'      => now(),
-                        'updated_at'      => now(),
-                    ];
-
+ 
                     if ($log->email_id) {
                         $emailUpdates[$log->email_id] = [
                             'subscription_status' => 'unsubscribed',
-                            'unsubscribed_at'     => now()
+                            'subscribed_topics' => json_encode([]),
+                        ];
+                    }
+                    break;
+ 
+                case 'unsubscribe':
+                    $state['status'] = 'unsubscribed';
+ 
+                    $unsubscribesToCreate[] = [
+                        'email'           => $log->email_address,
+                        'campaign_id'     => $log->campaign_id,
+                        'unsubscribed_at' => now(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ];
+ 
+                    if ($log->email_id) {
+                        $emailUpdates[$log->email_id] = [
+                            'subscription_status' => 'unsubscribed',
+                            'unsubscribed_at'     => now(),
+                            'subscribed_topics' => json_encode([]),
                         ];
                     }
                     break;
@@ -363,14 +377,19 @@ class ProcessWebhookBatchJob implements ShouldQueue
             }
         });
 
-        // 5. Debounce Segment Recalculation using a Redis lock (60 seconds)
-        // Only run for contacts that actually had a subscription/bounce change
-        $contactSegmentJobsToDispatch = array_keys($emailUpdates);
-        $uniqueEmailIds = array_unique($contactSegmentJobsToDispatch);
-        foreach ($uniqueEmailIds as $emailId) {
-            $lockKey = "webhook:segment_lock:{$emailId}";
-            if (Redis::set($lockKey, '1', 'EX', 60, 'NX')) {
-                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $emailId)->onQueue('segments');
+        // 5. Clear list stats/filters cache in Redis directly
+        $uniqueEmailIds = array_unique(array_keys($emailUpdates));
+        if (!empty($uniqueEmailIds)) {
+            $listIds = DB::table('emails')
+                ->whereIn('id', $uniqueEmailIds)
+                ->pluck('email_list_id')
+                ->unique()
+                ->filter()
+                ->toArray();
+
+            foreach ($listIds as $listId) {
+                Redis::del("list_stats:{$listId}");
+                Redis::del("list_filters:{$listId}");
             }
         }
     }

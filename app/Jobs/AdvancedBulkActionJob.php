@@ -24,8 +24,9 @@ class AdvancedBulkActionJob implements ShouldQueue
     protected $ids;
     protected $payload;
     protected $userId;
+    protected $activityLogId;
 
-    public function __construct($emailListId, $actionType, $isGlobal, $filters, $ids, $payload, $userId)
+    public function __construct($emailListId, $actionType, $isGlobal, $filters, $ids, $payload, $userId, $activityLogId = null)
     {
         $this->emailListId = $emailListId;
         $this->actionType = $actionType;
@@ -34,10 +35,13 @@ class AdvancedBulkActionJob implements ShouldQueue
         $this->ids = $ids;
         $this->payload = $payload;
         $this->userId = $userId;
+        $this->activityLogId = $activityLogId;
     }
 
     public function handle()
     {
+        DB::connection()->disableQueryLog();
+
         $emailList = EmailList::find($this->emailListId);
         if (!$emailList)
             return;
@@ -195,21 +199,19 @@ class AdvancedBulkActionJob implements ShouldQueue
             foreach ($chunk as $email) {
                 switch ($this->actionType) {
                     case 'add_tags':
-                        $existingTags = explode(',', $email->tags ?? '');
-                        $existingTags = array_map('trim', array_filter($existingTags));
-                        $newTags = explode(',', $this->payload['tags'] ?? '');
+                        $existingTags = is_array($email->tags) ? $email->tags : [];
+                        $newTags = is_array($this->payload['tags']) ? $this->payload['tags'] : (is_string($this->payload['tags'] ?? null) ? explode(',', $this->payload['tags']) : []);
                         $newTags = array_map('trim', array_filter($newTags));
-                        $mergedTags = array_unique(array_merge($existingTags, $newTags));
-                        $email->update(['tags' => implode(',', $mergedTags)]);
+                        $mergedTags = array_values(array_unique(array_merge($existingTags, $newTags)));
+                        $email->update(['tags' => $mergedTags]);
                         break;
 
                     case 'remove_tags':
-                        $existingTags = explode(',', $email->tags ?? '');
-                        $existingTags = array_map('trim', array_filter($existingTags));
-                        $removeTags = explode(',', $this->payload['tags'] ?? '');
+                        $existingTags = is_array($email->tags) ? $email->tags : [];
+                        $removeTags = is_array($this->payload['tags']) ? $this->payload['tags'] : (is_string($this->payload['tags'] ?? null) ? explode(',', $this->payload['tags']) : []);
                         $removeTags = array_map('trim', array_filter($removeTags));
-                        $finalTags = array_diff($existingTags, $removeTags);
-                        $email->update(['tags' => implode(',', $finalTags)]);
+                        $finalTags = array_values(array_diff($existingTags, $removeTags));
+                        $email->update(['tags' => $finalTags]);
                         break;
 
                     case 'manage_subscriptions':
@@ -408,6 +410,18 @@ class AdvancedBulkActionJob implements ShouldQueue
             $targetList = EmailList::find($this->payload['target_list_id']);
             if ($targetList) {
                 $targetList->recalculateStats();
+            }
+        }
+
+        // Reset list status and update activity log
+        $emailList->update(['status' => 'completed']);
+        if ($this->activityLogId) {
+            $log = \App\Models\ActivityLog::find($this->activityLogId);
+            if ($log) {
+                $details = $log->details ?? [];
+                $details['status'] = 'completed';
+                $details['finished_at'] = now()->toDateTimeString();
+                $log->update(['details' => $details]);
             }
         }
     }

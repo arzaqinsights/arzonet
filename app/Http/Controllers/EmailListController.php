@@ -734,6 +734,8 @@ class EmailListController extends Controller
             ($request->tag && $request->tag !== 'all') ||
             ($request->channel && $request->channel !== 'all') ||
             ($request->wa_status && $request->wa_status !== 'all') ||
+            ($request->topic && $request->topic !== 'all') ||
+            ($request->added_by && $request->added_by !== 'all') ||
             ($request->advanced_rules && !empty($request->advanced_rules)) ||
             $request->search) {
             $isFiltered = true;
@@ -742,8 +744,7 @@ class EmailListController extends Controller
         $dynamicStats['is_filtered'] = $isFiltered;
         $dynamicStats['filtered_main_rows'] = $isFiltered ? DB::table('emails')
             ->whereIn('id', (clone $query)->reorder()->select('emails.id'))
-            ->distinct()
-            ->count(DB::raw($groupExpr)) : 0;
+            ->count(DB::raw('DISTINCT ' . $groupExpr)) : 0;
 
         $emails = $query->paginate(50);
         $emails = $this->loadDynamicSegments($emails, $emailList);
@@ -906,8 +907,23 @@ class EmailListController extends Controller
     {
         $stats = $emailList->getStatistics();
 
+        $activeBulkActionLog = $emailList->activityLogs()
+            ->where('type', 'bulk_action')
+            ->where('details->status', 'started')
+            ->latest()
+            ->first();
+
+        $lastCompletedBulkAction = $emailList->activityLogs()
+            ->where('type', 'bulk_action')
+            ->where('details->status', 'completed')
+            ->where('updated_at', '>=', now()->subSeconds(15))
+            ->latest()
+            ->first();
+
         $data = [
             'status' => $emailList->status,
+            'active_bulk_action' => $activeBulkActionLog ? $activeBulkActionLog->details : null,
+            'last_bulk_action_completed' => !is_null($lastCompletedBulkAction),
             'total_records' => $emailList->total_records,
             'valid_count' => $emailList->valid_count,
             'invalid_count' => $emailList->invalid_count,
@@ -1428,6 +1444,21 @@ class EmailListController extends Controller
                 $payload['value'] = $request->input('value') ?? $request->input('new_value');
             }
 
+            $emailList->update(['status' => 'processing']);
+
+            $activityLog = $emailList->activityLogs()->create([
+                'user_id' => auth()->id(),
+                'type' => 'bulk_action',
+                'details' => [
+                    'action' => $request->action,
+                    'status' => 'started',
+                    'count' => $count,
+                    'scope' => $request->global ? 'global' : 'selection',
+                    'filters' => $request->global ? $request->filters : null,
+                    'payload' => $payload
+                ]
+            ]);
+
             \App\Jobs\AdvancedBulkActionJob::dispatch(
                 $emailList->id,
                 $request->action,
@@ -1435,20 +1466,9 @@ class EmailListController extends Controller
                 $request->global ? $request->filters : null,
                 $request->global ? [] : $request->ids,
                 $payload,
-                auth()->id()
+                auth()->id(),
+                $activityLog->id
             );
-
-            $emailList->activityLogs()->create([
-                'user_id' => auth()->id(),
-                'type' => 'bulk_action',
-                'details' => [
-                    'action' => $request->action,
-                    'count' => $count,
-                    'scope' => $request->global ? 'global' : 'selection',
-                    'filters' => $request->global ? $request->filters : null,
-                    'payload' => $payload
-                ]
-            ]);
 
             return response()->json([
                 'success' => true,
@@ -1459,24 +1479,28 @@ class EmailListController extends Controller
         if ($request->action === 'permanent_delete' || $request->action === 'delete') {
             $reason = $request->input('delete_reason', $request->input('reason', 'User requested permanent deletion'));
             
-            \App\Jobs\BulkPermanentDeleteJob::dispatch(
-                $emailList->id,
-                $request->global ? true : false,
-                $request->global ? $request->filters : null,
-                $request->global ? [] : $request->ids,
-                $reason
-            );
+            $emailList->update(['status' => 'processing']);
 
-            $emailList->activityLogs()->create([
+            $activityLog = $emailList->activityLogs()->create([
                 'user_id' => auth()->id(),
                 'type' => 'bulk_action',
                 'details' => [
                     'action' => 'permanent_delete',
+                    'status' => 'started',
                     'count' => $count,
                     'scope' => $request->global ? 'global' : 'selection',
                     'filters' => $request->global ? $request->filters : null
                 ]
             ]);
+
+            \App\Jobs\BulkPermanentDeleteJob::dispatch(
+                $emailList->id,
+                $request->global ? true : false,
+                $request->global ? $request->filters : null,
+                $request->global ? [] : $request->ids,
+                $reason,
+                $activityLog->id
+            );
 
             return response()->json([
                 'success' => true,

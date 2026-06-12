@@ -78,10 +78,10 @@ class ProcessTrackingEventJob implements ShouldQueue
                 'last_engaged_at' => now()
             ]);
 
-            // Dispatch segment updates for this contact (debounced)
-            $lockKey = "webhook:segment_lock:{$log->email_id}";
-            if (Redis::set($lockKey, '1', 'EX', 60, 'NX')) {
-                \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $log->email_id)->onQueue('segments');
+            // Clear list stats cache in Redis directly
+            if ($log->email->email_list_id) {
+                Redis::del("list_stats:{$log->email->email_list_id}");
+                Redis::del("list_filters:{$log->email->email_list_id}");
             }
         }
     }

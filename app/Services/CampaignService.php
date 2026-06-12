@@ -117,7 +117,8 @@ class CampaignService
         $failedCount = ($logStats['failed'] ?? 0);
         $bounceCount = ($logStats['bounced'] ?? 0);
         $pendingCount = ($logStats['pending'] ?? 0);
-        $droppedCount = ($logStats['dropped'] ?? 0);
+        $blockedCount = ($logStats['blocked'] ?? 0);
+        $droppedCount = ($logStats['dropped'] ?? 0) + $blockedCount;
         $spamCount = ($logStats['spamreport'] ?? 0) + ($logStats['complaint'] ?? 0);
 
         return [
@@ -127,6 +128,7 @@ class CampaignService
             'pending'    => $pendingCount,
             'bounced'    => $bounceCount,
             'dropped'    => $droppedCount,
+            'blocked'    => $blockedCount,
             'spam'       => $spamCount,
             'opens'        => $campaign->logs()->sum('open_count'),
             'unique_opens' => $campaign->logs()->where(function($q) {

@@ -123,13 +123,27 @@
                     </div>
 
                     <div class="flex-1">
-                        <p class="text-brand font-black uppercase text-[10px] tracking-widest">
-                            Synchronization in Progress
-                        </p>
-                        <p class="text-[11px] text-brand/70 font-medium mt-0.5">
-                            You can safely navigate away or perform other tasks. We will update you here once the import is
-                            finalized.
-                        </p>
+                        <template x-if="stats.active_bulk_action">
+                            <div>
+                                <p class="text-brand font-black uppercase text-[10px] tracking-widest">
+                                    Background Job in Progress: <span x-text="stats.active_bulk_action.action.toUpperCase().replace('_', ' ')"></span>
+                                </p>
+                                <p class="text-[11px] text-brand/70 font-medium mt-0.5">
+                                    Performing bulk <span x-text="stats.active_bulk_action.action.replace('_', ' ')"></span> on <span x-text="stats.active_bulk_action.count"></span> contacts. You can safely navigate away or perform other tasks.
+                                </p>
+                            </div>
+                        </template>
+                        <template x-if="!stats.active_bulk_action">
+                            <div>
+                                <p class="text-brand font-black uppercase text-[10px] tracking-widest">
+                                    Synchronization in Progress
+                                </p>
+                                <p class="text-[11px] text-brand/70 font-medium mt-0.5">
+                                    You can safely navigate away or perform other tasks. We will update you here once the import is
+                                    finalized.
+                                </p>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -150,10 +164,10 @@
 
                         <div>
                             <p class="text-brand font-black uppercase text-[10px] tracking-widest">
-                                Import Successful
+                                <span x-text="completedJobType === 'bulk_action' ? 'Bulk Action Successful' : 'Import Successful'"></span>
                             </p>
                             <p class="text-[11px] text-brand/70 font-medium mt-0.5">
-                                The synchronization has finished. You can refresh to see the latest audience data.
+                                <span x-text="completedJobType === 'bulk_action' ? 'The background bulk action has completed successfully.' : 'The synchronization has finished. You can refresh to see the latest audience data.'"></span>
                             </p>
                         </div>
                     </div>
@@ -543,7 +557,7 @@
                     <div class="flex items-center gap-3">
                         <div class="flex flex-col">
                             <span class="text-xl font-black leading-none tracking-tight"
-                                x-text="globalSelect ? (archived === 'yes' ? stats.archived.toLocaleString() : stats.total.toLocaleString()) : selectedIds.length"></span>
+                                x-text="globalSelect ? (stats.is_filtered ? stats.filtered_main_rows : (archived === 'yes' ? stats.archived : stats.global_main_rows)).toLocaleString() : selectedIds.length.toLocaleString()"></span>
                             <span class="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 mt-1">Contacts
                                 Selected</span>
                         </div>
@@ -1442,7 +1456,7 @@
                                     </h3>
                                     <p class="text-[10px] text-surface-500 mt-1 uppercase font-bold tracking-widest">
                                         <span class="text-brand"
-                                            x-text="globalSelect ? (archived === 'yes' ? stats.archived.toLocaleString() : stats.total.toLocaleString()) : selectedIds.length"></span>
+                                            x-text="globalSelect ? (stats.is_filtered ? stats.filtered_main_rows : (archived === 'yes' ? stats.archived : stats.global_main_rows)).toLocaleString() : selectedIds.length.toLocaleString()"></span>
                                         Contacts Selected
                                     </p>
                                 </div>
@@ -2195,7 +2209,7 @@
 
                 exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
                 consolidate: false,
-                adding: false, saving: false, scrubbing: false, importJustCompleted: false,
+                adding: false, saving: false, scrubbing: false, importJustCompleted: false, completedJobType: 'import',
                 newContact: { email: '', name: '', whatsapp_number: '', segment_name: '', tags: '', signup_source: 'Manual Entry' },
                 editingContact: { id: null, email: '', name: '', subscription_status: '', meta: {} },
                 stats: {
@@ -2232,7 +2246,9 @@
                     total_whatsapps: {{ $stats['total_whatsapps'] ?? 0 }},
                     subscribed_whatsapps: {{ $stats['subscribed_whatsapps'] ?? 0 }},
                     is_filtered: false,
-                    filtered_main_rows: 0
+                    filtered_main_rows: 0,
+                    active_bulk_action: null,
+                    last_bulk_action_completed: false
                 },
 
                 init() {
@@ -2269,7 +2285,7 @@
 
                 bulkAction(action) {
                     const count = this.globalSelect
-                        ? (this.archived === 'yes' ? this.stats.archived : this.stats.total)
+                        ? (this.stats.is_filtered ? this.stats.filtered_main_rows : (this.archived === 'yes' ? this.stats.archived : this.stats.global_main_rows))
                         : this.selectedIds.length;
 
                     if (!count) return;
@@ -2397,7 +2413,7 @@
 
                 executeBulkAction() {
                     const count = this.globalSelect
-                        ? this.stats.total
+                        ? (this.stats.is_filtered ? this.stats.filtered_main_rows : (this.archived === 'yes' ? this.stats.archived : this.stats.global_main_rows))
                         : this.selectedIds.length;
 
                     if (!count) return;
@@ -2528,6 +2544,8 @@
                             this.stats.cross_duplicate = data.cross_duplicate_count || 0;
                             this.stats.import_progress = data.import_progress;
                             this.stats.import_details = data.import_details;
+                            this.stats.active_bulk_action = data.active_bulk_action;
+                            this.stats.last_bulk_action_completed = data.last_bulk_action_completed;
 
                             this.stats.global_main_rows = data.global_main_rows || 0;
                             this.stats.total_emails = data.total_emails || 0;
@@ -2540,6 +2558,7 @@
                                 this.fetchEmails();
                                 if (oldStatus === 'processing' && data.status === 'completed') {
                                     this.importJustCompleted = true;
+                                    this.completedJobType = data.last_bulk_action_completed ? 'bulk_action' : 'import';
                                 }
                             }
                         });

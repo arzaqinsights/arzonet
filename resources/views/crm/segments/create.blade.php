@@ -97,7 +97,16 @@
                         {{-- Value --}}
                         <div class="flex-[1.5] relative">
                             <label class="absolute -top-2 left-2 px-1 bg-white text-[9px] font-black uppercase tracking-widest text-surface-400" x-show="needsValue(rule.operator)">Value</label>
-                            <input x-show="needsValue(rule.operator)" type="text" x-model="rule.value" @input.debounce.400ms="updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand" placeholder="Enter matching value...">
+                            
+                            <div x-show="rule.operator === 'date_range'" class="flex gap-2 w-full">
+                                <input type="date" x-model="rule.value_start" @change="rule.value = (rule.value_start || '') + ',' + (rule.value_end || ''); updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand">
+                                <span class="self-center text-xs text-gray-400">to</span>
+                                <input type="date" x-model="rule.value_end" @change="rule.value = (rule.value_start || '') + ',' + (rule.value_end || ''); updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand">
+                            </div>
+
+                            <input x-show="['before_date', 'after_date'].includes(rule.operator)" type="date" x-model="rule.value" @change="updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand">
+
+                            <input x-show="needsValue(rule.operator) && !['date_range', 'before_date', 'after_date'].includes(rule.operator)" type="text" x-model="rule.value" @input.debounce.400ms="updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand" placeholder="Enter matching value...">
                             
                             <div x-show="!needsValue(rule.operator)" class="h-[46px] flex items-center px-4 bg-surface-50 border border-surface-100 rounded-md">
                                 <span class="text-xs font-bold text-surface-400 italic">No value required for this condition</span>
@@ -141,16 +150,19 @@ function segmentBuilder() {
     return {
         name: '',
         description: '',
-        rules: [{ field: '', operator: '', value: '' }],
+        rules: [{ field: '', operator: '', value: '', value_start: '', value_end: '' }],
         matchingCount: 0,
         isLoadingCount: false,
         isSaving: false,
-
+ 
         getOperators(field) {
             const dateFields = ['last_engaged_at', 'last_active_at', 'last_sent_at'];
             if (dateFields.includes(field)) {
                 return [
-                    { value: 'recent_days', label: 'In the last X days' }
+                    { value: 'recent_days', label: 'In the last X days' },
+                    { value: 'date_range', label: 'Between dates' },
+                    { value: 'before_date', label: 'Before date' },
+                    { value: 'after_date', label: 'After date' }
                 ];
             }
             return [
@@ -167,6 +179,8 @@ function segmentBuilder() {
         handleFieldChange(rule) {
             rule.operator = '';
             rule.value = '';
+            rule.value_start = '';
+            rule.value_end = '';
             this.updateCount();
         },
 
@@ -175,7 +189,7 @@ function segmentBuilder() {
         },
 
         addRule() {
-            this.rules.push({ field: '', operator: '', value: '' });
+            this.rules.push({ field: '', operator: '', value: '', value_start: '', value_end: '' });
         },
 
         removeRule(index) {

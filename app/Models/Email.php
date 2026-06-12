@@ -53,6 +53,11 @@ class Email extends Model
         'subscribed_topics',
     ];
 
+    protected $attributes = [
+        'subscription_status' => 'subscribed',
+        'whatsapp_subscription_status' => 'subscribed',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -73,14 +78,71 @@ class Email extends Model
 
     protected static function booted()
     {
+        static::saving(function ($email) {
+            $topics = $email->subscribed_topics;
+            if (is_string($topics)) {
+                $topics = json_decode($topics, true);
+            }
+            if (is_array($topics)) {
+                $topics = array_values(array_filter($topics, function ($val) {
+                    return $val !== null && $val !== '' && $val !== [];
+                }));
+            } else {
+                $topics = null;
+            }
+
+            // 1. If subscription_status is unsubscribed or bounced, clear topics
+            if (in_array($email->subscription_status, ['unsubscribed', 'bounced'])) {
+                $email->subscribed_topics = [];
+            }
+            // 2. If subscription_status is subscribed:
+            elseif ($email->subscription_status === 'subscribed') {
+                if (is_null($topics)) {
+                    if ($email->email_list_id) {
+                        $listTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $email->email_list_id)
+                            ->pluck('id')
+                            ->toArray();
+                        if (!empty($listTopicIds)) {
+                            $email->subscribed_topics = array_map('intval', $listTopicIds);
+                            $email->subscription_status = 'subscribed';
+                        } else {
+                            $email->subscribed_topics = [];
+                            $email->subscription_status = 'unsubscribed';
+                        }
+                    } else {
+                        $email->subscribed_topics = [];
+                        $email->subscription_status = 'unsubscribed';
+                    }
+                } elseif (empty($topics)) {
+                    $email->subscribed_topics = [];
+                    $email->subscription_status = 'unsubscribed';
+                } else {
+                    $email->subscribed_topics = array_map('intval', $topics);
+                    $email->subscription_status = 'subscribed';
+                }
+            }
+            // 3. If subscription_status is pending:
+            elseif ($email->subscription_status === 'pending') {
+                if (is_array($topics)) {
+                    $email->subscribed_topics = array_map('intval', $topics);
+                }
+            }
+        });
+
         static::created(function ($email) {
-            \App\Jobs\UpdateContactSegmentsJob::dispatch($email->id);
+            if ($email->email_list_id) {
+                \Illuminate\Support\Facades\Redis::del("list_stats:{$email->email_list_id}");
+                \Illuminate\Support\Facades\Redis::del("list_filters:{$email->email_list_id}");
+            }
             \App\Jobs\CalculateLeadScoreJob::dispatch($email->id);
         });
 
         static::updated(function ($email) {
             if ($email->isDirty(['status', 'email_status', 'email_score', 'subscription_status', 'bounce_count', 'complaint_count', 'whatsapp_number', 'whatsapp_opt_in', 'whatsapp_subscription_status', 'email'])) {
-                \App\Jobs\UpdateContactSegmentsJob::dispatch($email->id);
+                if ($email->email_list_id) {
+                    \Illuminate\Support\Facades\Redis::del("list_stats:{$email->email_list_id}");
+                    \Illuminate\Support\Facades\Redis::del("list_filters:{$email->email_list_id}");
+                }
                 \App\Jobs\CalculateLeadScoreJob::dispatch($email->id);
             }
 

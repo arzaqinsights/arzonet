@@ -24,10 +24,8 @@ class UpdateContactSegmentsJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(SegmentService $service): void
+    public function handle(): void
     {
-        $service->recalculateSegments($this->emailId, $this->listId);
-
         $listId = $this->listId;
         if (!$listId && $this->emailId) {
             $listId = \Illuminate\Support\Facades\DB::table('emails')

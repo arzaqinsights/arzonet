@@ -64,6 +64,15 @@ class Segment extends Model
                                       }),
                     'is_not_empty' => $query->whereNotNull($field)->where($field, '!=', ''),
                     'recent_days'  => $query->where($field, '>=', now()->subDays((int)$value)),
+                    'date_range'   => $query->where(function ($q) use ($field, $value) {
+                                          $parts = explode(',', $value);
+                                          $start = $parts[0] ?? null;
+                                          $end = $parts[1] ?? null;
+                                          if ($start) $q->where($field, '>=', $start . ' 00:00:00');
+                                          if ($end) $q->where($field, '<=', $end . ' 23:59:59');
+                                      }),
+                    'before_date'  => $query->where($field, '<=', $value . ' 23:59:59'),
+                    'after_date'   => $query->where($field, '>=', $value . ' 00:00:00'),
                     default        => null,
                 };
             } elseif ($field === 'tag') {
@@ -87,6 +96,28 @@ class Segment extends Model
                           ->from('email_logs')
                           ->whereColumn('email_logs.email_id', 'emails.id')
                           ->where('email_logs.sent_at', '>=', now()->subDays((int)$value));
+                    }),
+                    'date_range' => $query->whereExists(function ($q) use ($value) {
+                        $parts = explode(',', $value);
+                        $start = $parts[0] ?? null;
+                        $end = $parts[1] ?? null;
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id');
+                        if ($start) $q->where('email_logs.sent_at', '>=', $start . ' 00:00:00');
+                        if ($end) $q->where('email_logs.sent_at', '<=', $end . ' 23:59:59');
+                    }),
+                    'before_date' => $query->whereExists(function ($q) use ($value) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->where('email_logs.sent_at', '<=', $value . ' 23:59:59');
+                    }),
+                    'after_date' => $query->whereExists(function ($q) use ($value) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->where('email_logs.sent_at', '>=', $value . ' 00:00:00');
                     }),
                     default => null,
                 };
@@ -194,6 +225,27 @@ class Segment extends Model
                     if (!$contactValue) return false;
                     $date = \Carbon\Carbon::parse($contactValue);
                     if ($date->lt(now()->subDays((int)$value))) return false;
+                    break;
+                case 'date_range':
+                    if (!$contactValue) return false;
+                    $parts = explode(',', $value);
+                    $start = isset($parts[0]) && $parts[0] ? \Carbon\Carbon::parse($parts[0] . ' 00:00:00') : null;
+                    $end = isset($parts[1]) && $parts[1] ? \Carbon\Carbon::parse($parts[1] . ' 23:59:59') : null;
+                    $date = \Carbon\Carbon::parse($contactValue);
+                    if ($start && $date->lt($start)) return false;
+                    if ($end && $date->gt($end)) return false;
+                    break;
+                case 'before_date':
+                    if (!$contactValue) return false;
+                    $date = \Carbon\Carbon::parse($contactValue);
+                    $target = \Carbon\Carbon::parse($value . ' 23:59:59');
+                    if ($date->gt($target)) return false;
+                    break;
+                case 'after_date':
+                    if (!$contactValue) return false;
+                    $date = \Carbon\Carbon::parse($contactValue);
+                    $target = \Carbon\Carbon::parse($value . ' 00:00:00');
+                    if ($date->lt($target)) return false;
                     break;
                 default:
                     return false;

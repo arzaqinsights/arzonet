@@ -116,7 +116,6 @@ class TrackingController extends Controller
             }
 
             // Trigger segment recalculation for this contact
-            \App\Jobs\UpdateContactSegmentsJob::dispatch(emailId: $email->id);
 
             return response()->json(['success' => true]);
         }
