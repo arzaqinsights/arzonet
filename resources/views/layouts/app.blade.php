@@ -321,7 +321,11 @@
 
                     $audienceSub = [];
                     if ($can('crm.view')) {
-                        $audienceSub[] = ['title' => 'Contacts', 'route' => 'admin.email-lists.index', 'active' => 'admin.email-lists.*'];
+                        $audienceSub[] = [
+                            'title' => 'Contacts',
+                            'url' => $activeWorkspace ? route('admin.email-lists.show', $activeWorkspace->id) : route('admin.email-lists.index'),
+                            'active' => 'admin.email-lists.*'
+                        ];
                         $audienceSub[] = ['title' => 'Tags', 'route' => 'admin.tags.index', 'active' => 'admin.tags.*'];
                     }
                     if ($can('segments.view')) {
@@ -447,7 +451,7 @@
                                 x-transition:enter-end="transform opacity-100 translate-y-0"
                                 class="mt-1 ml-4 pl-2.5 border-l-2 border-brand/20 space-y-1">
                                 @foreach($item['submenu'] as $sub)
-                                    <a href="{{ route($sub['route']) }}"
+                                    <a href="{{ isset($sub['url']) ? $sub['url'] : route($sub['route']) }}"
                                         class="block py-1.5 px-2 rounded-sm text-[13px] transition-colors {{ request()->routeIs($sub['active']) ? 'text-brand font-semibold' : 'text-surface-600 hover:text-black hover:bg-surface-50' }}">
                                         {{ $sub['title'] }}
                                     </a>
