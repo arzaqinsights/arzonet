@@ -27,7 +27,9 @@ class ImportEmailChunkJob implements ShouldQueue
     public function __construct(
         public int $emailListId,
         public array $chunk,
-        public ?int $activityLogId = null
+        public ?int $activityLogId = null,
+        public array $selectedTags = [],
+        public array $selectedTopicIds = []
     ) {}
 
 
@@ -41,10 +43,11 @@ class ImportEmailChunkJob implements ShouldQueue
         $emailList = EmailList::find($this->emailListId);
         if (!$emailList) return;
  
-        // Query list default topics to associate with new contacts
-        $listTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $this->emailListId)
-            ->pluck('id')
-            ->toArray();
+        $topicsToAssign = !empty($this->selectedTopicIds)
+            ? $this->selectedTopicIds
+            : \App\Models\SubscriptionTopic::where('email_list_id', $this->emailListId)
+                ->pluck('id')
+                ->toArray();
  
         try {
             $skipDns = $emailList->column_mapping['_settings']['skip_dns'] ?? false;
@@ -54,13 +57,13 @@ class ImportEmailChunkJob implements ShouldQueue
             // ── Step 1: Build new inserts (valid + invalid + cross_duplicate) ──
             $batchEntries = [];
             foreach ($results['valid'] as $entry) {
-                $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid', $listTopicIds);
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid', $topicsToAssign);
             }
             foreach ($results['invalid'] as $entry) {
-                $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid', $listTopicIds);
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid', $topicsToAssign);
             }
             foreach ($results['cross_duplicate'] as $entry) {
-                $batchEntries[] = $this->formatEntry($emailList, $entry, 'cross_duplicate', $listTopicIds);
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'cross_duplicate', $topicsToAssign);
             }
             // Duplicates are NOT inserted — they already exist
 
@@ -75,7 +78,20 @@ class ImportEmailChunkJob implements ShouldQueue
                 } else {
                     $query->where('email', $entry['email']);
                 }
-
+ 
+                // Fetch existing tags to merge with new selected tags
+                $existingContact = Email::where('email_list_id', $this->emailListId)
+                    ->where(function($q) use ($entry) {
+                        if (!empty($entry['id'])) {
+                            $q->where('id', $entry['id']);
+                        } else {
+                            $q->where('email', $entry['email']);
+                        }
+                    })->first();
+ 
+                $existingTags = ($existingContact && is_array($existingContact->tags)) ? $existingContact->tags : [];
+                $mergedTags = array_values(array_unique(array_merge($existingTags, $this->selectedTags)));
+ 
                 $query->update([
                         'user_id'             => $emailList->user_id,
                         'is_archived'         => false,
@@ -83,7 +99,8 @@ class ImportEmailChunkJob implements ShouldQueue
                         'name'                => DB::raw("COALESCE(NULLIF(name,''), " . DB::getPdo()->quote($entry['name'] ?? '') . ")"),
                         'status'              => 'valid',
                         'subscription_status' => 'subscribed',
-                        'subscribed_topics'   => json_encode(array_map('intval', $listTopicIds)),
+                        'subscribed_topics'   => json_encode(array_map('intval', $topicsToAssign)),
+                        'tags'                => !empty($mergedTags) ? json_encode($mergedTags) : null,
                         'whatsapp_number'     => DB::raw("COALESCE(NULLIF(whatsapp_number,''), " . DB::getPdo()->quote($entry['whatsapp_number'] ?? '') . ")"),
                         'whatsapp_opt_in'     => $entry['whatsapp_opt_in'] ?? true,
                         'whatsapp_subscription_status' => $entry['whatsapp_subscription_status'] ?? 'subscribed',
@@ -169,12 +186,13 @@ class ImportEmailChunkJob implements ShouldQueue
     protected function formatEntry($emailList, $entry, $status, array $listTopicIds = []): array
     {
         $tagsRaw = $entry['meta']['tags'] ?? null;
-        $tags = null;
+        $rowTags = [];
         if ($tagsRaw) {
-            $tagsArray = array_map('trim', array_filter(explode(',', $tagsRaw)));
-            $tags = !empty($tagsArray) ? json_encode($tagsArray) : null;
+            $rowTags = array_map('trim', array_filter(explode(',', $tagsRaw)));
             unset($entry['meta']['tags']);
         }
+        $mergedTags = array_values(array_unique(array_merge($rowTags, $this->selectedTags)));
+        $tags = !empty($mergedTags) ? json_encode($mergedTags) : null;
  
         $subStatus = ($status === 'invalid') ? 'unsubscribed' : 'subscribed';
  

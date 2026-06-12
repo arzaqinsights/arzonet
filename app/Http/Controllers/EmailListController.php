@@ -317,29 +317,9 @@ class EmailListController extends Controller
 
         $emailList->update([
             'column_mapping' => $finalMapping,
-            'status' => 'processing'
         ]);
 
-        $log = \App\Models\ActivityLog::create([
-            'email_list_id' => $emailList->id,
-            'user_id' => auth()->id(),
-            'type' => 'import',
-            'details' => [
-                'status' => 'started',
-                'source' => $emailList->original_filename,
-                'tags' => $emailList->tags,
-                'processed' => 0,
-                'valid' => 0,
-                'invalid' => 0,
-                'duplicate' => 0
-            ]
-        ]);
-
-        ProcessEmailListJob::dispatch($emailList->id, $log->id);
-
-        return redirect()
-            ->route('admin.email-lists.show', $emailList)
-            ->with('success', 'CRM Import started. Contacts will appear shortly.');
+        return redirect()->route('admin.email-lists.import-settings', $emailList);
     }
 
     public function show(EmailList $emailList)
@@ -2060,5 +2040,137 @@ class EmailListController extends Controller
         $emailList->recalculateStats();
 
         return response()->json(['success' => true, 'message' => "Merged $mergedCount duplicate records successfully."]);
+    }
+
+    public function showImportSettings(EmailList $emailList)
+    {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'This list is private.');
+            }
+        }
+
+        // Fetch list-specific subscription topics
+        $topics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
+
+        // Fetch existing tags in the workspace/list to recommend them to the user
+        $tagsCollection = Email::where('email_list_id', $emailList->id)
+            ->whereNotNull('tags')
+            ->pluck('tags');
+
+        $uniqueTags = collect($tagsCollection)
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        return view('email-lists.import-settings', compact('emailList', 'topics', 'uniqueTags'));
+    }
+
+    public function startImport(Request $request, EmailList $emailList)
+    {
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'This list is private.');
+            }
+        }
+
+        $request->validate([
+            'topics' => 'nullable|array',
+            'tags' => 'nullable|array',
+            'new_tags' => 'nullable|string',
+        ]);
+
+        $selectedTopicIds = array_map('intval', $request->input('topics', []));
+
+        // Gather tags
+        $checkboxTags = $request->input('tags', []);
+        $newTagsRaw = $request->input('new_tags', '');
+        $newTagsArray = array_map('trim', array_filter(explode(',', $newTagsRaw)));
+        $selectedTags = array_values(array_unique(array_merge($checkboxTags, $newTagsArray)));
+
+        $emailList->update([
+            'status' => 'processing',
+        ]);
+
+        $log = \App\Models\ActivityLog::create([
+            'email_list_id' => $emailList->id,
+            'user_id' => auth()->id(),
+            'type' => 'import',
+            'details' => [
+                'status' => 'started',
+                'source' => $emailList->original_filename,
+                'tags' => $selectedTags,
+                'topics' => $selectedTopicIds,
+                'processed' => 0,
+                'valid' => 0,
+                'invalid' => 0,
+                'duplicate' => 0
+            ]
+        ]);
+
+        ProcessEmailListJob::dispatch($emailList->id, $log->id, $selectedTags, $selectedTopicIds);
+
+        return redirect()
+            ->route('admin.email-lists.show', $emailList)
+            ->with('success', 'CRM Import started. Contacts will appear shortly.');
+    }
+
+    public function ajaxCreateTopic(Request $request, EmailList $emailList)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        $topic = \App\Models\SubscriptionTopic::create([
+            'user_id' => auth()->id(),
+            'email_list_id' => $emailList->id,
+            'name' => $request->name,
+            'description' => $request->description,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'topic' => [
+                'id' => $topic->id,
+                'name' => $topic->name,
+            ]
+        ]);
+    }
+
+    public function ajaxDeleteTopic(Request $request, EmailList $emailList, \App\Models\SubscriptionTopic $topic)
+    {
+        if ($topic->email_list_id !== $emailList->id) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $topic->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function ajaxDeleteTag(Request $request, EmailList $emailList)
+    {
+        $request->validate([
+            'tag' => 'required|string',
+        ]);
+
+        $tagToDelete = $request->tag;
+
+        $emails = Email::where('email_list_id', $emailList->id)
+            ->whereJsonContains('tags', $tagToDelete)
+            ->get();
+
+        foreach ($emails as $email) {
+            $tags = $email->tags ?: [];
+            $tags = array_values(array_filter($tags, fn($t) => $t !== $tagToDelete));
+            $email->update(['tags' => $tags]);
+        }
+
+        return response()->json(['success' => true]);
     }
 }

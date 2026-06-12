@@ -23,7 +23,9 @@ class ProcessEmailListJob implements ShouldQueue
 
     public function __construct(
         public int $emailListId,
-        public ?int $activityLogId = null
+        public ?int $activityLogId = null,
+        public array $selectedTags = [],
+        public array $selectedTopicIds = []
     ) {}
 
     public function handle(FileParserService $parser): void
@@ -126,9 +128,9 @@ class ProcessEmailListJob implements ShouldQueue
                 $totalInFile++;
 
                 if (count($currentChunk) >= $chunkSize) {
-                    $pendingJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
+                    $pendingJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId, $this->selectedTags, $this->selectedTopicIds);
                     $currentChunk = [];
-
+ 
                     // Flush to batch every 10 jobs to prevent memory buildup
                     if (count($pendingJobs) >= 10) {
                         $batch->add($pendingJobs);
@@ -136,11 +138,11 @@ class ProcessEmailListJob implements ShouldQueue
                     }
                 }
             }
-
+ 
             if (!empty($currentChunk)) {
-                $pendingJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId);
+                $pendingJobs[] = new ImportEmailChunkJob($emailListId, $currentChunk, $this->activityLogId, $this->selectedTags, $this->selectedTopicIds);
             }
-
+ 
             if (!empty($pendingJobs)) {
                 $batch->add($pendingJobs);
             }

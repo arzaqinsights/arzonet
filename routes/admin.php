@@ -36,6 +36,11 @@ Route::name('admin.')->group(function () {
         Route::post('/', [EmailListController::class, 'store'])->name('store')->middleware('permission:crm.create');
         Route::get('/{emailList}', [EmailListController::class, 'show'])->name('show')->middleware('permission:crm.view');
         Route::post('/{id}/mapping', [EmailListController::class, 'storeMapping'])->name('store-mapping')->middleware('permission:crm.import');
+        Route::get('/{emailList}/import-settings', [EmailListController::class, 'showImportSettings'])->name('import-settings')->middleware('permission:crm.import');
+        Route::post('/{emailList}/start-import', [EmailListController::class, 'startImport'])->name('start-import')->middleware('permission:crm.import');
+        Route::post('/{emailList}/ajax-create-topic', [EmailListController::class, 'ajaxCreateTopic'])->name('ajax-create-topic')->middleware('permission:crm.import');
+        Route::post('/{emailList}/ajax-delete-topic/{topic}', [EmailListController::class, 'ajaxDeleteTopic'])->name('ajax-delete-topic')->middleware('permission:crm.import');
+        Route::post('/{emailList}/ajax-delete-tag', [EmailListController::class, 'ajaxDeleteTag'])->name('ajax-delete-tag')->middleware('permission:crm.import');
         Route::get('/{emailList}/status', [EmailListController::class, 'checkStatus'])->name('status')->middleware('permission:crm.view');
         Route::post('/{emailList}/filter', [EmailListController::class, 'filterEmails'])->name('filter')->middleware('permission:crm.view');
         Route::get('/{emailList}/emails/{emailId}', [EmailListController::class, 'getEmail'])->name('get-email')->middleware('permission:crm.view');
