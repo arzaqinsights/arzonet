@@ -28,6 +28,7 @@ class EmailList extends Model
         'invalid_count',
         'duplicate_count',
         'cross_duplicate_count',
+        'unique_contacts_count',
         'status',
         'is_public',
         'created_by_id',
@@ -138,13 +139,13 @@ class EmailList extends Model
     }
     public function getUniqueContactsCountAttribute()
     {
-        // Use pre-calculated total_records (fast, no full-table scan)
-        return $this->total_records ?? 0;
+        // Use pre-calculated column (fast, no full-table scan)
+        return $this->attributes['unique_contacts_count'] ?? $this->total_records ?? 0;
     }
 
     public function recalculateStats(): void
     {
-        // Single aggregate query — uses indexed columns, no DISTINCT or CASE WHEN concat
+        // Single aggregate query — uses indexed columns
         $stats = \Illuminate\Support\Facades\DB::table('emails')
             ->where('email_list_id', $this->id)
             ->selectRaw("
@@ -155,12 +156,20 @@ class EmailList extends Model
                 SUM(CASE WHEN is_archived = 0 AND status = 'cross_duplicate' THEN 1 ELSE 0 END) as cross_duplicate
             ")->first();
 
+        // Calculate unique profiles (deduplicated by name/original_row_id) — runs in background, not on page load
+        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+        $uniqueCount = \Illuminate\Support\Facades\DB::table('emails')
+            ->where('email_list_id', $this->id)
+            ->where('is_archived', false)
+            ->count(\Illuminate\Support\Facades\DB::raw('DISTINCT ' . $groupExpr));
+
         $this->update([
             'total_records'   => (int) ($stats->total ?? 0),
             'valid_count'     => (int) ($stats->valid ?? 0),
             'invalid_count'   => (int) ($stats->invalid ?? 0),
             'duplicate_count' => (int) ($stats->duplicate ?? 0),
             'cross_duplicate_count' => (int) ($stats->cross_duplicate ?? 0),
+            'unique_contacts_count' => $uniqueCount,
         ]);
 
         // Invalidate Redis cache
@@ -205,8 +214,8 @@ class EmailList extends Model
                 SUM(CASE WHEN is_archived = 0 AND whatsapp_number IS NOT NULL AND whatsapp_number != '' AND whatsapp_subscription_status = 'subscribed' THEN 1 ELSE 0 END) as subscribed_whatsapps
             ")->first();
 
-        // Use pre-calculated total_records instead of expensive COUNT(DISTINCT CASE WHEN ...)
-        $globalMainRows = $this->total_records ?? 0;
+        // Use pre-calculated unique_contacts_count (updated in recalculateStats background)
+        $globalMainRows = $this->unique_contacts_count ?? $this->total_records ?? 0;
 
         $stats = [
             'total' => $this->total_records,
