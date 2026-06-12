@@ -2209,7 +2209,7 @@
 
                 exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
                 consolidate: false,
-                adding: false, saving: false, scrubbing: false, importJustCompleted: false, completedJobType: 'import',
+                adding: false, saving: false, scrubbing: false, importJustCompleted: false, completedJobType: 'import', pollInterval: null,
                 newContact: { email: '', name: '', whatsapp_number: '', segment_name: '', tags: '', signup_source: 'Manual Entry' },
                 editingContact: { id: null, email: '', name: '', subscription_status: '', meta: {} },
                 stats: {
@@ -2504,6 +2504,8 @@
                             cross_duplicate: data.cross_duplicate_count || 0,
                             import_progress: data.import_progress,
                             import_details: data.import_details,
+                            active_bulk_action: data.active_bulk_action,
+                            last_bulk_action_completed: data.last_bulk_action_completed,
                             global_main_rows: data.global_main_rows || 0,
                             total_emails: data.total_emails || 0,
                             subscribed_emails: data.subscribed_emails || 0,
@@ -2513,11 +2515,17 @@
                             is_filtered: this.stats.is_filtered,
                             filtered_main_rows: this.stats.filtered_main_rows
                         };
+
+                        if (data.status === 'processing') {
+                            this.pollStatus();
+                        }
                     });
                 },
 
                 pollStatus() {
-                    const interval = setInterval(() => {
+                    if (this.pollInterval) return;
+
+                    this.pollInterval = setInterval(() => {
                         fetch('{{ route("admin.email-lists.status", $emailList) }}').then(r => r.json()).then(data => {
                             const oldStatus = this.stats.status;
                             this.stats.status = data.status;
@@ -2554,7 +2562,8 @@
                             this.stats.subscribed_whatsapps = data.subscribed_whatsapps || 0;
 
                             if (data.status === 'completed' || data.status === 'failed') {
-                                clearInterval(interval);
+                                clearInterval(this.pollInterval);
+                                this.pollInterval = null;
                                 this.fetchEmails();
                                 if (oldStatus === 'processing' && data.status === 'completed') {
                                     this.importJustCompleted = true;
