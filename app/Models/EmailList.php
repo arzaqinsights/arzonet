@@ -157,7 +157,13 @@ class EmailList extends Model
             ")->first();
 
         // Calculate unique profiles (deduplicated by name/original_row_id) — runs in background, not on page load
-        $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+        $driver = \Illuminate\Support\Facades\Schema::connection(null)->getConnection()->getDriverName();
+        if ($driver === 'sqlite') {
+            $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN 'name_' || LOWER(TRIM(name)) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN 'orig_' || original_row_id ELSE 'id_' || id END";
+        } else {
+            $groupExpr = "CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) WHEN original_row_id IS NOT NULL AND TRIM(original_row_id) != '' THEN CONCAT('orig_', original_row_id) ELSE CONCAT('id_', id) END";
+        }
+
         $uniqueCount = \Illuminate\Support\Facades\DB::table('emails')
             ->where('email_list_id', $this->id)
             ->where('is_archived', false)

@@ -1813,7 +1813,7 @@ class EmailListController extends Controller
             'target_list_id' => 'required|exists:email_lists,id',
         ]);
 
-        $targetList = EmailList::findOrFail($request->target_list_id);
+        $targetList = EmailList::withoutGlobalScopes()->findOrFail($request->target_list_id);
 
         // Visibility check
         if (app()->has('team_user')) {
@@ -1837,14 +1837,16 @@ class EmailListController extends Controller
         $email = $emailList->emails()->findOrFail($emailId);
 
         // Fetch target list's topics or seed defaults if none exist
-        $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetList->id)
+        $targetTopicIds = \App\Models\SubscriptionTopic::withoutGlobalScopes()
+            ->where('email_list_id', $targetList->id)
             ->pluck('id')
             ->map('strval')
             ->toArray();
 
         if (empty($targetTopicIds)) {
             \App\Models\SubscriptionTopic::seedDefaultsFor($targetList->id, $targetList->user_id);
-            $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetList->id)
+            $targetTopicIds = \App\Models\SubscriptionTopic::withoutGlobalScopes()
+                ->where('email_list_id', $targetList->id)
                 ->pluck('id')
                 ->map('strval')
                 ->toArray();
@@ -1864,6 +1866,7 @@ class EmailListController extends Controller
         foreach ($emailsToTransfer as $e) {
             $e->update([
                 'email_list_id' => $targetList->id,
+                'user_id' => $targetList->user_id,
                 'subscribed_topics' => $targetTopicIds,
                 'meta' => [], // reset custom columns
             ]);

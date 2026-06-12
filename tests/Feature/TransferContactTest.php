@@ -19,6 +19,8 @@ class TransferContactTest extends TestCase
         config(['app.domain' => 'email.test']);
 
         $user = User::factory()->create(['role' => 'admin']);
+        $targetUser = User::factory()->create(['role' => 'admin']);
+        
         $sourceList = EmailList::create([
             'user_id' => $user->id,
             'name' => 'Source List',
@@ -26,14 +28,15 @@ class TransferContactTest extends TestCase
             'status' => 'completed',
         ]);
         $targetList = EmailList::create([
-            'user_id' => $user->id,
+            'user_id' => $targetUser->id,
             'name' => 'Target List',
             'list_type' => EmailList::TYPE_EMAIL,
             'status' => 'completed',
+            'is_public' => true,
         ]);
 
         // Seed target list topics
-        SubscriptionTopic::seedDefaultsFor($targetList->id, $user->id);
+        SubscriptionTopic::seedDefaultsFor($targetList->id, $targetUser->id);
         $expectedTopicIds = SubscriptionTopic::where('email_list_id', $targetList->id)
             ->pluck('id')
             ->map('strval')
@@ -83,9 +86,15 @@ class TransferContactTest extends TestCase
         $master->refresh();
         $sub->refresh();
 
+
+
         // Both master and sub should be transferred to targetList
         $this->assertEquals($targetList->id, $master->email_list_id);
         $this->assertEquals($targetList->id, $sub->email_list_id);
+
+        // User IDs should align to the target list user ID
+        $this->assertEquals($targetUser->id, $master->user_id);
+        $this->assertEquals($targetUser->id, $sub->user_id);
 
         // Topics should be aligned to target list topics
         $this->assertEquals($expectedTopicIds, $master->subscribed_topics);

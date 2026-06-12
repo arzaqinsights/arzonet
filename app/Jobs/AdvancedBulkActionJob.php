@@ -256,22 +256,23 @@ class AdvancedBulkActionJob implements ShouldQueue
                     case 'transfer':
                         if (!empty($this->payload['target_list_id'])) {
                             $targetListId = $this->payload['target_list_id'];
+                            $targetList = \App\Models\EmailList::find($targetListId);
+                            $targetListUserId = $targetList ? $targetList->user_id : null;
 
                             // Fetch target list's topics or seed defaults if none exist
-                            $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetListId)
+                            $targetTopicIds = \App\Models\SubscriptionTopic::withoutGlobalScopes()
+                                ->where('email_list_id', $targetListId)
                                 ->pluck('id')
                                 ->map('strval')
                                 ->toArray();
 
-                            if (empty($targetTopicIds)) {
-                                $targetList = \App\Models\EmailList::find($targetListId);
-                                if ($targetList) {
-                                    \App\Models\SubscriptionTopic::seedDefaultsFor($targetList->id, $targetList->user_id);
-                                    $targetTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $targetList->id)
-                                        ->pluck('id')
-                                        ->map('strval')
-                                        ->toArray();
-                                }
+                            if (empty($targetTopicIds) && $targetList) {
+                                \App\Models\SubscriptionTopic::seedDefaultsFor($targetList->id, $targetList->user_id);
+                                $targetTopicIds = \App\Models\SubscriptionTopic::withoutGlobalScopes()
+                                    ->where('email_list_id', $targetList->id)
+                                    ->pluck('id')
+                                    ->map('strval')
+                                    ->toArray();
                             }
 
                             // Fetch all associated emails in the same group sharing original_row_id
@@ -288,6 +289,7 @@ class AdvancedBulkActionJob implements ShouldQueue
                             foreach ($emailsToTransfer as $e) {
                                 $e->update([
                                     'email_list_id' => $targetListId,
+                                    'user_id' => $targetListUserId ?? $e->user_id,
                                     'subscribed_topics' => $targetTopicIds,
                                     'meta' => [], // reset custom columns
                                 ]);

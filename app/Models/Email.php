@@ -99,7 +99,8 @@ class Email extends Model
             elseif ($email->subscription_status === 'subscribed') {
                 if (is_null($topics)) {
                     if ($email->email_list_id) {
-                        $listTopicIds = \App\Models\SubscriptionTopic::where('email_list_id', $email->email_list_id)
+                        $listTopicIds = \App\Models\SubscriptionTopic::withoutGlobalScopes()
+                            ->where('email_list_id', $email->email_list_id)
                             ->pluck('id')
                             ->toArray();
                         if (!empty($listTopicIds)) {
