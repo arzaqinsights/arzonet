@@ -121,6 +121,69 @@ class Segment extends Model
                     }),
                     default => null,
                 };
+            } elseif ($field === 'opened_email') {
+                $isEqualsYes = ($value === '1' || $value === 'yes' || $value === 'true');
+                if (($operator === 'equals' && $isEqualsYes) || ($operator === 'not_equals' && !$isEqualsYes)) {
+                    $query->whereExists(function ($q) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->where('email_logs.open_count', '>', 0);
+                    });
+                } else {
+                    $query->whereNotExists(function ($q) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->where('email_logs.open_count', '>', 0);
+                    });
+                }
+            } elseif ($field === 'clicked_email') {
+                $isEqualsYes = ($value === '1' || $value === 'yes' || $value === 'true');
+                if (($operator === 'equals' && $isEqualsYes) || ($operator === 'not_equals' && !$isEqualsYes)) {
+                    $query->whereExists(function ($q) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->where('email_logs.click_count', '>', 0);
+                    });
+                } else {
+                    $query->whereNotExists(function ($q) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->where('email_logs.click_count', '>', 0);
+                    });
+                }
+            } elseif ($field === 'sent_in_last_campaign') {
+                $isEqualsYes = ($value === '1' || $value === 'yes' || $value === 'true');
+                if (($operator === 'equals' && $isEqualsYes) || ($operator === 'not_equals' && !$isEqualsYes)) {
+                    $query->whereExists(function ($q) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->whereRaw('email_logs.campaign_id = (
+                              select id from campaigns 
+                              where campaigns.email_list_id = emails.email_list_id 
+                                and campaigns.status = "completed" 
+                              order by campaigns.id desc 
+                              limit 1
+                          )');
+                    });
+                } else {
+                    $query->whereNotExists(function ($q) {
+                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('email_logs')
+                          ->whereColumn('email_logs.email_id', 'emails.id')
+                          ->whereRaw('email_logs.campaign_id = (
+                              select id from campaigns 
+                              where campaigns.email_list_id = emails.email_list_id 
+                                and campaigns.status = "completed" 
+                              order by campaigns.id desc 
+                              limit 1
+                          )');
+                    });
+                }
             } else {
                 // Custom field — stored in meta JSON
                 $jsonPath = "$.{$field}";
@@ -194,6 +257,26 @@ class Segment extends Model
             } elseif ($field === 'last_sent_at') {
                 $lastLog = $email->logs()->latest('sent_at')->first();
                 $contactValue = $lastLog ? $lastLog->sent_at : null;
+            } elseif ($field === 'opened_email') {
+                $contactValue = \App\Models\EmailLog::where('email_id', $email->id)
+                    ->where('open_count', '>', 0)
+                    ->exists() ? 1 : 0;
+            } elseif ($field === 'clicked_email') {
+                $contactValue = \App\Models\EmailLog::where('email_id', $email->id)
+                    ->where('click_count', '>', 0)
+                    ->exists() ? 1 : 0;
+            } elseif ($field === 'sent_in_last_campaign') {
+                $lastCampaign = \App\Models\Campaign::where('email_list_id', $email->email_list_id)
+                    ->where('status', 'completed')
+                    ->latest('id')
+                    ->first();
+                if (!$lastCampaign) {
+                    $contactValue = 0;
+                } else {
+                    $contactValue = \App\Models\EmailLog::where('email_id', $email->id)
+                        ->where('campaign_id', $lastCampaign->id)
+                        ->exists() ? 1 : 0;
+                }
             } else {
                 $meta = $email->meta ?? [];
                 $contactValue = $meta[$field] ?? null;
@@ -273,6 +356,34 @@ class Segment extends Model
                 'description' => 'Contacts who interacted recently.',
                 'rules' => [
                     ['field' => 'last_active_at', 'operator' => 'recent_days', 'value' => 7]
+                ]
+            ],
+            [
+                'name' => 'Sent in Last Campaign',
+                'description' => 'Contacts who were sent an email in the last completed campaign.',
+                'rules' => [
+                    ['field' => 'sent_in_last_campaign', 'operator' => 'equals', 'value' => '1']
+                ]
+            ],
+            [
+                'name' => 'Recently Sent (7 Days)',
+                'description' => 'Contacts who were sent an email in the last 7 days.',
+                'rules' => [
+                    ['field' => 'last_sent_at', 'operator' => 'recent_days', 'value' => 7]
+                ]
+            ],
+            [
+                'name' => 'Opened Any Email',
+                'description' => 'Contacts who have opened at least one email.',
+                'rules' => [
+                    ['field' => 'opened_email', 'operator' => 'equals', 'value' => '1']
+                ]
+            ],
+            [
+                'name' => 'Clicked Any Link',
+                'description' => 'Contacts who have clicked at least one link.',
+                'rules' => [
+                    ['field' => 'clicked_email', 'operator' => 'equals', 'value' => '1']
                 ]
             ],
             [

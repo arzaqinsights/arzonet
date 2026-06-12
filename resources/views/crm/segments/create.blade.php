@@ -72,6 +72,9 @@
                                     <option value="whatsapp_lead_score">WhatsApp Lead Score</option>
                                     <option value="last_campaign_status">Last Campaign Status</option>
                                     <option value="last_bounce_type">Last Bounce Type</option>
+                                    <option value="opened_email">Opened Any Email</option>
+                                    <option value="clicked_email">Clicked Any Link</option>
+                                    <option value="sent_in_last_campaign">Sent in Last Campaign</option>
                                 </optgroup>
                                 @if($customFields->isNotEmpty())
                                     <optgroup label="Custom Attributes">
@@ -106,7 +109,13 @@
 
                             <input x-show="['before_date', 'after_date'].includes(rule.operator)" type="date" x-model="rule.value" @change="updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand">
 
-                            <input x-show="needsValue(rule.operator) && !['date_range', 'before_date', 'after_date'].includes(rule.operator)" type="text" x-model="rule.value" @input.debounce.400ms="updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand" placeholder="Enter matching value...">
+                            <select x-show="['opened_email', 'clicked_email', 'sent_in_last_campaign'].includes(rule.field) && needsValue(rule.operator)" x-model="rule.value" @change="updateCount()" class="form-select text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand">
+                                <option value="">Select Option</option>
+                                <option value="1">Yes</option>
+                                <option value="0">No</option>
+                            </select>
+
+                            <input x-show="needsValue(rule.operator) && !['date_range', 'before_date', 'after_date'].includes(rule.operator) && !['opened_email', 'clicked_email', 'sent_in_last_campaign'].includes(rule.field)" type="text" x-model="rule.value" @input.debounce.400ms="updateCount()" class="form-input text-sm font-semibold !py-3 bg-surface-50 focus:bg-white border-surface-200 focus:border-brand" placeholder="Enter matching value...">
                             
                             <div x-show="!needsValue(rule.operator)" class="h-[46px] flex items-center px-4 bg-surface-50 border border-surface-100 rounded-md">
                                 <span class="text-xs font-bold text-surface-400 italic">No value required for this condition</span>
