@@ -27,9 +27,12 @@ class PublicFormController extends Controller
             $customFieldLabels = [];
             $mapping = $list->column_mapping ?? [];
             foreach ($mapping as $header => $key) {
-                if (str_starts_with($key, 'custom_')) {
+                if (is_array($key) || is_object($key)) {
+                    continue;
+                }
+                if (is_string($key) && str_starts_with($key, 'custom_')) {
                     $customFieldLabels[$key] = $header;
-                } else if (str_starts_with($header, 'custom_')) {
+                } else if (is_string($header) && str_starts_with($header, 'custom_')) {
                     $customFieldLabels[$header] = $key;
                 }
             }

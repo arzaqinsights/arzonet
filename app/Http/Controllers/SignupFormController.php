@@ -30,9 +30,12 @@ class SignupFormController extends Controller
         $fields = [];
         $mapping = $list->column_mapping ?? [];
         foreach ($mapping as $header => $key) {
-            if (str_starts_with($key, 'custom_')) {
+            if (is_array($key) || is_object($key)) {
+                continue;
+            }
+            if (is_string($key) && str_starts_with($key, 'custom_')) {
                 $fields[] = ['name' => $header, 'key' => $key];
-            } else if (str_starts_with($header, 'custom_')) {
+            } else if (is_string($header) && str_starts_with($header, 'custom_')) {
                 $fields[] = ['name' => $key, 'key' => $header];
             }
         }
