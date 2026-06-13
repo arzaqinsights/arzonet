@@ -99,7 +99,10 @@
 
                 <div>
                     <h3 class="text-sm font-black text-surface-900 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Fields to Display</h3>
+                    
+                    {{-- Standard Fields --}}
                     <div class="space-y-2.5">
+                        <span class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Standard Fields</span>
                         <div class="flex items-center gap-2">
                             <input type="checkbox" checked disabled class="rounded border-gray-300 text-brand">
                             <span class="text-xs font-bold text-gray-400">Email Address (Required)</span>
@@ -107,31 +110,63 @@
                         <div class="flex items-center gap-2">
                             <input type="checkbox" name="custom_fields[]" value="name" x-model="selectedFields" id="field_name"
                                 class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
-                            <label for="field_name" class="text-xs font-bold text-gray-700 cursor-pointer">Name</label>
+                            <label for="field_name" class="text-xs font-bold text-gray-700 cursor-pointer">Full Name</label>
                         </div>
                         <div class="flex items-center gap-2">
                             <input type="checkbox" name="custom_fields[]" value="whatsapp_number" x-model="selectedFields" id="field_whatsapp"
                                 class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
                             <label for="field_whatsapp" class="text-xs font-bold text-gray-700 cursor-pointer">WhatsApp Number</label>
                         </div>
-                        
-                        @if(!empty($customFields))
-                            <div class="h-px bg-gray-100 my-2"></div>
-                            <span class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider">Custom Fields (List specific)</span>
-                            @foreach($customFields as $field)
-                                <div class="flex items-center gap-2">
-                                    <input type="checkbox" name="custom_fields[]" value="{{ $field['key'] }}" x-model="selectedFields" id="field_{{ $field['key'] }}"
-                                        class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
-                                    <label for="field_{{ $field['key'] }}" class="text-xs font-bold text-gray-700 cursor-pointer">{{ $field['name'] }}</label>
-                                </div>
-                            @endforeach
-                        @endif
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="custom_fields[]" value="phone" x-model="selectedFields" id="field_phone"
+                                class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
+                            <label for="field_phone" class="text-xs font-bold text-gray-700 cursor-pointer">Phone</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="custom_fields[]" value="company" x-model="selectedFields" id="field_company"
+                                class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
+                            <label for="field_company" class="text-xs font-bold text-gray-700 cursor-pointer">Company</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="custom_fields[]" value="job_title" x-model="selectedFields" id="field_job_title"
+                                class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
+                            <label for="field_job_title" class="text-xs font-bold text-gray-700 cursor-pointer">Job Title</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="custom_fields[]" value="city" x-model="selectedFields" id="field_city"
+                                class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
+                            <label for="field_city" class="text-xs font-bold text-gray-700 cursor-pointer">City</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="custom_fields[]" value="country" x-model="selectedFields" id="field_country"
+                                class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
+                            <label for="field_country" class="text-xs font-bold text-gray-700 cursor-pointer">Country</label>
+                        </div>
                     </div>
 
-                    {{-- Dynamic Custom Fields Section --}}
-                    <div class="mt-6">
-                        <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
-                            <h3 class="text-sm font-black text-surface-900 uppercase tracking-wider">Dynamic Custom Fields</h3>
+                    {{-- List-Specific Custom Fields (from imports & past form submissions) --}}
+                    @if(!empty($customFields))
+                        <div class="mt-4">
+                            <div class="h-px bg-gray-100 mb-3"></div>
+                            <span class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">List Custom Fields</span>
+                            <div class="space-y-2.5">
+                                @foreach($customFields as $field)
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" name="custom_fields[]" value="{{ $field['key'] }}" x-model="selectedFields" id="field_{{ $field['key'] }}"
+                                            class="rounded border-gray-300 text-brand focus:ring-0 cursor-pointer">
+                                        <label for="field_{{ $field['key'] }}" class="text-xs font-bold text-gray-700 cursor-pointer">{{ $field['name'] }}</label>
+                                        <span class="text-[9px] text-gray-400 font-mono">{{ $field['key'] }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Dynamic / New Custom Fields --}}
+                    <div class="mt-5">
+                        <div class="h-px bg-gray-100 mb-3"></div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">New Custom Fields</span>
                             <button type="button" @click="addDynamicField()"
                                 class="px-2.5 py-1.5 bg-brand/5 hover:bg-brand/10 text-brand text-[10px] font-black uppercase tracking-widest rounded-sm border border-brand/20 transition-all flex items-center gap-1 cursor-pointer">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
@@ -154,9 +189,9 @@
                                                 class="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-xs font-bold text-gray-900 focus:border-brand focus:ring-0 outline-none bg-white">
                                         </div>
                                         <div>
-                                            <label class="block text-[9px] font-black text-gray-500 uppercase tracking-wider mb-1">Field Key (Internal)</label>
+                                            <label class="block text-[9px] font-black text-gray-500 uppercase tracking-wider mb-1">Field Key (Auto)</label>
                                             <input type="text" x-model="field.key" readonly
-                                                class="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-xs font-bold text-gray-400 bg-gray-100 outline-none">
+                                                class="w-full px-2 py-1.5 border border-gray-300 rounded-sm text-xs font-bold text-gray-400 bg-gray-100 outline-none font-mono">
                                         </div>
                                     </div>
                                     
@@ -170,7 +205,7 @@
                             
                             <template x-if="dynamicFields.length === 0">
                                 <div class="text-center py-4 border border-dashed border-gray-200 rounded-sm bg-gray-50/50">
-                                    <p class="text-xs text-gray-500 font-medium">No dynamic fields added yet.</p>
+                                    <p class="text-xs text-gray-400 font-medium">Click "Add Field" to add a new custom field to this form.</p>
                                 </div>
                             </template>
                         </div>
@@ -247,7 +282,42 @@
                                     class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none">
                             </div>
 
-                            {{-- Custom Fields --}}
+                            {{-- Phone Field --}}
+                            <div x-show="selectedFields.includes('phone')">
+                                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Phone</label>
+                                <input type="text" placeholder="+1234567890" disabled
+                                    class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none">
+                            </div>
+
+                            {{-- Company Field --}}
+                            <div x-show="selectedFields.includes('company')">
+                                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Company</label>
+                                <input type="text" placeholder="Acme Corp" disabled
+                                    class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none">
+                            </div>
+
+                            {{-- Job Title Field --}}
+                            <div x-show="selectedFields.includes('job_title')">
+                                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Job Title</label>
+                                <input type="text" placeholder="CEO, Manager..." disabled
+                                    class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none">
+                            </div>
+
+                            {{-- City Field --}}
+                            <div x-show="selectedFields.includes('city')">
+                                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-1.5">City</label>
+                                <input type="text" placeholder="New York" disabled
+                                    class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none">
+                            </div>
+
+                            {{-- Country Field --}}
+                            <div x-show="selectedFields.includes('country')">
+                                <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-1.5">Country</label>
+                                <input type="text" placeholder="United States" disabled
+                                    class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none">
+                            </div>
+
+                            {{-- List-specific Custom Fields --}}
                             <template x-for="f in customFieldsList" :key="f.key">
                                 <div x-show="selectedFields.includes(f.key)">
                                     <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-1.5" x-text="f.name"></label>
@@ -256,7 +326,7 @@
                                 </div>
                             </template>
 
-                            {{-- Dynamic Custom Fields --}}
+                            {{-- Dynamic Custom Fields (new, not yet saved) --}}
                             <template x-for="f in dynamicFields" :key="f.key">
                                 <div>
                                     <label class="block text-[9px] font-black text-surface-500 uppercase tracking-widest mb-1.5">
@@ -267,6 +337,7 @@
                                         class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none">
                                 </div>
                             </template>
+
 
                             {{-- Preview Topic Selection --}}
                             <div x-show="allowTopicSelection" class="space-y-3 pt-2">

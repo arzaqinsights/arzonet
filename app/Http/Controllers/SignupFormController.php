@@ -28,21 +28,47 @@ class SignupFormController extends Controller
     private function getCustomFieldsForList(EmailList $list)
     {
         $fields = [];
+
+        // 1. Pull fields from column_mapping (CSV imports)
         $mapping = $list->column_mapping ?? [];
         foreach ($mapping as $header => $key) {
             if (is_array($key) || is_object($key)) {
                 continue;
             }
             if (is_string($key) && str_starts_with($key, 'custom_')) {
-                $fields[] = ['name' => $header, 'key' => $key];
+                $fields[] = ['name' => ucwords(str_replace(['custom_', '_'], ['', ' '], $key)), 'key' => $key];
             } else if (is_string($header) && str_starts_with($header, 'custom_')) {
-                $fields[] = ['name' => $key, 'key' => $header];
+                $label = is_string($key) ? $key : ucwords(str_replace(['custom_', '_'], ['', ' '], $header));
+                $fields[] = ['name' => $label, 'key' => $header];
             }
         }
-        
+
+        // 2. Also scan meta keys from existing contacts in this list
+        //    (handles fields added via signup forms, manual entry, etc.)
+        $metaSamples = \App\Models\Email::where('email_list_id', $list->id)
+            ->whereNotNull('meta')
+            ->where('meta', '!=', '{}')
+            ->where('meta', '!=', 'null')
+            ->limit(200)
+            ->pluck('meta');
+
+        foreach ($metaSamples as $meta) {
+            if (!is_array($meta)) continue;
+            foreach (array_keys($meta) as $metaKey) {
+                if (!is_string($metaKey) || !str_starts_with($metaKey, 'custom_')) continue;
+                if (!isset($fields[$metaKey])) {
+                    $label = ucwords(str_replace(['custom_', '_'], ['', ' '], $metaKey));
+                    $fields[$metaKey] = ['name' => $label, 'key' => $metaKey];
+                }
+            }
+        }
+
+        // Deduplicate by key
         $unique = [];
         foreach ($fields as $f) {
-            $unique[$f['key']] = $f;
+            if (is_array($f) && isset($f['key'])) {
+                $unique[$f['key']] = $f;
+            }
         }
         return array_values($unique);
     }

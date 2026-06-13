@@ -75,6 +75,13 @@ class PublicFormController extends Controller
             if (in_array('whatsapp_number', $customFieldsOnForm)) {
                 $rules['whatsapp_number'] = 'nullable|string|max:30';
             }
+            // Standard fields stored in meta
+            $standardMetaFields = ['phone', 'company', 'job_title', 'city', 'country'];
+            foreach ($standardMetaFields as $stdField) {
+                if (in_array($stdField, $customFieldsOnForm)) {
+                    $rules[$stdField] = 'nullable|string|max:255';
+                }
+            }
             // For custom list attributes (e.g. custom_1, custom_2...) and dynamic fields
             foreach ($customFieldsOnForm as $field) {
                 if (is_array($field)) {
@@ -111,9 +118,15 @@ class PublicFormController extends Controller
             $contact->whatsapp_number = $request->whatsapp_number;
         }
 
-        // Map other custom columns to meta
+        // Map standard meta fields + custom fields to meta
         if ($form) {
             $meta = $contact->meta ?? [];
+            $standardMetaFields = ['phone', 'company', 'job_title', 'city', 'country'];
+            foreach ($standardMetaFields as $stdField) {
+                if ($request->filled($stdField)) {
+                    $meta[$stdField] = $request->input($stdField);
+                }
+            }
             foreach ($form->custom_fields ?? [] as $field) {
                 if (is_array($field)) {
                     $key = $field['key'] ?? '';

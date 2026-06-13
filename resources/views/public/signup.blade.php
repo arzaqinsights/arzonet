@@ -75,6 +75,56 @@
                     </div>
                 @endif
 
+                {{-- Phone --}}
+                @if(in_array('phone', $form->custom_fields ?? []))
+                    <div>
+                        <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Phone</label>
+                        <input type="text" name="phone" value="{{ old('phone') }}"
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none transition-all focus:border-gray-400 focus:ring-1 focus:ring-gray-400" 
+                            placeholder="+1234567890">
+                    </div>
+                @endif
+
+                {{-- Company --}}
+                @if(in_array('company', $form->custom_fields ?? []))
+                    <div>
+                        <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Company</label>
+                        <input type="text" name="company" value="{{ old('company') }}"
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none transition-all focus:border-gray-400 focus:ring-1 focus:ring-gray-400" 
+                            placeholder="Acme Corp">
+                    </div>
+                @endif
+
+                {{-- Job Title --}}
+                @if(in_array('job_title', $form->custom_fields ?? []))
+                    <div>
+                        <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Job Title</label>
+                        <input type="text" name="job_title" value="{{ old('job_title') }}"
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none transition-all focus:border-gray-400 focus:ring-1 focus:ring-gray-400" 
+                            placeholder="CEO, Manager...">
+                    </div>
+                @endif
+
+                {{-- City --}}
+                @if(in_array('city', $form->custom_fields ?? []))
+                    <div>
+                        <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">City</label>
+                        <input type="text" name="city" value="{{ old('city') }}"
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none transition-all focus:border-gray-400 focus:ring-1 focus:ring-gray-400" 
+                            placeholder="New York">
+                    </div>
+                @endif
+
+                {{-- Country --}}
+                @if(in_array('country', $form->custom_fields ?? []))
+                    <div>
+                        <label class="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Country</label>
+                        <input type="text" name="country" value="{{ old('country') }}"
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm outline-none transition-all focus:border-gray-400 focus:ring-1 focus:ring-gray-400" 
+                            placeholder="United States">
+                    </div>
+                @endif
+
                 {{-- Dynamic Custom Fields & Legacy List Fields --}}
                 @foreach($form->custom_fields ?? [] as $field)
                     @if(is_array($field))
