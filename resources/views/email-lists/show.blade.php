@@ -316,6 +316,7 @@
                         @if(isset($topics) && $topics->isNotEmpty())
                             <x-multi-select label="Subscription" model="topic" :options="$topicOptions" />
                         @endif
+                        <x-multi-select label="Source" model="source" :options="$sourceOptions" />
 
                         {{-- Advanced Filters Trigger --}}
                         <button type="button" @click="showAdvancedFilterModal = true"
@@ -678,6 +679,7 @@
                                 <th class="px-8 py-4 whitespace-nowrap">Pipeline / Stage</th>
                                 <th class="px-8 py-4 whitespace-nowrap">Deal Notes</th>
                                 <th class="px-8 py-4 text-center whitespace-nowrap">Added By</th>
+                                <th class="px-8 py-4 text-center whitespace-nowrap">Source</th>
                                 <th class="px-8 py-4 text-right">
                                     <button @click="showAddCustomColumnModal = true; newCustomColumnName = ''"
                                         class="p-1 hover:bg-gray-100 rounded-sm text-surface-400 hover:text-brand transition-colors"
@@ -2122,10 +2124,6 @@
                                 <div class="space-y-4">
                                     <h4 class="text-[10px] font-black uppercase tracking-wider text-surface-400">CRM Metadata</h4>
                                     <div class="space-y-3">
-                                        <div>
-                                            <label class="block text-[10px] font-bold text-surface-700 uppercase mb-1.5">Signup Source</label>
-                                            <x-multi-select label="Signup Source" model="source" :options="$sourceOptions" />
-                                        </div>
                                         @if(isset($addedByOptions) && count($addedByOptions) > 0)
                                             <div>
                                                 <label class="block text-[10px] font-bold text-surface-700 uppercase mb-1.5">Added By</label>

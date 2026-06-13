@@ -75,10 +75,17 @@ class SignupFormController extends Controller
             'button_text' => 'required|string|max:100',
             'success_message' => 'nullable|string',
             'double_opt_in' => 'boolean',
+            'allow_topic_selection' => 'boolean',
             'theme_color' => 'required|string|max:7',
             'subscribed_topics' => 'nullable|array',
             'custom_fields' => 'nullable|array',
+            'tags' => 'nullable|string',
         ]);
+
+        $tagsArray = [];
+        if ($request->filled('tags')) {
+            $tagsArray = array_map('trim', array_filter(explode(',', $request->tags)));
+        }
 
         SignupForm::create([
             'email_list_id' => $emailList->id,
@@ -90,9 +97,11 @@ class SignupFormController extends Controller
             'button_text' => $request->button_text,
             'success_message' => $request->success_message ?? 'Thank you for subscribing!',
             'double_opt_in' => $request->boolean('double_opt_in'),
+            'allow_topic_selection' => $request->boolean('allow_topic_selection'),
             'theme_color' => $request->theme_color,
             'subscribed_topics' => $request->subscribed_topics ?? [],
             'custom_fields' => $request->custom_fields ?? [],
+            'tags' => $tagsArray,
         ]);
 
         return redirect()->route('admin.signup-forms.index')->with('success', 'Signup form created successfully.');
@@ -127,10 +136,17 @@ class SignupFormController extends Controller
             'button_text' => 'required|string|max:100',
             'success_message' => 'nullable|string',
             'double_opt_in' => 'boolean',
+            'allow_topic_selection' => 'boolean',
             'theme_color' => 'required|string|max:7',
             'subscribed_topics' => 'nullable|array',
             'custom_fields' => 'nullable|array',
+            'tags' => 'nullable|string',
         ]);
+
+        $tagsArray = [];
+        if ($request->filled('tags')) {
+            $tagsArray = array_map('trim', array_filter(explode(',', $request->tags)));
+        }
 
         $signupForm->update([
             'name' => $request->name,
@@ -139,9 +155,11 @@ class SignupFormController extends Controller
             'button_text' => $request->button_text,
             'success_message' => $request->success_message ?? 'Thank you for subscribing!',
             'double_opt_in' => $request->boolean('double_opt_in'),
+            'allow_topic_selection' => $request->boolean('allow_topic_selection'),
             'theme_color' => $request->theme_color,
             'subscribed_topics' => $request->subscribed_topics ?? [],
             'custom_fields' => $request->custom_fields ?? [],
+            'tags' => $tagsArray,
         ]);
 
         return redirect()->route('admin.signup-forms.index')->with('success', 'Signup form updated successfully.');

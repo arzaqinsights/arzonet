@@ -75,10 +75,16 @@ class PublicFormController extends Controller
             if (in_array('whatsapp_number', $customFieldsOnForm)) {
                 $rules['whatsapp_number'] = 'nullable|string|max:30';
             }
-            // For custom list attributes (e.g. custom_1, custom_2...)
-            foreach ($customFieldsOnForm as $fieldKey) {
-                if (str_starts_with($fieldKey, 'custom_')) {
-                    $rules[$fieldKey] = 'nullable|string|max:255';
+            // For custom list attributes (e.g. custom_1, custom_2...) and dynamic fields
+            foreach ($customFieldsOnForm as $field) {
+                if (is_array($field)) {
+                    $key = $field['key'] ?? '';
+                    $required = !empty($field['required']) && ($field['required'] === '1' || $field['required'] === true);
+                    if ($key) {
+                        $rules[$key] = ($required ? 'required' : 'nullable') . '|string|max:255';
+                    }
+                } elseif (is_string($field) && str_starts_with($field, 'custom_')) {
+                    $rules[$field] = 'nullable|string|max:255';
                 }
             }
         } else {
@@ -95,7 +101,7 @@ class PublicFormController extends Controller
         ]);
 
         $contact->user_id = $list->user_id;
-        $contact->signup_source = 'public_form';
+        $contact->signup_source = $form ? ('From Link: ' . $form->name) : 'From Link: Legacy';
         $contact->status = 'valid'; // Signup is inherently a valid email
 
         if ($request->has('name')) {
@@ -108,9 +114,14 @@ class PublicFormController extends Controller
         // Map other custom columns to meta
         if ($form) {
             $meta = $contact->meta ?? [];
-            foreach ($form->custom_fields ?? [] as $fieldKey) {
-                if (str_starts_with($fieldKey, 'custom_')) {
-                    $meta[$fieldKey] = $request->input($fieldKey);
+            foreach ($form->custom_fields ?? [] as $field) {
+                if (is_array($field)) {
+                    $key = $field['key'] ?? '';
+                    if ($key && $request->has($key)) {
+                        $meta[$key] = $request->input($key);
+                    }
+                } elseif (is_string($field) && str_starts_with($field, 'custom_')) {
+                    $meta[$field] = $request->input($field);
                 }
             }
             $contact->meta = $meta;
@@ -118,14 +129,35 @@ class PublicFormController extends Controller
 
         // Parse subscribed topics
         if ($form) {
-            // Auto enroll into topics specified on form config
-            $contact->subscribed_topics = array_map('strval', $form->subscribed_topics ?? []);
+            if ($form->allow_topic_selection) {
+                $selectedTopics = $request->input('topics', []);
+                $formTopics = $form->subscribed_topics ?? [];
+                if (empty($formTopics)) {
+                    $validTopicIds = SubscriptionTopic::where('email_list_id', $list->id)
+                        ->pluck('id')
+                        ->map('strval')
+                        ->toArray();
+                } else {
+                    $validTopicIds = array_map('strval', $formTopics);
+                }
+                $contact->subscribed_topics = array_values(array_intersect(array_map('strval', $selectedTopics), $validTopicIds));
+            } else {
+                // Auto enroll into topics specified on form config
+                $contact->subscribed_topics = array_map('strval', $form->subscribed_topics ?? []);
+            }
         } else {
             // Legacy default: subscribe to all list topics
             $contact->subscribed_topics = SubscriptionTopic::where('email_list_id', $list->id)
                 ->pluck('id')
                 ->map('strval')
                 ->toArray();
+        }
+
+        // Assign automatic tags configured on the form
+        if ($form && !empty($form->tags)) {
+            $existingTags = is_array($contact->tags) ? $contact->tags : (json_decode($contact->tags ?? '[]', true) ?: []);
+            $newTags = array_merge($existingTags, $form->tags);
+            $contact->tags = array_values(array_unique(array_filter($newTags)));
         }
 
         $doubleOptIn = $form ? $form->double_opt_in : $list->double_opt_in;

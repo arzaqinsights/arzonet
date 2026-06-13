@@ -19,15 +19,19 @@ class SignupForm extends Model
         'button_text',
         'success_message',
         'double_opt_in',
+        'allow_topic_selection',
         'subscribed_topics',
         'custom_fields',
+        'tags',
         'theme_color',
     ];
 
     protected $casts = [
         'double_opt_in' => 'boolean',
+        'allow_topic_selection' => 'boolean',
         'subscribed_topics' => 'array',
         'custom_fields' => 'array',
+        'tags' => 'array',
     ];
 
     public function emailList(): BelongsTo

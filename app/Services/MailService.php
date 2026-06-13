@@ -25,7 +25,17 @@ class MailService
         $headers = [];
         if ($emailRecord instanceof \App\Models\Email) {
             $unsubUrl = $emailRecord->getUnsubscribeUrl($logId);
-            $footer = '<br><br><hr><p style="font-size: 12px; color: #666;">You are receiving this because you subscribed via our list. <a href="' . $unsubUrl . '">Unsubscribe from this list</a></p>';
+            $preferencesUrl = route('unsubscribe.show', ['id' => $emailRecord->id, 'token' => hash_hmac('sha256', $emailRecord->id . $emailRecord->email, config('app.key')), 'lid' => $logId]);
+            $footer = '<br><br>'
+                    . '<div style="margin-top: 40px; padding: 24px 16px; border-top: 1px solid #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; text-align: center; color: #6b7280; font-size: 12px; line-height: 1.6;">'
+                    . '  <p style="margin: 0 0 8px 0; color: #374151; font-weight: 600;">Subscription Preferences</p>'
+                    . '  <p style="margin: 0 0 16px 0; color: #9ca3af; font-size: 11px;">This email was sent to <strong style="color: #4b5563;">' . htmlspecialchars($to) . '</strong> because you subscribed to our mailing list.</p>'
+                    . '  <p style="margin: 0;">'
+                    . '    <a href="' . $unsubUrl . '" style="color: #4f46e5; text-decoration: underline; font-weight: 500; margin: 0 8px;">Unsubscribe</a>'
+                    . '    <span style="color: #d1d5db;">|</span>'
+                    . '    <a href="' . $preferencesUrl . '" style="color: #4f46e5; text-decoration: underline; font-weight: 500; margin: 0 8px;">Manage Preferences</a>'
+                    . '  </p>'
+                    . '</div>';
             $html .= $footer;
 
             $headers['List-Unsubscribe'] = '<' . $unsubUrl . '>';

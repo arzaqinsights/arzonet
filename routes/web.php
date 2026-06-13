@@ -34,7 +34,9 @@ Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('web
 // Public Signup Forms & Opt-In Confirmations
 Route::get('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'show'])->name('public.forms.show');
 Route::post('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'submit'])->name('public.forms.submit');
-Route::get('/confirm-subscription/{token}', [\App\Http\Controllers\PublicFormController::class, 'confirm'])->name('public.confirm-subscription');
+Route::get('/confirm-subscription/{token}', [\App\Http\Controllers\PublicFormController::class, 'confirm'])
+    ->name('public.confirm-subscription')
+    ->where('token', '.*');
 
 // 3. Auth Routes (Account Subdomain)
 Route::domain('account.' . config('app.domain'))->group(function () {

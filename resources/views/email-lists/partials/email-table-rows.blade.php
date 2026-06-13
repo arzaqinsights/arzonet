@@ -106,6 +106,7 @@
                                             meta: {{ json_encode($email->meta ?? new \stdClass()) }},
                                             subscribed_topics: {{ json_encode(is_array($email->subscribed_topics) ? array_map('strval', $email->subscribed_topics) : (json_decode($email->subscribed_topics ?? '[]', true) ?: [])) }},
                                             added_by: '{{ addslashes($email->user->name ?? "System") }}',
+                                            signup_source: '{{ addslashes($email->signup_source ?? "") }}',
                                             get tagsArray() {
                                                 if (!this.tags) return [];
                                                 return this.tags.split(',').map(t => t.trim()).filter(t => t);
@@ -549,6 +550,11 @@
             {{-- Added By Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-[11px] font-semibold text-surface-500 text-center">
                 <span x-text="row.added_by"></span>
+            </td>
+
+            {{-- Source Column --}}
+            <td class="px-8 py-4 whitespace-nowrap text-[11px] font-semibold text-surface-500 text-center">
+                <span x-text="row.signup_source || '—'"></span>
             </td>
 
             {{-- Actions Column --}}
