@@ -95,7 +95,7 @@
             <a href="{{ route('admin.signup-forms.create') }}" class="btn btn-primary">Create Form</a>
         </div>
     @else
-        <div class="flex -m-6 flex-col gap-4">
+        <div class="flex -m-6 flex-col">
             @foreach($forms as $form)
                 @php
                     $embedCode = '<iframe src="' . route('public.forms.show', $form->token) . '" width="100%" height="450px" frameborder="0"></iframe>';
