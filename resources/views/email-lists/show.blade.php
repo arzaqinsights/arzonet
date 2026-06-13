@@ -225,6 +225,13 @@
                     'no' => 'Active Only',
                     'yes' => 'Archived Only'
                 ];
+
+                $sourceOptions = [];
+                if (isset($sources)) {
+                    foreach ($sources as $s) {
+                        $sourceOptions[$s] = $s;
+                    }
+                }
             @endphp
             <div class="mb-8 space-y-3" x-data="{
                 filterNames: {
@@ -236,106 +243,107 @@
                     channel: @js($channelOptions),
                     wa_status: @js($waStatusOptions),
                     archived: @js($viewOptions),
-                    added_by: @js($addedByOptions ?? [])
+                    added_by: @js($addedByOptions ?? []),
+                    source: @js($sourceOptions)
                 }
             }">
-                <div class="flex flex-wrap items-center gap-2">
-                    {{-- Search Input --}}
-                    <div class="relative w-76 shrink-0 group" x-data="{
-                        showSearchFields:false,
-                        searchField:'name'
-                    }">
-                        <!-- Search Icon -->
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-surface-400">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-
-                        <!-- Search Input -->
-                        <input type="text" x-model="search" @input.debounce.150ms="fetchEmails()"
-                            class="w-full pl-9 pr-24 py-2 bg-white border border-gray-200 hover:border-gray-300 rounded-sm text-sm placeholder:text-surface-500 focus:bg-white focus:border-brand focus:ring-0 focus:outline-none transition-all"
-                            placeholder="Search contacts...">
-
-                        <!-- Search Field Button -->
-                        <div class="absolute inset-y-0 right-1 flex items-center">
-                            <button type="button" @click.stop="showSearchFields = !showSearchFields"
-                                class="flex items-center gap-1 px-1 py-1.5 text-xs uppercase text-brand rounded-sm font-semibold transition-colors">
-                                <span x-text="
-                                    searchField === 'name' ? 'Name' :
-                                    searchField === 'email' ? 'Email' :
-                                    searchField === 'whatsapp_number' ? 'WhatsApp' :
-                                    searchField
-                                "></span>
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="flex flex-col gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        {{-- Search Input --}}
+                        <div class="relative w-76 shrink-0 group" x-data="{
+                            showSearchFields:false,
+                            searchField:'name'
+                        }">
+                            <!-- Search Icon -->
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-surface-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                        d="M19 9l-7 7-7-7" />
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
-                            </button>
-                        </div>
+                            </div>
 
-                        <!-- Popup -->
-                        <div x-show="showSearchFields" x-transition x-cloak @click.outside="showSearchFields = false"
-                            class="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-sm shadow-xl z-50 p-1">
+                            <!-- Search Input -->
+                            <input type="text" x-model="search" @input.debounce.150ms="fetchEmails()"
+                                class="w-full pl-9 pr-24 py-2 bg-white border border-gray-200 hover:border-gray-300 rounded-sm text-sm placeholder:text-surface-500 focus:bg-white focus:border-brand focus:ring-0 focus:outline-none transition-all"
+                                placeholder="Search contacts...">
 
-                            <button @click="searchField='name'; showSearchFields=false; fetchEmails();" 
-                                :class="searchField==='name' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
-                                class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">Name</button>
-
-                            <button @click="searchField='email'; showSearchFields=false; fetchEmails();" 
-                                :class="searchField==='email' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
-                                class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">Email</button>
-
-                            <button @click="searchField='whatsapp_number'; showSearchFields=false; fetchEmails();" 
-                                :class="searchField==='whatsapp_number' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
-                                class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">WhatsApp Number</button>
-
-                            @foreach($displayedFields as $field)
-                                <button @click="searchField='{{ $field }}'; showSearchFields=false; fetchEmails();" 
-                                    :class="searchField==='{{ $field }}' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
-                                    class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">
-                                    {{ ucwords(str_replace('_', ' ', preg_replace('/^custom_/', '', $field))) }}
+                            <!-- Search Field Button -->
+                            <div class="absolute inset-y-0 right-1 flex items-center">
+                                <button type="button" @click.stop="showSearchFields = !showSearchFields"
+                                    class="flex items-center gap-1 px-1 py-1.5 text-xs uppercase text-brand rounded-sm font-medium transition-colors">
+                                    <span x-text="
+                                        searchField === 'name' ? 'Name' :
+                                        searchField === 'email' ? 'Email' :
+                                        searchField === 'whatsapp_number' ? 'WhatsApp' :
+                                        searchField
+                                    "></span>
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                            d="M19 9l-7 7-7-7" />
+                                    </svg>
                                 </button>
-                            @endforeach
+                            </div>
+
+                            <!-- Popup -->
+                            <div x-show="showSearchFields" x-transition x-cloak @click.outside="showSearchFields = false"
+                                class="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-sm shadow-xl z-50 p-1">
+
+                                <button @click="searchField='name'; showSearchFields=false; fetchEmails();" 
+                                    :class="searchField==='name' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
+                                    class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">Name</button>
+
+                                <button @click="searchField='email'; showSearchFields=false; fetchEmails();" 
+                                    :class="searchField==='email' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
+                                    class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">Email</button>
+
+                                <button @click="searchField='whatsapp_number'; showSearchFields=false; fetchEmails();" 
+                                    :class="searchField==='whatsapp_number' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
+                                    class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">WhatsApp Number</button>
+
+                                @foreach($displayedFields as $field)
+                                    <button @click="searchField='{{ $field }}'; showSearchFields=false; fetchEmails();" 
+                                        :class="searchField==='{{ $field }}' ? 'bg-brand text-white' : 'hover:bg-gray-50 text-surface-700'"
+                                        class="w-full text-left px-3 py-2 rounded-sm text-xs font-semibold">
+                                        {{ ucwords(str_replace('_', ' ', preg_replace('/^custom_/', '', $field))) }}
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
-                    </div>
 
-                    <x-multi-select label="Email Health" model="filter" :options="$healthOptions" />
-                    <x-multi-select label="Segment" model="segment" :options="$segmentOptions" />
-                    <x-multi-select label="Tag" model="tag" :options="$tagOptions" />
-                    @if(isset($topics) && $topics->isNotEmpty())
-                        <x-multi-select label="Subscription" model="topic" :options="$topicOptions" />
-                    @endif
-                    @if(isset($addedByOptions) && count($addedByOptions) > 0)
-                        <x-multi-select label="Added By" model="added_by" :options="$addedByOptions" />
-                    @endif
+                        {{-- Basic Filters (Always Visible) --}}
+                        <x-multi-select label="Segment" model="segment" :options="$segmentOptions" />
+                        <x-multi-select label="Tag" model="tag" :options="$tagOptions" />
+                        @if(isset($topics) && $topics->isNotEmpty())
+                            <x-multi-select label="Subscription" model="topic" :options="$topicOptions" />
+                        @endif
 
-                    {{-- Advanced Filters Modal Trigger --}}
-                    <div>
-                        <button type="button" @click="showAdvancedFilterModal = true" class="flex items-center gap-2 px-4 cursor-pointer transition-colors">
-                            <span class="text-xs text-surface-900 tracking-widest flex items-center gap-2">
-                                Dynamic Rules
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-                            </span>
-                            <template x-if="advancedRules.length > 0">
-                                <span class="w-4 h-4 flex items-center justify-center rounded-full bg-brand text-white text-[9px] font-black" x-text="advancedRules.length"></span>
-                            </template>
+                        {{-- Advanced Filters Trigger --}}
+                        <button type="button" @click="showAdvancedFilterModal = true"
+                            :class="showAdvancedFilterModal ? 'bg-surface-900 text-white border-surface-900' : 'bg-white text-surface-900 border-gray-200 hover:border-gray-300'"
+                            class="px-4 py-2.5 border rounded-sm flex items-center gap-2 text-[11px] uppercase font-semibold transition-all cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                            </svg>
+                            Advanced Filters
+                            <span class="w-4 h-4 flex items-center justify-center rounded-full bg-brand text-white text-[9px] font-black" 
+                                x-show="(filter.length > 0 ? 1 : 0) + (topic.length > 0 ? 1 : 0) + (subscription.length > 0 ? 1 : 0) + (channel.length > 0 ? 1 : 0) + (wa_status.length > 0 ? 1 : 0) + (archived.includes('yes') ? 1 : 0) + (added_by.length > 0 ? 1 : 0) + (source.length > 0 ? 1 : 0) + (advancedRules.length > 0 ? 1 : 0) > 0"
+                                x-text="(filter.length > 0 ? 1 : 0) + (topic.length > 0 ? 1 : 0) + (subscription.length > 0 ? 1 : 0) + (channel.length > 0 ? 1 : 0) + (wa_status.length > 0 ? 1 : 0) + (archived.includes('yes') ? 1 : 0) + (added_by.length > 0 ? 1 : 0) + (source.length > 0 ? 1 : 0) + (advancedRules.length)"></span>
                         </button>
                     </div>
                 </div>
 
                 {{-- Active Filters Badges Row --}}
-                <div x-show="filter.length > 0 || segment.length > 0 || tag.length > 0 || topic.length > 0 || subscription.length > 0 || channel.length > 0 || wa_status.length > 0 || archived.length > 0" 
+                {{-- Active Filters Badges Row --}}
+                <div x-show="filter.length > 0 || segment.length > 0 || tag.length > 0 || topic.length > 0 || subscription.length > 0 || channel.length > 0 || wa_status.length > 0 || archived.includes('yes') || added_by.length > 0 || source.length > 0 || advancedRules.length > 0" 
                     class="flex flex-wrap items-center gap-2 mt-6" x-cloak>
                     
-                    <span class="text-xs text-surface-600 uppercase tracking-widest px-1 flex items-center gap-2">
+                    <span class="text-xs text-surface-800 font-medium uppercase tracking-widest flex items-center gap-2">
                         <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
                         Filters Applied:
                     </span>
                     
                     <template x-for="val in filter" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
                             <span x-text="'Email Health: ' + filterNames.filter[val]"></span>
                             <button @click="filter = filter.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -343,7 +351,7 @@
                         </div>
                     </template>
                     <template x-for="val in segment" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
                             <span x-text="'Segment: ' + filterNames.segment[val]"></span>
                             <button @click="segment = segment.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -351,7 +359,7 @@
                         </div>
                     </template>
                     <template x-for="val in tag" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
                             <span x-text="'Tag: ' + filterNames.tag[val]"></span>
                             <button @click="tag = tag.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -359,7 +367,7 @@
                         </div>
                     </template>
                     <template x-for="val in topic" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
                             <span x-text="'Subscription: ' + filterNames.topic[val]"></span>
                             <button @click="topic = topic.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -367,7 +375,7 @@
                         </div>
                     </template>
                     <template x-for="val in subscription" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
                             <span x-text="'Email Status: ' + filterNames.subscription[val]"></span>
                             <button @click="subscription = subscription.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -375,7 +383,7 @@
                         </div>
                     </template>
                     <template x-for="val in channel" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
                             <span x-text="'Channel: ' + filterNames.channel[val]"></span>
                             <button @click="channel = channel.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -383,7 +391,7 @@
                         </div>
                     </template>
                     <template x-for="val in wa_status" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
                             <span x-text="'WA Status: ' + filterNames.wa_status[val]"></span>
                             <button @click="wa_status = wa_status.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -391,16 +399,42 @@
                         </div>
                     </template>
                     <template x-for="val in archived" :key="val">
-                        <div class="flex items-center gap-1.5 text-brand px-4 py-1.5 rounded-full text-xs font-bold">
-                            <span x-text="'Audience View: ' + filterNames.archived[val]"></span>
-                            <button @click="archived = archived.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
+                        <template x-if="val === 'yes'">
+                            <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
+                                <span x-text="'Audience View: ' + filterNames.archived[val]"></span>
+                                <button @click="archived = ['no']; fetchEmails()" class="hover:text-red-500 transition-colors">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                        </template>
+                    </template>
+                    <template x-for="val in added_by" :key="val">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
+                            <span x-text="'Added By: ' + filterNames.added_by[val]"></span>
+                            <button @click="added_by = added_by.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                    </template>
+                    <template x-for="val in source" :key="val">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
+                            <span x-text="'Source: ' + filterNames.source[val]"></span>
+                            <button @click="source = source.filter(i => i !== val); fetchEmails()" class="hover:text-red-500 transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                    </template>
+                    <template x-if="advancedRules.length > 0">
+                        <div class="flex items-center gap-1.5 bg-brand/5 border border-brand/10 text-brand px-4 py-1 rounded-full text-[11px] font-medium">
+                            <span x-text="'Rules: ' + advancedRules.length + ' active'"></span>
+                            <button @click="advancedRules = []; applyAdvancedFilters()" class="hover:text-red-500 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
                     </template>
 
                     <button @click="resetFilters()"
-                        class="ml-2 text-xs text-surface-600 font-semibold hover:text-surface-900 tracking-widest px-2 py-1 transition-colors flex items-center gap-1">
+                        class="ml-2 text-xs text-surface-900 font-medium tracking-widest cursor-pointer px-2 py-1 transition-colors flex items-center gap-1">
                         Clear All
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -456,27 +490,27 @@
             {{-- Premium Counts & Advanced Metrics Dashboard --}}
             <div class="">
                 {{-- Simple Stats Text --}}
-                <div class="mb-6 text-sm text-surface-600 bg-gray-50 py-3 px-4 rounded-sm border border-gray-100 flex items-center">
+                <div class="mb-6 text-sm text-surface-600 flex items-center">
                     <template x-if="!stats.is_filtered && archived !== 'yes'">
                         <div class="flex flex-wrap gap-x-4 gap-y-2 items-center">
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-xl font-black text-surface-900" x-text="stats.global_main_rows.toLocaleString()"></span>
-                                <span class="font-medium text-lg tracking-wide">profiles</span>
+                                <span class="text-2xl font-black text-surface-900" x-text="stats.global_main_rows.toLocaleString()"></span>
+                                <span class="font-medium text-2xl tracking-wide">profiles</span>
                             </span>
                             <span class="text-gray-300">|</span>
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-xl font-black text-surface-900" x-text="stats.full_total.toLocaleString()"></span>
-                                <span class="font-medium text-lg tracking-wide">rows</span>
+                                <span class="text-2xl font-black text-surface-700" x-text="stats.full_total.toLocaleString()"></span>
+                                <span class="font-medium text-2xl tracking-wide">rows</span>
                             </span>
                             <span class="text-gray-300">|</span>
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-xl font-black text-blue-600" x-text="stats.subscribed_emails.toLocaleString()"></span>
-                                <span class="font-medium text-lg tracking-wide">email subscribers</span>
+                                <span class="text-2xl font-black text-blue-600" x-text="stats.subscribed_emails.toLocaleString()"></span>
+                                <span class="font-medium text-2xl tracking-wide">email subscribers</span>
                             </span>
                             <span class="text-gray-300">|</span>
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-xl font-black text-emerald-600" x-text="stats.subscribed_whatsapps.toLocaleString()"></span>
-                                <span class="font-medium text-lg tracking-wide">whatsapp opt-in</span>
+                                <span class="text-2xl font-black text-emerald-600" x-text="stats.subscribed_whatsapps.toLocaleString()"></span>
+                                <span class="font-medium text-2xl tracking-wide">whatsapp opt-in</span>
                             </span>
                         </div>
                     </template>
@@ -2036,26 +2070,29 @@
                 </div>
 
                 {{-- Advanced Filter Modal --}}
-                <div x-show="showAdvancedFilterModal" class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-surface-900/90" x-cloak>
-                    <div x-show="showAdvancedFilterModal" @click.outside="showAdvancedFilterModal = false"
+                <div x-show="showAdvancedFilterModal" 
+                    class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-surface-900/80 animate-fade-in"
+                    x-cloak>
+                    <div x-show="showAdvancedFilterModal" @click.away="showAdvancedFilterModal = false"
                         x-transition:enter="ease-out duration-300"
                         x-transition:enter-start="opacity-0 translate-y-8 scale-95"
                         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                         x-transition:leave="ease-in duration-200"
                         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
                         x-transition:leave-end="opacity-0 translate-y-8 scale-95"
-                        class="bg-white w-full max-w-3xl rounded-sm shadow-2xl overflow-hidden border border-surface-200 flex flex-col max-h-[90vh]">
+                        class="bg-white w-full max-w-4xl rounded-sm shadow-2xl overflow-hidden scrollbar flex flex-col max-h-[90vh] border border-surface-200">
                         
+                        {{-- Header --}}
                         <div class="p-5 border-b border-surface-100 bg-surface-50/50 flex items-start justify-between shrink-0">
                             <div class="flex gap-3">
                                 <div class="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
                                     <svg class="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                                     </svg>
                                 </div>
                                 <div>
-                                    <h3 class="text-sm font-black text-surface-900 tracking-tight uppercase">Dynamic Advanced Filters</h3>
-                                    <p class="text-[10px] text-surface-500 mt-1 uppercase font-bold tracking-widest">Build complex multi-condition rules</p>
+                                    <h3 class="text-sm font-black text-surface-900 tracking-tight uppercase">Advanced Filters</h3>
+                                    <p class="text-[10px] text-surface-500 mt-1 uppercase font-bold tracking-widest text-left">Refine your contact list using granular criteria</p>
                                 </div>
                             </div>
                             <button @click="showAdvancedFilterModal = false" class="text-surface-400 hover:text-surface-900 p-1 hover:bg-surface-100 rounded-sm transition-colors">
@@ -2063,61 +2100,187 @@
                             </button>
                         </div>
 
-                        <div class="p-6 bg-white space-y-4 overflow-y-auto flex-1">
-                            <template x-for="(rule, index) in advancedRules" :key="index">
-                                <div class="flex items-center gap-3 bg-surface-50 p-3 rounded-sm border border-surface-200">
-                                    <select x-model="rule.field" class="w-1/3 text-xs font-bold text-surface-900 border-surface-200 rounded-sm focus:border-brand focus:ring-1 focus:ring-brand">
-                                        <option value="">-- Select Field --</option>
-                                        <option value="name">Name</option>
-                                        <option value="email">Email</option>
-                                        <option value="whatsapp_number">WhatsApp Number</option>
-                                        <option value="status">Status</option>
-                                        <option value="subscription_status">Email Subscription</option>
-                                        <option value="whatsapp_subscription_status">WhatsApp Subscription</option>
-                                        <option value="created_at">Created Date</option>
-                                        <optgroup label="Custom Fields">
-                                            @foreach($displayedFields as $field)
-                                                <option value="{{ $field }}">{{ ucwords(str_replace('_', ' ', preg_replace('/^custom_/', '', $field))) }}</option>
-                                            @endforeach
-                                        </optgroup>
-                                    </select>
-                                    <select x-model="rule.operator" class="w-1/4 text-xs font-bold text-surface-900 border-surface-200 rounded-sm focus:border-brand focus:ring-1 focus:ring-brand">
-                                        <option value="equals">Equals</option>
-                                        <option value="not_equals">Not Equals</option>
-                                        <option value="contains">Contains</option>
-                                        <option value="not_contains">Not Contains</option>
-                                        <option value="starts_with">Starts With</option>
-                                        <option value="ends_with">Ends With</option>
-                                        <option value="is_empty">Is Empty</option>
-                                        <option value="is_not_empty">Is Not Empty</option>
-                                        <option value="greater_than">Greater Than</option>
-                                        <option value="less_than">Less Than</option>
-                                    </select>
-                                    <input type="text" x-model="rule.value" x-show="!['is_empty', 'is_not_empty'].includes(rule.operator)" class="w-1/3 text-xs font-bold text-surface-900 border-surface-200 rounded-sm focus:border-brand focus:ring-1 focus:ring-brand" placeholder="Value...">
-                                    <button @click="removeAdvancedRule(index)" class="p-2 text-red-500 hover:bg-red-50 rounded-sm transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        {{-- Body --}}
+                        <div class="p-6 bg-white space-y-6 overflow-y-auto max-h-[63vh] scrollbar text-left">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <!-- Column 1: Email Marketing -->
+                                <div class="space-y-4">
+                                    <h4 class="text-[10px] font-black uppercase tracking-wider text-surface-400">Email Marketing</h4>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-surface-700 uppercase mb-1.5">Email Health</label>
+                                            <x-multi-select label="Email Health" model="filter" :options="$healthOptions" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-surface-700 uppercase mb-1.5">Email Status</label>
+                                            <x-multi-select label="Email Status" model="subscription" :options="$subscriptionOptions" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Column 2: CRM Metadata & Sources -->
+                                <div class="space-y-4">
+                                    <h4 class="text-[10px] font-black uppercase tracking-wider text-surface-400">CRM Metadata</h4>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-surface-700 uppercase mb-1.5">Signup Source</label>
+                                            <x-multi-select label="Signup Source" model="source" :options="$sourceOptions" />
+                                        </div>
+                                        @if(isset($addedByOptions) && count($addedByOptions) > 0)
+                                            <div>
+                                                <label class="block text-[10px] font-bold text-surface-700 uppercase mb-1.5">Added By</label>
+                                                <x-multi-select label="Added By" model="added_by" :options="$addedByOptions" />
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Column 3: Channels & Views -->
+                                <div class="space-y-4">
+                                    <h4 class="text-[10px] font-black uppercase tracking-wider text-surface-400">Channel & Audience View</h4>
+                                    <div class="space-y-4">
+                                        <!-- Audience View -->
+                                        <div class="space-y-1.5">
+                                            <label class="text-[10px] font-bold text-surface-700 uppercase tracking-wider block">Audience View</label>
+                                            <div class="flex gap-2">
+                                                <button type="button" @click="archived = ['no']; fetchEmails()" 
+                                                    :class="archived.includes('no') ? 'bg-brand text-white border-brand' : 'bg-white text-surface-700 border-gray-200 hover:border-gray-300'"
+                                                    class="flex-1 py-1.5 text-center rounded-sm border text-[11px] font-semibold transition-all cursor-pointer">Active Only</button>
+                                                <button type="button" @click="archived = ['yes']; fetchEmails()" 
+                                                    :class="archived.includes('yes') ? 'bg-brand text-white border-brand' : 'bg-white text-surface-700 border-gray-200 hover:border-gray-300'"
+                                                    class="flex-1 py-1.5 text-center rounded-sm border text-[11px] font-semibold transition-all cursor-pointer">Archived Only</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Channel -->
+                                        <div class="space-y-1.5">
+                                            <label class="text-[10px] font-bold text-surface-700 uppercase tracking-wider block">Channel Type</label>
+                                            <div class="flex flex-col gap-1">
+                                                <label class="flex items-center gap-2 text-xs text-surface-700 cursor-pointer select-none">
+                                                    <input type="checkbox" value="only_email" x-model="channel" @change="fetchEmails()"
+                                                        class="rounded-sm border-gray-300 text-brand focus:ring-brand">
+                                                    Only Email
+                                                </label>
+                                                <label class="flex items-center gap-2 text-xs text-surface-700 cursor-pointer select-none">
+                                                    <input type="checkbox" value="only_whatsapp" x-model="channel" @change="fetchEmails()"
+                                                        class="rounded-sm border-gray-300 text-brand focus:ring-brand">
+                                                    Only WhatsApp
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <!-- WhatsApp Status -->
+                                        <div class="space-y-1.5">
+                                            <label class="text-[10px] font-bold text-surface-700 uppercase tracking-wider block">WhatsApp Status</label>
+                                            <div class="flex flex-col gap-1">
+                                                <label class="flex items-center gap-2 text-xs text-surface-700 cursor-pointer select-none">
+                                                    <input type="checkbox" value="subscribed" x-model="wa_status" @change="fetchEmails()"
+                                                        class="rounded-sm border-gray-300 text-brand focus:ring-brand">
+                                                    Opt-in / Subscribed
+                                                </label>
+                                                <label class="flex items-center gap-2 text-xs text-surface-700 cursor-pointer select-none">
+                                                    <input type="checkbox" value="unsubscribed" x-model="wa_status" @change="fetchEmails()"
+                                                        class="rounded-sm border-gray-300 text-brand focus:ring-brand">
+                                                    Opt-out
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Divider -->
+                            <div class="border-t border-gray-150"></div>
+
+                            <!-- Rules Builder -->
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="text-xs font-black uppercase tracking-wider text-surface-900 flex items-center gap-2">
+                                            Dynamic Rules Builder
+                                            <span class="px-2 py-0.5 bg-brand/10 text-brand rounded-full text-[9px] font-black uppercase tracking-widest"
+                                                x-text="`${advancedRules.length} rules`"></span>
+                                        </h4>
+                                        <p class="text-[10px] text-surface-500 uppercase tracking-widest mt-0.5">Build complex multi-condition boolean logic queries</p>
+                                    </div>
+                                    <button type="button" @click="addAdvancedRule()"
+                                        class="px-3 py-1.5 bg-brand/5 hover:bg-brand/10 text-brand text-[10px] font-black uppercase tracking-widest rounded-sm border border-brand/20 transition-all flex items-center gap-1.5 cursor-pointer">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                                        Add Rule
                                     </button>
                                 </div>
-                            </template>
-                            
-                            <button @click="addAdvancedRule()" class="px-4 py-2 text-[10px] font-black text-brand uppercase tracking-widest border border-dashed border-brand/50 hover:border-brand hover:bg-brand/5 rounded-sm w-full transition-colors flex items-center justify-center gap-2 mt-2">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                                Add Another Rule
-                            </button>
-                            <p class="text-[10px] text-surface-400 font-bold uppercase tracking-widest text-center mt-4">All rules must be met (AND logic)</p>
+
+                                <div class="space-y-2.5 max-h-60 overflow-y-auto no-scrollbar">
+                                    <template x-for="(rule, index) in advancedRules" :key="index">
+                                        <div class="flex items-center gap-3 bg-surface-50 p-2.5 rounded-sm border border-gray-200">
+                                            <select x-model="rule.field" 
+                                                class="w-1/3 text-xs font-bold text-surface-900 border-gray-200 rounded-sm focus:border-brand focus:ring-0">
+                                                <option value="">-- Select Field --</option>
+                                                <option value="name">Name</option>
+                                                <option value="email">Email</option>
+                                                <option value="whatsapp_number">WhatsApp Number</option>
+                                                <option value="status">Email Health</option>
+                                                <option value="subscription_status">Email Subscription</option>
+                                                <option value="whatsapp_subscription_status">WhatsApp Subscription</option>
+                                                <option value="signup_source">Signup Source</option>
+                                                <option value="email_lead_score">Email Lead Score</option>
+                                                <option value="whatsapp_lead_score">WhatsApp Lead Score</option>
+                                                <option value="engagement_score">Engagement Score</option>
+                                                <option value="bounce_count">Bounce Count</option>
+                                                <option value="complaint_count">Complaint Count</option>
+                                                <option value="created_at">Created Date</option>
+                                                <optgroup label="Custom Fields">
+                                                    @foreach($displayedFields as $field)
+                                                        <option value="{{ $field }}">{{ ucwords(str_replace('_', ' ', preg_replace('/^custom_/', '', $field))) }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            </select>
+
+                                            <select x-model="rule.operator" 
+                                                class="w-1/4 text-xs font-bold text-surface-900 border-gray-200 rounded-sm focus:border-brand focus:ring-0">
+                                                <option value="equals">Equals</option>
+                                                <option value="not_equals">Not Equals</option>
+                                                <option value="contains">Contains</option>
+                                                <option value="not_contains">Not Contains</option>
+                                                <option value="starts_with">Starts With</option>
+                                                <option value="ends_with">Ends With</option>
+                                                <option value="is_empty">Is Empty</option>
+                                                <option value="is_not_empty">Is Not Empty</option>
+                                                <option value="greater_than">Greater Than</option>
+                                                <option value="less_than">Less Than</option>
+                                            </select>
+
+                                            <input type="text" x-model="rule.value" 
+                                                x-show="!['is_empty', 'is_not_empty'].includes(rule.operator)" 
+                                                class="w-1/3 text-xs font-bold text-surface-900 border-gray-200 rounded-sm focus:border-brand focus:ring-0" 
+                                                placeholder="Value...">
+
+                                            <button type="button" @click="removeAdvancedRule(index)" 
+                                                class="p-2 text-red-500 hover:bg-red-50 rounded-sm transition-colors cursor-pointer">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="advancedRules.length === 0">
+                                        <div class="text-center py-6 border border-dashed border-gray-200 rounded-sm bg-surface-50/50">
+                                            <p class="text-xs text-surface-500 font-medium">No dynamic rules added yet. Click "Add Rule" to build complex queries.</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="px-6 py-4 bg-surface-50 border-t border-surface-100 flex items-center justify-between gap-3 shrink-0">
-                            <button @click="advancedRules = []; applyAdvancedFilters()" class="px-4 py-2 text-[10px] font-black text-red-500 hover:text-red-700 uppercase tracking-widest transition-colors">Clear All</button>
-                            <div class="flex gap-3">
-                                <button @click="showAdvancedFilterModal = false" class="px-4 py-2 text-[10px] font-black text-surface-500 hover:text-surface-900 uppercase tracking-widest transition-colors">Cancel</button>
-                                <button @click="applyAdvancedFilters()" class="px-5 py-2.5 bg-brand hover:bg-brand/90 text-white rounded-sm text-[10px] font-black uppercase tracking-widest transition-all">
-                                    Apply Filters
-                                </button>
-                            </div>
+                        {{-- Footer --}}
+                        <div class="px-6 py-4 bg-surface-50 border-t border-surface-100 flex items-center justify-end gap-3 shrink-0">
+                            <button @click="showAdvancedFilterModal = false" class="px-4 py-2 text-[10px] font-black text-surface-500 hover:text-surface-900 uppercase tracking-widest transition-colors">Cancel</button>
+                            <button @click="applyAdvancedFilters()" class="px-5 py-2 bg-brand hover:bg-brand/90 text-white rounded-sm text-[10px] font-black uppercase tracking-widest transition-all">
+                                Apply Filters
+                            </button>
                         </div>
                     </div>
                 </div>
+
 
             </div> <!-- Closing teleport wrapper div -->
         </template>
@@ -2255,7 +2418,7 @@
                 },
 
                 resetFilters() {
-                    this.filter = []; this.segment = []; this.tag = []; this.topic = []; this.source = []; this.archived = []; this.subscription = []; this.channel = []; this.wa_status = []; this.added_by = [];
+                    this.filter = []; this.segment = []; this.tag = []; this.topic = []; this.source = []; this.archived = ['no']; this.subscription = []; this.channel = []; this.wa_status = []; this.added_by = [];
                     this.advancedRules = [];
                     this.search = ''; this.searchField = 'name'; this.selectedIds = []; this.fetchEmails();
                 },

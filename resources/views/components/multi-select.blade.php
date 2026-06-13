@@ -2,8 +2,8 @@
 
 <div x-data="{ open: false }" class="relative" @click.away="open = false">
     <div @click="open = !open"
-        class="flex items-center justify-between gap-2 bg-white px-3 py-2.5 rounded-sm border border-gray-200 hover:border-gray-300 transition-all cursor-pointer min-w-[100px]">
-        <span class="text-[11px] font-bold text-surface-700 uppercase tracking-widest">{{ $label }}</span>
+        class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-sm border border-gray-200 hover:border-gray-300 transition-all cursor-pointer min-w-[100px]">
+        <span class="text-[13px] text-surface-800 tracking-widest">{{ $label }}</span>
         
         <div class="flex items-center gap-1.5">
             <template x-if="{{ $model }}.length > 0">
