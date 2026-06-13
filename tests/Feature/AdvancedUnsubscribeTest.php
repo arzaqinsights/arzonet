@@ -327,4 +327,33 @@ class AdvancedUnsubscribeTest extends TestCase
         $this->assertNotNull($email->unsubscribe_expires_at);
         $this->assertEquals(Carbon::now()->addDays(14)->toDateString(), $email->unsubscribe_expires_at->toDateString());
     }
+
+    public function test_email_unsubscribe_does_not_affect_whatsapp_subscription_status()
+    {
+        $email = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'email' => 'contact_whatsapp_independent@example.com',
+            'status' => 'valid',
+            'subscription_status' => 'subscribed',
+            'whatsapp_subscription_status' => 'subscribed'
+        ]);
+
+        $token = hash_hmac('sha256', $email->id . $email->email, config('app.key'));
+        $url = route('unsubscribe.confirm', ['id' => $email->id]);
+
+        // Unsubscribe globally from email
+        $response = $this->post($url, [
+            'token' => $token,
+            'global_unsubscribe' => '1',
+            'lid' => null
+        ]);
+
+        $response->assertStatus(200);
+
+        $email->refresh();
+        $this->assertEquals('unsubscribed', $email->subscription_status);
+        // WhatsApp subscription status must remain subscribed
+        $this->assertEquals('subscribed', $email->whatsapp_subscription_status);
+    }
 }

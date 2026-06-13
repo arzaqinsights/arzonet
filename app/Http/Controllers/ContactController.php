@@ -90,7 +90,6 @@ class ContactController extends Controller
         $email->update([
             'subscribed_topics' => array_map('intval', $topicIds),
             'subscription_status' => count($topicIds) > 0 ? 'subscribed' : 'unsubscribed',
-            'whatsapp_subscription_status' => count($topicIds) > 0 ? 'subscribed' : 'unsubscribed',
         ]);
 
         return back()->with('success', 'Subscription topics updated.');

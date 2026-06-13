@@ -223,13 +223,11 @@ class AdvancedBulkActionJob implements ShouldQueue
                             $email->update([
                                 'subscribed_topics' => [],
                                 'subscription_status' => 'unsubscribed',
-                                'whatsapp_subscription_status' => 'unsubscribed'
                             ]);
                         } else {
                             $email->update([
                                 'subscribed_topics' => array_values(array_unique($newTopics)),
                                 'subscription_status' => 'subscribed',
-                                'whatsapp_subscription_status' => 'subscribed'
                             ]);
                         }
                         break;
