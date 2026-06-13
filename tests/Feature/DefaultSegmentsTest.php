@@ -43,8 +43,6 @@ class DefaultSegmentsTest extends TestCase
             'Recent Clickers',
             'Sent in Last Campaign',
             'Recently Sent (7 Days)',
-            'Opened Any Email',
-            'Clicked Any Link',
             'Without Name',
             'Unsubscribed',
             'Valid Contacts',

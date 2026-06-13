@@ -23,17 +23,6 @@ return Application::configure(basePath: dirname(__DIR__))
                     Route::get('/t/o/{token}',   [\App\Http\Controllers\TrackingController::class, 'open'])->name('admin.track.open');
                     Route::get('/t/c/{token}',   [\App\Http\Controllers\TrackingController::class, 'click'])->name('admin.track.click');
                     Route::match(['GET', 'POST'], '/unsubscribe/{token}', [\App\Http\Controllers\TrackingController::class, 'unsubscribe'])->name('admin.unsubscribe');
-                    
-                    // Public Signup Forms & Confirmations on Admin Subdomain
-                    Route::get('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'show'])->name('public.forms.show');
-                    Route::post('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'submit'])->name('public.forms.submit');
-                    Route::get('/confirm-subscription/{token}', [\App\Http\Controllers\PublicFormController::class, 'confirm'])
-                        ->name('public.confirm-subscription')
-                        ->where('token', '.*');
-
-                    // Unsubscribe Confirmation & Preferences on Admin Subdomain
-                    Route::get('/unsubscribe/confirm/{id}', [\App\Http\Controllers\UnsubscribeController::class, 'show'])->name('unsubscribe.show');
-                    Route::post('/unsubscribe/confirm/{id}', [\App\Http\Controllers\UnsubscribeController::class, 'confirm'])->name('unsubscribe.confirm');
                 });
                 
             // 2. Authenticated Admin Routes
