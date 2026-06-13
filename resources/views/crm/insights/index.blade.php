@@ -5,7 +5,7 @@
 @section('content')
 <div class="space-y-6 animate-slide-up">
     <!-- Stat Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <!-- Total Contacts -->
         <div class="glass-card p-6 flex items-center justify-between">
             <div>
@@ -49,9 +49,20 @@
                 <i class="fa-solid fa-star text-lg"></i>
             </div>
         </div>
+
+        <!-- Engagement Rate (30-day) -->
+        <div class="glass-card p-6 flex items-center justify-between">
+            <div>
+                <span class="block text-[10px] font-black text-surface-500 uppercase tracking-widest mb-1">Engagement Rate (30d)</span>
+                <span class="text-3xl font-black text-indigo-500">{{ $engagementRate }}%</span>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500">
+                <i class="fa-solid fa-chart-line text-lg"></i>
+            </div>
+        </div>
     </div>
 
-    <!-- Charts Row -->
+    <!-- Charts Row 1 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Growth Trend Line Chart -->
         <div class="glass-card p-6 lg:col-span-2">
@@ -66,24 +77,48 @@
         </div>
     </div>
 
-    <!-- Second Row of Analytics -->
+    <!-- Charts Row 2 (List Health Dashboard Enhancements) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Acquisition vs Churn Combo Chart -->
+        <div class="glass-card p-6 lg:col-span-2">
+            <h3 class="text-xs font-black text-surface-900 tracking-tight uppercase mb-4">Acquisition vs Churn (Last 6 Months)</h3>
+            <div id="acquisition-churn-chart" class="w-full h-80"></div>
+        </div>
+
+        <!-- Top Signup Sources Donut Chart -->
+        <div class="glass-card p-6">
+            <h3 class="text-xs font-black text-surface-900 tracking-tight uppercase mb-4">Top Signup Sources</h3>
+            <div id="sources-chart" class="w-full h-80 flex items-center justify-center"></div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 (Delivierability and Subscription breakdown) -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Bounce & Complaint Trend Area Chart -->
+        <div class="glass-card p-6">
+            <h3 class="text-xs font-black text-surface-900 tracking-tight uppercase mb-4">Bounce & Complaint Trend (Last 6 Months)</h3>
+            <div id="bounce-complaint-chart" class="w-full h-80"></div>
+        </div>
+
         <!-- Opt-in Status Breakdown -->
         <div class="glass-card p-6">
             <h3 class="text-xs font-black text-surface-900 tracking-tight uppercase mb-4">Subscription Status Distribution</h3>
             <div id="subscription-chart" class="w-full h-80"></div>
         </div>
+    </div>
 
+    <!-- Row 4: Geographic Location Breakdown & Leaderboard -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Geographic Activity (IP address log) -->
-        <div class="glass-card p-6">
+        <div class="glass-card p-6 lg:col-span-1">
             <h3 class="text-xs font-black text-surface-900 tracking-tight uppercase mb-4">Top Active IP Locations</h3>
             <div class="overflow-x-auto mt-4">
-                <table class="data-table w-full">
+                <table class="data-table w-full text-xs">
                     <thead>
                         <tr>
                             <th>IP Address</th>
-                            <th class="text-center">Recorded Events</th>
-                            <th class="text-right">Estimated Region</th>
+                            <th class="text-center">Events</th>
+                            <th class="text-right">Region</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,61 +128,61 @@
                                 <td class="text-center font-bold text-brand">{{ number_format($geo->event_count) }}</td>
                                 <td class="text-right font-medium text-surface-500">
                                     @if($geo->ip_address === '127.0.0.1' || str_starts_with($geo->ip_address, '192.168.') || str_starts_with($geo->ip_address, '10.'))
-                                        <span class="badge badge-gray">Local / Sandbox Dev</span>
+                                        <span class="badge badge-gray scale-90 origin-right">Local</span>
                                     @else
-                                        <span class="badge badge-brand">External API User</span>
+                                        <span class="badge badge-brand scale-90 origin-right">External</span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="3" class="text-center py-10 text-surface-500">No geographic tracking activity logged yet. Launch campaign broadcasts to see geographical click analytics.</td>
+                                <td colspan="3" class="text-center py-10 text-surface-500">No geographic tracking activity logged yet.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>
 
-    <!-- Leaderboard: Top Engaged Leads -->
-    <div class="glass-card p-6">
-        <h3 class="text-xs font-black text-surface-900 tracking-tight uppercase mb-4">Top Engaged Leads Leaderboard</h3>
-        <div class="overflow-x-auto">
-            <table class="data-table w-full">
-                <thead>
-                    <tr>
-                        <th>Lead Name</th>
-                        <th>Email Contact</th>
-                        <th class="text-center">Lead Score</th>
-                        <th>Opt-in Status</th>
-                        <th>Added Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($topLeads as $lead)
-                        <tr class="hover:bg-surface-50/50 transition-colors">
-                            <td class="font-bold text-surface-900">{{ $lead->name ?: 'Unnamed Contact' }}</td>
-                            <td class="font-medium text-surface-600">{{ $lead->email ?: ($lead->whatsapp_number ?: 'No address') }}</td>
-                            <td class="text-center">
-                                <span class="badge {{ $lead->email_lead_score >= 80 ? 'badge-brand bg-amber-500/10 text-amber-600' : ($lead->email_lead_score >= 50 ? 'bg-indigo-50 text-indigo-600' : 'badge-gray') }}">
-                                    {{ $lead->email_lead_score }} Points
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge {{ $lead->subscription_status === 'subscribed' ? 'badge-success' : 'badge-danger' }}">
-                                    {{ ucfirst($lead->subscription_status) }}
-                                </span>
-                            </td>
-                            <td class="text-surface-500 text-xs font-semibold">{{ $lead->created_at->format('M d, Y') }}</td>
-                        </tr>
-                    @empty
+        <!-- Leaderboard: Top Engaged Leads -->
+        <div class="glass-card p-6 lg:col-span-2">
+            <h3 class="text-xs font-black text-surface-900 tracking-tight uppercase mb-4">Top Engaged Leads Leaderboard</h3>
+            <div class="overflow-x-auto">
+                <table class="data-table w-full">
+                    <thead>
                         <tr>
-                            <td colspan="5" class="text-center py-10 text-surface-500">No leads available on this workspace list.</td>
+                            <th>Lead Name</th>
+                            <th>Email Contact</th>
+                            <th class="text-center">Lead Score</th>
+                            <th>Opt-in Status</th>
+                            <th>Added Date</th>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @forelse($topLeads as $lead)
+                            <tr class="hover:bg-surface-50/50 transition-colors">
+                                <td class="font-bold text-surface-900">{{ $lead->name ?: 'Unnamed Contact' }}</td>
+                                <td class="font-medium text-surface-600">{{ $lead->email ?: ($lead->whatsapp_number ?: 'No address') }}</td>
+                                <td class="text-center">
+                                    <span class="badge {{ $lead->email_lead_score >= 80 ? 'badge-brand bg-amber-500/10 text-amber-600' : ($lead->email_lead_score >= 50 ? 'bg-indigo-50 text-indigo-600' : 'badge-gray') }}">
+                                        {{ $lead->email_lead_score }} Points
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {{ $lead->subscription_status === 'subscribed' ? 'badge-success' : 'badge-danger' }}">
+                                        {{ ucfirst($lead->subscription_status) }}
+                                    </span>
+                                </td>
+                                <td class="text-surface-500 text-xs font-semibold">{{ $lead->created_at->format('M d, Y') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center py-10 text-surface-500">No leads available on this workspace list.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -270,7 +305,7 @@
             dataLabels: { enabled: false },
             legend: { show: false },
             series: [{
-                name: 'ContactsCount',
+                name: 'Contacts Count',
                 data: [
                     {{ $subscriptionStats['subscribed'] ?? 0 }},
                     {{ $subscriptionStats['unsubscribed'] ?? 0 }},
@@ -292,6 +327,182 @@
             grid: { borderColor: '#f3f4f6' }
         };
         new ApexCharts(document.querySelector("#subscription-chart"), subscriptionOptions).render();
+
+        // 4. Acquisition vs Churn Chart (Combo Bar + Line)
+        var acqChurnOptions = {
+            chart: {
+                height: 320,
+                type: 'line',
+                toolbar: { show: false },
+                fontFamily: 'Outfit, Inter, sans-serif'
+            },
+            stroke: {
+                width: [0, 3],
+                curve: 'smooth'
+            },
+            series: [{
+                name: 'New Subscribers',
+                type: 'column',
+                data: [
+                    @foreach($monthlyNewSubscribers as $m)
+                        {{ $m['count'] }},
+                    @endforeach
+                ]
+            }, {
+                name: 'Unsubscribes (Churn)',
+                type: 'line',
+                data: [
+                    @foreach($churnTrend as $c)
+                        {{ $c['count'] }},
+                    @endforeach
+                ]
+            }],
+            fill: {
+                opacity: [0.85, 1],
+            },
+            xaxis: {
+                categories: [
+                    @foreach($monthlyNewSubscribers as $m)
+                        '{{ $m['month'] }}',
+                    @endforeach
+                ],
+                labels: {
+                    style: { colors: '#6b7280', fontWeight: 600, fontSize: '10px' }
+                }
+            },
+            yaxis: [{
+                title: {
+                    text: 'New Subscribers',
+                    style: { color: '#6b7280', fontWeight: 600, fontSize: '10px' }
+                },
+                labels: {
+                    style: { colors: '#6b7280', fontWeight: 600, fontSize: '10px' }
+                }
+            }, {
+                opposite: true,
+                title: {
+                    text: 'Unsubscribes (Churn)',
+                    style: { color: '#f43f5e', fontWeight: 600, fontSize: '10px' }
+                },
+                labels: {
+                    style: { colors: '#f43f5e', fontWeight: 600, fontSize: '10px' }
+                }
+            }],
+            colors: ['#6366f1', '#f43f5e'],
+            grid: { borderColor: '#f3f4f6' },
+            legend: {
+                position: 'top',
+                fontSize: '11px',
+                fontWeight: 600,
+                labels: { colors: '#4b5563' }
+            }
+        };
+        new ApexCharts(document.querySelector("#acquisition-churn-chart"), acqChurnOptions).render();
+
+        // 5. Top Signup Sources Donut Chart
+        var sourcesOptions = {
+            chart: {
+                type: 'donut',
+                height: 320,
+                fontFamily: 'Outfit, Inter, sans-serif'
+            },
+            series: [
+                @foreach($topSources as $source)
+                    {{ $source->count }},
+                @endforeach
+            ],
+            labels: [
+                @foreach($topSources as $source)
+                    '{{ $source->source }}',
+                @endforeach
+            ],
+            colors: ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899'],
+            legend: {
+                position: 'bottom',
+                fontSize: '11px',
+                fontWeight: 600,
+                labels: { colors: '#4b5563' }
+            },
+            dataLabels: { enabled: false },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '75%',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'Total Contacts',
+                                formatter: function (w) {
+                                    return w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        new ApexCharts(document.querySelector("#sources-chart"), sourcesOptions).render();
+
+        // 6. Bounce & Complaint Trend Chart
+        var bounceComplaintOptions = {
+            chart: {
+                type: 'area',
+                height: 320,
+                toolbar: { show: false },
+                zoom: { enabled: false },
+                fontFamily: 'Outfit, Inter, sans-serif'
+            },
+            stroke: { curve: 'smooth', width: 3 },
+            series: [{
+                name: 'Bounces',
+                data: [
+                    @foreach($monthlyBounces as $b)
+                        {{ $b['count'] }},
+                    @endforeach
+                ]
+            }, {
+                name: 'Complaints',
+                data: [
+                    @foreach($monthlyComplaints as $c)
+                        {{ $c['count'] }},
+                    @endforeach
+                ]
+            }],
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.3,
+                    opacityTo: 0.05,
+                    stops: [0, 90, 100]
+                }
+            },
+            xaxis: {
+                categories: [
+                    @foreach($monthlyBounces as $b)
+                        '{{ $b['month'] }}',
+                    @endforeach
+                ],
+                labels: {
+                    style: { colors: '#6b7280', fontWeight: 600, fontSize: '10px' }
+                }
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: '#6b7280', fontWeight: 600, fontSize: '10px' }
+                }
+            },
+            colors: ['#f59e0b', '#ef4444'],
+            grid: { borderColor: '#f3f4f6' },
+            legend: {
+                position: 'top',
+                fontSize: '11px',
+                fontWeight: 600,
+                labels: { colors: '#4b5563' }
+            }
+        };
+        new ApexCharts(document.querySelector("#bounce-complaint-chart"), bounceComplaintOptions).render();
     });
 </script>
 @endsection

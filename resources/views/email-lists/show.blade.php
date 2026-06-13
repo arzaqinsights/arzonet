@@ -73,7 +73,7 @@
         @open-send-pipeline.window="openSendPipeline($event.detail.contact)"
         @open-profile.window="openProfile($event.detail)"
         @open-merge-modal.window="showMergeModal = true"
-        x-init="@if($emailList->status === 'processing') pollStatus() @endif">
+        x-init="@if($emailList->status === 'processing' || $emailList->activityLogs()->where('type', 'export')->where('details->status', 'started')->exists()) pollStatus() @endif">
 
         {{-- Tabs Navigation --}}
         <div class="bg-white border-b border-color flex items-center gap-8 -mx-6 -mt-6 mb-6 px-6">
@@ -111,6 +111,7 @@
                 if (str_starts_with($key, 'custom_'))
                     $displayedFields[] = $key;
             }
+            $initActiveExport = $emailList->activityLogs()->where('type', 'export')->where('details->status', 'started')->latest()->first();
         @endphp
 
         {{-- ── CONTACTS MAIN VIEW ── --}}
@@ -148,6 +149,23 @@
                 </div>
             </div>
 
+            {{-- Export Processing Banner --}}
+            <div x-show="stats.active_export" class="p-5 bg-brand/5 border border-brand/20 rounded-sm" x-cloak>
+                <div class="flex items-center gap-4">
+                    <div class="shrink-0 animate-spin w-5 h-5 border-2 border-brand border-t-transparent rounded-full">
+                    </div>
+                    <div class="flex-1">
+                        <div>
+                            <p class="text-brand font-black uppercase text-[10px] tracking-widest">
+                                Export in Progress
+                            </p>
+                            <p class="text-[11px] text-brand/70 font-medium mt-0.5">
+                                Generating file: <span class="font-bold text-surface-900" x-text="stats.active_export.filename"></span>. You can safely navigate away. We will notify you here once it is ready to download.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {{-- Completed Banner --}}
             <div x-show="importJustCompleted" class="p-5 bg-brand/5 border border-brand/20 rounded-sm" x-cloak>
@@ -180,6 +198,35 @@
                         </a>
                     </div>
 
+                </div>
+            </div>
+
+            {{-- Export Completed Banner --}}
+            <div x-show="exportJustCompleted" class="p-5 bg-brand/5 border border-brand/20 rounded-sm" x-cloak>
+                <div class="flex items-center justify-between gap-4">
+                    {{-- Left Content --}}
+                    <div class="flex items-center gap-4">
+                        <div class="shrink-0 w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-brand font-black uppercase text-[10px] tracking-widest">
+                                Export Successful
+                            </p>
+                            <p class="text-[11px] text-brand/70 font-medium mt-0.5">
+                                Your export file <span class="font-bold text-surface-900" x-text="completedExportFilename"></span> is ready. Click below to download it.
+                            </p>
+                        </div>
+                    </div>
+                    {{-- Right Side Button --}}
+                    <div>
+                        <a @click.prevent="downloadExportFile(completedExportLogId)"
+                            class="inline-flex items-center justify-center bg-brand hover:bg-brand/90 text-white rounded-sm text-[10px] font-black uppercase tracking-widest transition-all px-4 py-2 cursor-pointer">
+                            Download File →
+                        </a>
+                    </div>
                 </div>
             </div>
             {{-- Search & Filter Engine --}}
@@ -931,6 +978,13 @@
                                                     Import</button>
                                             </form>
                                         @endif
+
+                                        @if($log->type === 'export' && in_array(strtolower($log->details['status'] ?? ''), ['completed']))
+                                            <a href="{{ route('admin.email-lists.exports.download', $log->id) }}"
+                                                class="px-3 py-1.5 bg-brand text-white text-[10px] uppercase font-black tracking-widest rounded-sm hover:bg-brand-600 transition-all cursor-pointer flex items-center gap-1">
+                                                <i class="fa-solid fa-download text-[9px]"></i> Download File
+                                            </a>
+                                        @endif
                                     @endif
                                 </div>
                             </div>
@@ -1506,6 +1560,7 @@
                                                 <optgroup label="Tags & Topics">
                                                     <option value="add_tags">Add Tags</option>
                                                     <option value="remove_tags">Remove Tags</option>
+                                                    <option value="replace_tags">Replace Tags</option>
                                                     <option value="manage_subscriptions">Manage Subscriptions</option>
                                                 </optgroup>
                                                 <optgroup label="CRM Actions">
@@ -1669,7 +1724,7 @@
                                 </template>
                             </div>
                                 <!-- Advanced Bulk Action Templates -->
-                                <template x-if="['add_tags', 'remove_tags'].includes(bulkActionType)">
+                                <template x-if="['add_tags', 'remove_tags', 'replace_tags'].includes(bulkActionType)">
                                     <div class="bg-gray-50 border border-gray-200 p-4 rounded-sm animate-fade-in space-y-4">
                                         <div>
                                             <label class="block text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1.5">Enter Tags (Comma Separated)</label>
@@ -2330,6 +2385,7 @@
                 profileLoading: false,
                 profileContact: null,
                 profileActiveTab: 'details',
+                activityFilter: 'all',
                 newNoteContent: '',
                 newTask: { title: '', description: '', due_date: '' },
                 addingNote: false,
@@ -2351,6 +2407,7 @@
                 exportFormat: 'xlsx', exportFilename: '{{ Str::slug($emailList->name) }}_export_{{ now()->format('Ymd') }}',
                 consolidate: false,
                 adding: false, saving: false, scrubbing: false, importJustCompleted: false, completedJobType: 'import', pollInterval: null,
+                exportJustCompleted: false, completedExportLogId: null, completedExportFilename: '',
                 newContact: { email: '', name: '', whatsapp_number: '', segment_name: '', tags: '', signup_source: 'Manual Entry' },
                 editingContact: { id: null, email: '', name: '', subscription_status: '', meta: {} },
                 stats: {
@@ -2389,7 +2446,9 @@
                     is_filtered: false,
                     filtered_main_rows: 0,
                     active_bulk_action: null,
-                    last_bulk_action_completed: false
+                    last_bulk_action_completed: false,
+                    active_export: @js($initActiveExport ? array_merge($initActiveExport->details, ['id' => $initActiveExport->id]) : null),
+                    last_export_completed: null
                 },
 
                 optOutAnalytics: null,
@@ -2410,7 +2469,7 @@
                 },
 
                 init() {
-                    if (this.stats.status === 'processing') {
+                    if (this.stats.status === 'processing' || this.stats.active_export) {
                         this.pollStatus();
                     }
                 },
@@ -2664,6 +2723,8 @@
                             import_details: data.import_details,
                             active_bulk_action: data.active_bulk_action,
                             last_bulk_action_completed: data.last_bulk_action_completed,
+                            active_export: data.active_export,
+                            last_export_completed: data.last_export_completed,
                             global_main_rows: data.global_main_rows || 0,
                             total_emails: data.total_emails || 0,
                             subscribed_emails: data.subscribed_emails || 0,
@@ -2674,7 +2735,7 @@
                             filtered_main_rows: this.stats.filtered_main_rows
                         };
 
-                        if (data.status === 'processing') {
+                        if (data.status === 'processing' || data.active_export) {
                             this.pollStatus();
                         }
                     });
@@ -2686,6 +2747,7 @@
                     this.pollInterval = setInterval(() => {
                         fetch('{{ route("admin.email-lists.status", $emailList) }}').then(r => r.json()).then(data => {
                             const oldStatus = this.stats.status;
+                            const oldActiveExport = this.stats.active_export;
                             this.stats.status = data.status;
                             this.stats.full_total = data.total_records;
                             this.stats.total = data.total_records;
@@ -2712,6 +2774,8 @@
                             this.stats.import_details = data.import_details;
                             this.stats.active_bulk_action = data.active_bulk_action;
                             this.stats.last_bulk_action_completed = data.last_bulk_action_completed;
+                            this.stats.active_export = data.active_export;
+                            this.stats.last_export_completed = data.last_export_completed;
 
                             this.stats.global_main_rows = data.global_main_rows || 0;
                             this.stats.total_emails = data.total_emails || 0;
@@ -2719,7 +2783,15 @@
                             this.stats.total_whatsapps = data.total_whatsapps || 0;
                             this.stats.subscribed_whatsapps = data.subscribed_whatsapps || 0;
 
-                            if (data.status === 'completed' || data.status === 'failed') {
+                            if (oldActiveExport && !data.active_export && data.last_export_completed) {
+                                this.exportJustCompleted = true;
+                                this.completedExportLogId = data.last_export_completed.id;
+                                this.completedExportFilename = data.last_export_completed.filename;
+                            }
+
+                            const shouldPoll = data.status === 'processing' || data.active_bulk_action || data.active_export;
+
+                            if (!shouldPoll) {
                                 clearInterval(this.pollInterval);
                                 this.pollInterval = null;
                                 this.fetchEmails();
@@ -2730,6 +2802,14 @@
                             }
                         });
                     }, 2000);
+                },
+
+                downloadExportFile(logId) {
+                    const url = `{{ route('admin.email-lists.exports.download', ':id') }}`.replace(':id', logId);
+                    window.location.href = url;
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
                 },
 
                 singleAction(action, id) {
@@ -2969,6 +3049,7 @@
                     this.profileLoading = true;
                     this.showProfileSlideover = true;
                     this.profileActiveTab = 'details';
+                    this.activityFilter = 'all';
                     this.profileContact = null;
                     
                     fetch(`{{ route('admin.email-lists.contact.profile', [$emailList, ':id']) }}`.replace(/(:|%3[Aa])id/g, id), {
@@ -2988,7 +3069,16 @@
 
                 closeProfile() {
                     this.showProfileSlideover = false;
-                    setTimeout(() => { this.profileContact = null; }, 300);
+                    setTimeout(() => { 
+                        this.profileContact = null; 
+                        this.activityFilter = 'all';
+                    }, 300);
+                },
+
+                filteredActivities() {
+                    if (!this.profileContact || !this.profileContact.activities) return [];
+                    if (this.activityFilter === 'all') return this.profileContact.activities;
+                    return this.profileContact.activities.filter(a => a.type === this.activityFilter);
                 },
 
                 addNote() {

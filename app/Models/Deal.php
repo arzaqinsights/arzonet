@@ -45,6 +45,25 @@ class Deal extends Model
         static::updated(function ($deal) {
             if ($deal->email_id) {
                 \App\Jobs\CalculateLeadScoreJob::dispatch($deal->email_id);
+                
+                if ($deal->isDirty('pipeline_stage_id')) {
+                    $oldStage = \App\Models\PipelineStage::find($deal->getOriginal('pipeline_stage_id'));
+                    $newStage = \App\Models\PipelineStage::find($deal->pipeline_stage_id);
+                    $oldStageName = $oldStage ? $oldStage->name : 'Unknown';
+                    $newStageName = $newStage ? $newStage->name : 'Unknown';
+
+                    \App\Models\ContactActivity::create([
+                        'user_id' => $deal->user_id,
+                        'email_id' => $deal->email_id,
+                        'type' => 'stage_changed',
+                        'meta' => [
+                            'deal_title' => $deal->title,
+                            'old_stage' => $oldStageName,
+                            'new_stage' => $newStageName,
+                            'description' => "Deal \"{$deal->title}\" stage changed from \"{$oldStageName}\" to \"{$newStageName}\"."
+                        ]
+                    ]);
+                }
             }
             if ($deal->isDirty('email_id') && $deal->getOriginal('email_id')) {
                 \App\Jobs\CalculateLeadScoreJob::dispatch($deal->getOriginal('email_id'));

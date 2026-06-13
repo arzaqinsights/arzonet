@@ -170,8 +170,29 @@ class Email extends Model
                 $oldTags = $email->getOriginal('tags') ?: [];
                 $newTags = $email->tags ?: [];
                 $added = array_diff($newTags, $oldTags);
+                $removed = array_diff($oldTags, $newTags);
                 foreach ($added as $tag) {
                     \App\Models\Workflow::trigger('tag_added', $email, $tag);
+                    \App\Models\ContactActivity::create([
+                        'user_id' => $email->user_id,
+                        'email_id' => $email->id,
+                        'type' => 'tag_added',
+                        'meta' => [
+                            'tag' => $tag,
+                            'description' => "Tag added: \"{$tag}\"."
+                        ]
+                    ]);
+                }
+                foreach ($removed as $tag) {
+                    \App\Models\ContactActivity::create([
+                        'user_id' => $email->user_id,
+                        'email_id' => $email->id,
+                        'type' => 'tag_removed',
+                        'meta' => [
+                            'tag' => $tag,
+                            'description' => "Tag removed: \"{$tag}\"."
+                        ]
+                    ]);
                 }
             }
         });

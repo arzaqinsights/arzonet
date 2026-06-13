@@ -230,4 +230,298 @@ class DefaultSegmentsTest extends TestCase
         $this->assertContains($john->id, $results);
         $this->assertNotContains($bob->id, $results);
     }
+
+    public function test_dynamic_segment_loading_on_list_view()
+    {
+        $this->actingAs($this->user);
+
+        $john = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'email' => 'john-dyn@example.com',
+            'name' => 'John Dynamic',
+            'status' => 'valid',
+            'subscription_status' => 'subscribed',
+        ]);
+
+        // Define segment for name contains 'Dynamic'
+        $segment = Segment::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'name' => 'Dynamic Segment Test',
+            'rules' => [
+                ['field' => 'name', 'operator' => 'contains', 'value' => 'Dynamic']
+            ]
+        ]);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.filter', $this->emailList->id, false);
+
+        $response = $this->postJson($url, [], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertOk();
+        $data = $response->json();
+
+        // Check if the dynamic segment badge name is rendered in html response
+        $this->assertStringContainsString('Dynamic Segment Test', $data['html']);
+    }
+
+    public function test_replace_tags_bulk_action()
+    {
+        $john = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'email' => 'john-tags@example.com',
+            'name' => 'John Tags',
+            'tags' => ['old-tag-1', 'old-tag-2'],
+            'status' => 'valid',
+            'subscription_status' => 'subscribed',
+        ]);
+
+        $activityLog = \App\Models\ActivityLog::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'type' => 'bulk_action',
+            'details' => ['action' => 'replace_tags', 'status' => 'processing'],
+        ]);
+
+        $job = new \App\Jobs\AdvancedBulkActionJob(
+            $this->emailList->id,
+            'replace_tags',
+            false,
+            [],
+            [$john->id],
+            ['tags' => ['new-tag-1', 'new-tag-2']],
+            $this->user->id,
+            $activityLog->id
+        );
+
+        $job->handle();
+
+        $john->refresh();
+        $this->assertEquals(['new-tag-1', 'new-tag-2'], $john->tags);
+    }
+
+    public function test_export_contacts_dispatches_job()
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+
+        $this->actingAs($this->user);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.export', $this->emailList->id, false);
+
+        $response = $this->get($url, [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertRedirect();
+        
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\ExportContactsJob::class);
+    }
+
+    public function test_download_export()
+    {
+        $this->actingAs($this->user);
+
+        $filename = 'test_export_' . uniqid() . '.csv';
+        $log = \App\Models\ActivityLog::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'type' => 'export',
+            'details' => [
+                'filename' => $filename,
+                'status' => 'completed'
+            ]
+        ]);
+
+        $path = \Illuminate\Support\Facades\Storage::disk('local')->path('exports/' . $filename);
+        if (!file_exists(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+        file_put_contents($path, "ID,Name,Email\n1,John,john@example.com");
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.exports.download', $log->id, false);
+
+        $response = $this->get($url, [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertOk();
+        $this->assertEquals("ID,Name,Email\n1,John,john@example.com", $response->streamedContent());
+
+        // Cleanup
+        unlink($path);
+    }
+
+    public function test_check_status_includes_export_info()
+    {
+        $this->actingAs($this->user);
+
+        // 1. Assert initial state is null
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.status', $this->emailList->id, false);
+        $response = $this->get($url, [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+        $response->assertJsonFragment([
+            'active_export' => null,
+            'last_export_completed' => null
+        ]);
+
+        // 2. Create started export activity log and assert active_export is populated
+        $activeLog = \App\Models\ActivityLog::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'type' => 'export',
+            'details' => [
+                'filename' => 'active_export.xlsx',
+                'status' => 'started'
+            ]
+        ]);
+
+        $response = $this->get($url, [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+        $response->assertJsonPath('active_export.id', $activeLog->id);
+        $response->assertJsonPath('active_export.filename', 'active_export.xlsx');
+        $response->assertJsonPath('active_export.status', 'started');
+
+        // 3. Create completed export activity log and assert last_export_completed is populated
+        $completedLog = \App\Models\ActivityLog::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'type' => 'export',
+            'details' => [
+                'filename' => 'completed_export.xlsx',
+                'status' => 'completed'
+            ]
+        ]);
+
+        $response = $this->get($url, [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+        $response->assertJsonPath('last_export_completed.id', $completedLog->id);
+        $response->assertJsonPath('last_export_completed.filename', 'completed_export.xlsx');
+        $response->assertJsonPath('last_export_completed.status', 'completed');
+    }
+
+    public function test_contact_timeline_activities()
+    {
+        $contact = \App\Models\Email::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'email' => 'timeline_test@example.com',
+            'name' => 'Timeline Tester',
+            'tags' => ['old-tag'],
+        ]);
+
+        // 1. Tag addition and removal
+        $contact->update(['tags' => ['old-tag', 'new-tag']]);
+        $this->assertTrue($contact->activities()->where('type', 'tag_added')->exists());
+
+        $contact->update(['tags' => ['new-tag']]);
+        $this->assertTrue($contact->activities()->where('type', 'tag_removed')->exists());
+
+        // 2. Note addition
+        $note = \App\Models\ContactNote::create([
+            'email_id' => $contact->id,
+            'user_id' => $this->user->id,
+            'content' => 'This is a test note content.',
+        ]);
+        $this->assertTrue($contact->activities()->where('type', 'note_added')->exists());
+
+        // 3. Task created and completed
+        $task = \App\Models\ContactTask::create([
+            'email_id' => $contact->id,
+            'user_id' => $this->user->id,
+            'title' => 'Test Task',
+        ]);
+        $this->assertTrue($contact->activities()->where('type', 'task_created')->exists());
+
+        $task->update(['is_completed' => true]);
+        $this->assertTrue($contact->activities()->where('type', 'task_completed')->exists());
+
+        // 4. Deal stage changed
+        $pipeline = \App\Models\Pipeline::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'name' => 'Test Pipeline',
+        ]);
+        $stage1 = \App\Models\PipelineStage::create([
+            'pipeline_id' => $pipeline->id,
+            'user_id' => $this->user->id,
+            'name' => 'Stage 1',
+        ]);
+        $stage2 = \App\Models\PipelineStage::create([
+            'pipeline_id' => $pipeline->id,
+            'user_id' => $this->user->id,
+            'name' => 'Stage 2',
+        ]);
+        $deal = \App\Models\Deal::create([
+            'email_id' => $contact->id,
+            'pipeline_stage_id' => $stage1->id,
+            'title' => 'Timeline Test Deal',
+            'user_id' => $this->user->id,
+        ]);
+
+        $deal->update(['pipeline_stage_id' => $stage2->id]);
+        $this->assertTrue($contact->activities()->where('type', 'stage_changed')->exists());
+
+        // 5. Sequence enrolled
+        $sequence = \App\Models\Sequence::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'name' => 'Test Sequence',
+        ]);
+        $enrollment = \App\Models\SequenceEnrollment::create([
+            'sequence_id' => $sequence->id,
+            'email_id' => $contact->id,
+            'current_step_number' => 1,
+            'status' => 'active',
+        ]);
+        $this->assertTrue($contact->activities()->where('type', 'sequence_enrolled')->exists());
+
+        $enrollment->update(['status' => 'completed']);
+        $this->assertTrue($contact->activities()->where('type', 'sequence_completed')->exists());
+    }
+
+    public function test_contact_profile_campaign_history()
+    {
+        $this->actingAs($this->user);
+
+        $contact = \App\Models\Email::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'email' => 'campaign_hist@example.com',
+            'name' => 'Campaign History Tester',
+        ]);
+
+        $campaign = \App\Models\Campaign::create([
+            'email_list_id' => $this->emailList->id,
+            'user_id' => $this->user->id,
+            'name' => 'History Test Campaign',
+            'subject' => 'Hello',
+            'content' => 'Content',
+            'status' => 'completed',
+        ]);
+
+        $log = \App\Models\EmailLog::create([
+            'user_id' => $this->user->id,
+            'email_id' => $contact->id,
+            'campaign_id' => $campaign->id,
+            'email_address' => $contact->email,
+            'status' => 'delivered',
+            'sent_at' => now(),
+        ]);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.contact.profile', [$this->emailList->id, $contact->id], false);
+
+        $response = $this->getJson($url, [
+            'Host' => 'admin.' . config('app.domain' )
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('logs.0.campaign.name', 'History Test Campaign');
+        $response->assertJsonPath('logs.0.status', 'delivered');
+    }
 }

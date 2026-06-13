@@ -36,8 +36,22 @@ class PublicFormController extends Controller
                     $customFieldLabels[$header] = $key;
                 }
             }
+
+            $sessionId = session()->get('form_session_' . $form->id);
+            if (!$sessionId) {
+                $sessionId = \Illuminate\Support\Str::random(40);
+                session()->put('form_session_' . $form->id, $sessionId);
+            }
+
+            \App\Models\FormView::create([
+                'signup_form_id' => $form->id,
+                'session_id' => $sessionId,
+                'ip_address' => request()->ip(),
+                'referrer' => request()->headers->get('referer'),
+                'user_agent' => request()->userAgent(),
+            ]);
             
-            return view('public.signup', compact('list', 'topics', 'form', 'customFieldLabels'));
+            return view('public.signup', compact('list', 'topics', 'form', 'customFieldLabels', 'sessionId'));
         }
 
         // 2. Fallback to legacy EmailList signup_form_token
@@ -47,6 +61,26 @@ class PublicFormController extends Controller
         $customFieldLabels = [];
         
         return view('public.signup', compact('list', 'topics', 'form', 'customFieldLabels'));
+    }
+
+    public function widgetJs($token)
+    {
+        $form = \App\Models\SignupForm::where('token', $token)->first();
+        if (!$form) {
+            $list = EmailList::where('signup_form_token', $token)->firstOrFail();
+        }
+
+        $formUrl = route('public.forms.show', $token);
+
+        $js = view('public.widget', [
+            'token' => $token,
+            'formUrl' => $formUrl,
+            'form' => $form ?? null
+        ])->render();
+
+        return response($js)
+            ->header('Content-Type', 'application/javascript')
+            ->header('Cache-Control', 'public, max-age=3600');
     }
 
     public function submit(Request $request, $token)
@@ -177,9 +211,23 @@ class PublicFormController extends Controller
         $successMessage = $form ? $form->success_message : 'Thank you! You have been successfully subscribed to our list.';
         $themeColor = $form ? $form->theme_color : '#5850ec';
 
+        $this->completeSubmission($form, $request->input('form_session_id'), $contact->email);
+
         if ($doubleOptIn) {
             $contact->subscription_status = 'pending';
             $contact->save();
+
+            \App\Models\ContactActivity::create([
+                'user_id' => $contact->user_id,
+                'email_id' => $contact->id,
+                'type' => 'form_signup',
+                'meta' => [
+                    'form_name' => $form ? $form->name : 'Legacy List Form',
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'description' => ($form ? "Signed up via form: {$form->name}" : "Signed up via legacy form") . " (Double Opt-In Pending)."
+                ]
+            ]);
 
             // Send verification email
             $confirmUrl = route('public.confirm-subscription', ['token' => Crypt::encryptString($contact->id)]);
@@ -212,6 +260,18 @@ class PublicFormController extends Controller
         $contact->subscription_status = 'subscribed';
         $contact->save();
 
+        \App\Models\ContactActivity::create([
+            'user_id' => $contact->user_id,
+            'email_id' => $contact->id,
+            'type' => 'form_signup',
+            'meta' => [
+                'form_name' => $form ? $form->name : 'Legacy List Form',
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'description' => $form ? "Signed up via form: {$form->name}." : "Signed up via legacy form."
+            ]
+        ]);
+
         // Log preference
         PreferenceLog::create([
             'email_id' => $contact->id,
@@ -243,6 +303,17 @@ class PublicFormController extends Controller
             $contact->subscription_status = 'subscribed';
             $contact->save();
 
+            \App\Models\ContactActivity::create([
+                'user_id' => $contact->user_id,
+                'email_id' => $contact->id,
+                'type' => 'form_signup',
+                'meta' => [
+                    'ip' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'description' => "Confirmed double opt-in subscription."
+                ]
+            ]);
+
             // Log preference
             PreferenceLog::create([
                 'email_id' => $contact->id,
@@ -260,5 +331,56 @@ class PublicFormController extends Controller
         }
 
         return view('public.confirm', compact('contact'));
+    }
+
+    public function recordProgress(Request $request, $token)
+    {
+        $form = \App\Models\SignupForm::where('token', $token)->first();
+        if (!$form) {
+            return response()->json(['error' => 'Form not found'], 404);
+        }
+
+        $request->validate([
+            'session_id' => 'required|string',
+            'step' => 'required|integer',
+            'email' => 'nullable|email|max:255',
+        ]);
+
+        $submission = \App\Models\FormSubmission::firstOrNew([
+            'signup_form_id' => $form->id,
+            'session_id' => $request->session_id,
+        ]);
+
+        if (!$submission->is_completed) {
+            $submission->abandoned_step = $request->step + 1; // 1-indexed for clarity
+            if ($request->filled('email')) {
+                $submission->email = $request->email;
+            }
+            $submission->save();
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    private function completeSubmission($form, $sessionId, $email)
+    {
+        if ($form && $sessionId) {
+            $submission = \App\Models\FormSubmission::where('signup_form_id', $form->id)
+                ->where('session_id', $sessionId)
+                ->first();
+            if ($submission) {
+                $submission->is_completed = true;
+                $submission->email = $email;
+                $submission->abandoned_step = null;
+                $submission->save();
+            } else {
+                \App\Models\FormSubmission::create([
+                    'signup_form_id' => $form->id,
+                    'session_id' => $sessionId,
+                    'email' => $email,
+                    'is_completed' => true,
+                ]);
+            }
+        }
     }
 }

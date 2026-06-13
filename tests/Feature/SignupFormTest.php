@@ -161,4 +161,188 @@ class SignupFormTest extends TestCase
         $this->assertEquals([$topic->id], $contact->subscribed_topics);
         $this->assertEquals('Awesome Corp', $contact->meta['custom_company'] ?? null);
     }
+
+    public function test_store_multi_step_signup_form()
+    {
+        $url = 'http://admin.' . config('app.domain') . route('admin.signup-forms.store', [], false);
+
+        $stepsJson = json_encode([
+            [
+                'title' => 'Step 1: Welcome',
+                'description' => 'Your email',
+                'fields' => ['email'],
+                'show_topics' => false
+            ],
+            [
+                'title' => 'Step 2: Profile',
+                'description' => 'Your name',
+                'fields' => ['name'],
+                'show_topics' => true
+            ]
+        ]);
+
+        $response = $this->post($url, [
+            'name' => 'Multi Step Form',
+            'title' => 'Wizard Signup',
+            'button_text' => 'Join Now',
+            'theme_color' => '#f97316',
+            'allow_topic_selection' => 1,
+            'is_multi_step' => 1,
+            'steps_json' => $stepsJson,
+            'custom_fields' => ['name']
+        ], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertRedirect();
+
+        $form = SignupForm::where('name', 'Multi Step Form')->first();
+        $this->assertNotNull($form);
+        $this->assertCount(2, $form->steps);
+        $this->assertEquals('Step 1: Welcome', $form->steps[0]['title']);
+    }
+
+    public function test_form_analytics_page_loads_with_correct_metrics()
+    {
+        $form = SignupForm::create([
+            'email_list_id' => $this->list->id,
+            'user_id' => $this->user->id,
+            'name' => 'Join our team',
+            'token' => 'test-token-789',
+            'title' => 'Sign up',
+            'button_text' => 'Join',
+            'theme_color' => '#000000',
+        ]);
+
+        // Create some mock views
+        \App\Models\FormView::create([
+            'signup_form_id' => $form->id,
+            'session_id' => 'session-1',
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        // Create some mock submissions
+        \App\Models\FormSubmission::create([
+            'signup_form_id' => $form->id,
+            'session_id' => 'session-1',
+            'is_completed' => true,
+            'email' => 'completed@example.com',
+        ]);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.signup-forms.analytics', ['signupForm' => $form->id], false);
+
+        $response = $this->get($url, [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertOk();
+        $response->assertSee('Join our team');
+        $response->assertSee('100%'); // 1 submission / 1 unique view = 100% conversion
+    }
+
+    public function test_record_progress_via_ajax_endpoint()
+    {
+        $form = SignupForm::create([
+            'email_list_id' => $this->list->id,
+            'user_id' => $this->user->id,
+            'name' => 'Multi Step Form',
+            'token' => 'test-token-wizard',
+            'title' => 'Wizard',
+            'button_text' => 'Submit',
+            'theme_color' => '#f97316',
+            'steps' => [
+                ['title' => 'Step 1', 'fields' => ['email']],
+                ['title' => 'Step 2', 'fields' => ['name']],
+            ]
+        ]);
+
+        $url = 'http://' . config('app.domain') . route('public.forms.progress', ['token' => $form->token], false);
+
+        $response = $this->postJson($url, [
+            'session_id' => 'test-wizard-session',
+            'step' => 1,
+            'email' => 'wizard-dropoff@example.com',
+        ], [
+            'Host' => config('app.domain')
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+
+        $submission = \App\Models\FormSubmission::where('session_id', 'test-wizard-session')->first();
+        $this->assertNotNull($submission);
+        $this->assertFalse($submission->is_completed);
+        $this->assertEquals(2, $submission->abandoned_step); // step + 1
+        $this->assertEquals('wizard-dropoff@example.com', $submission->email);
+    }
+
+    public function test_signup_form_edit_page_loads_without_type_error()
+    {
+        $form = SignupForm::create([
+            'email_list_id' => $this->list->id,
+            'user_id' => $this->user->id,
+            'name' => 'Join our team',
+            'token' => 'test-token-123',
+            'title' => 'Sign up',
+            'button_text' => 'Join',
+            'theme_color' => '#000000',
+            'custom_fields' => ['custom_1']
+        ]);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.signup-forms.edit', ['signupForm' => $form->id], false);
+
+        $response = $this->get($url, [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertOk();
+        $response->assertSee('Join our team');
+        $response->assertSee('formBuilder');
+    }
+
+    public function test_update_multi_step_signup_form()
+    {
+        $form = SignupForm::create([
+            'email_list_id' => $this->list->id,
+            'user_id' => $this->user->id,
+            'name' => 'Original Form',
+            'token' => 'original-token',
+            'title' => 'Original Title',
+            'button_text' => 'Join',
+            'theme_color' => '#000000',
+            'custom_fields' => ['email'],
+            'steps' => null
+        ]);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.signup-forms.update', ['signupForm' => $form->id], false);
+
+        $stepsJson = json_encode([
+            [
+                'title' => 'Step 1: Contact',
+                'description' => 'Your email address',
+                'fields' => ['email'],
+                'show_topics' => false
+            ]
+        ]);
+
+        $response = $this->put($url, [
+            'name' => 'Updated Form',
+            'title' => 'Updated Title',
+            'button_text' => 'Subscribe',
+            'theme_color' => '#f97316',
+            'allow_topic_selection' => 1,
+            'is_multi_step' => 1,
+            'steps_json' => $stepsJson,
+            'custom_fields' => ['email']
+        ], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertRedirect();
+
+        $form->refresh();
+        $this->assertEquals('Updated Form', $form->name);
+        $this->assertCount(1, $form->steps);
+        $this->assertEquals('Step 1: Contact', $form->steps[0]['title']);
+    }
 }

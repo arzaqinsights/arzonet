@@ -3,11 +3,20 @@
 @section('heading', 'Segment Builder')
 
 @section('header-actions')
+<div class="flex items-center gap-2">
+    <form action="{{ route('admin.segments.refresh-counts') }}" method="POST" class="inline">
+        @csrf
+        <button type="submit" class="px-5 py-3 flex items-center rounded-sm bg-surface-200 hover:bg-surface-300 text-surface-800 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
+            <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18v3.375"/></svg>
+            Refresh Counts
+        </button>
+    </form>
     <a href="{{ route('admin.segments.create') }}"
         class="px-5 py-3 flex items-center rounded-sm bg-brand hover:bg-brand/90 text-white text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
         <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
         New Segment
     </a>
+</div>
 @endsection
 
 @section('content')
@@ -49,6 +58,11 @@
                             </td>
                             <td class="text-center">
                                 <span class="text-lg font-black text-surface-900">{{ number_format($segment->contact_count) }}</span>
+                                @if($segment->last_refreshed_at)
+                                    <div class="text-[10px] text-surface-400 font-medium">Refreshed {{ $segment->last_refreshed_at->diffForHumans() }}</div>
+                                @else
+                                    <div class="text-[10px] text-surface-400 font-medium italic text-surface-300">Never refreshed</div>
+                                @endif
                             </td>
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

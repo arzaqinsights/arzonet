@@ -24,6 +24,7 @@ class SignupForm extends Model
         'custom_fields',
         'tags',
         'theme_color',
+        'steps',
     ];
 
     protected $casts = [
@@ -32,10 +33,21 @@ class SignupForm extends Model
         'subscribed_topics' => 'array',
         'custom_fields' => 'array',
         'tags' => 'array',
+        'steps' => 'array',
     ];
 
     public function emailList(): BelongsTo
     {
         return $this->belongsTo(EmailList::class);
+    }
+
+    public function views()
+    {
+        return $this->hasMany(FormView::class, 'signup_form_id');
+    }
+
+    public function submissions()
+    {
+        return $this->hasMany(FormSubmission::class, 'signup_form_id');
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Segment;
 use App\Models\Email;
 use App\Models\CustomField;
+use App\Jobs\RefreshAllSegmentsJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -61,12 +62,18 @@ class SegmentBuilderController extends Controller
     public function index()
     {
         $listId = $this->getActiveListId();
-        $segments = Segment::where('email_list_id', $listId)->latest()->get()->map(function ($segment) use ($listId) {
-            $segment->contact_count = $this->countMatchingContacts($segment->rules ?? [], $listId);
-            return $segment;
-        });
+        $segments = Segment::where('email_list_id', $listId)->latest()->get();
 
         return view('crm.segments.index', compact('segments'));
+    }
+
+    public function refreshCounts()
+    {
+        RefreshAllSegmentsJob::dispatch();
+
+        return redirect()
+            ->route('admin.segments.index')
+            ->with('success', 'Segment counts refresh has been queued in the background. They will update shortly.');
     }
 
     public function create()

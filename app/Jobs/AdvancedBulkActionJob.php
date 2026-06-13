@@ -74,8 +74,24 @@ class AdvancedBulkActionJob implements ShouldQueue
                 $query->where('status', $filters['status']);
             if (!empty($filters['subscription']) && $filters['subscription'] !== 'all')
                 $query->where('subscription_status', $filters['subscription']);
-            if (!empty($filters['segment']) && $filters['segment'] !== 'all')
-                $query->where('segment_name', $filters['segment']);
+            if (!empty($filters['segment']) && $filters['segment'] !== 'all') {
+                $segments = is_array($filters['segment']) ? $filters['segment'] : [$filters['segment']];
+                $query->where(function($q) use ($segments, $emailList) {
+                    foreach ($segments as $value) {
+                        $segmentModel = \App\Models\Segment::where(function($sq) use ($emailList) {
+                                $sq->whereNull('email_list_id')->orWhere('email_list_id', $emailList->id);
+                            })->where('name', $value)->first();
+
+                        if ($segmentModel) {
+                            $q->orWhere(function($subQ) use ($segmentModel) {
+                                \App\Models\Segment::applyRulesToQuery($subQ, $segmentModel->rules ?? []);
+                            });
+                        } else {
+                            $q->orWhere('segment_name', $value);
+                        }
+                    }
+                });
+            }
             if (!empty($filters['tag']) && $filters['tag'] !== 'all') {
 
                 if (is_array($filters['tag'])) {
@@ -212,6 +228,12 @@ class AdvancedBulkActionJob implements ShouldQueue
                         $removeTags = array_map('trim', array_filter($removeTags));
                         $finalTags = array_values(array_diff($existingTags, $removeTags));
                         $email->update(['tags' => $finalTags]);
+                        break;
+
+                    case 'replace_tags':
+                        $newTags = is_array($this->payload['tags']) ? $this->payload['tags'] : (is_string($this->payload['tags'] ?? null) ? explode(',', $this->payload['tags']) : []);
+                        $newTags = array_map('trim', array_filter($newTags));
+                        $email->update(['tags' => array_values(array_unique($newTags))]);
                         break;
 
                     case 'manage_subscriptions':

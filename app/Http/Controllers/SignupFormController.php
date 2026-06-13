@@ -36,7 +36,8 @@ class SignupFormController extends Controller
                 continue;
             }
             if (is_string($key) && str_starts_with($key, 'custom_')) {
-                $fields[] = ['name' => ucwords(str_replace(['custom_', '_'], ['', ' '], $key)), 'key' => $key];
+                $label = is_string($header) && !str_starts_with($header, 'custom_') ? $header : ucwords(str_replace(['custom_', '_'], ['', ' '], $key));
+                $fields[] = ['name' => $label, 'key' => $key];
             } else if (is_string($header) && str_starts_with($header, 'custom_')) {
                 $label = is_string($key) ? $key : ucwords(str_replace(['custom_', '_'], ['', ' '], $header));
                 $fields[] = ['name' => $label, 'key' => $header];
@@ -76,7 +77,12 @@ class SignupFormController extends Controller
     public function index()
     {
         $emailList = $this->getActiveList();
-        $forms = SignupForm::where('email_list_id', $emailList->id)->latest()->get();
+        $forms = SignupForm::where('email_list_id', $emailList->id)
+            ->withCount(['views', 'submissions as completed_submissions_count' => function ($query) {
+                $query->where('is_completed', true);
+            }])
+            ->latest()
+            ->get();
 
         return view('crm.forms.index', compact('emailList', 'forms'));
     }
@@ -106,11 +112,18 @@ class SignupFormController extends Controller
             'subscribed_topics' => 'nullable|array',
             'custom_fields' => 'nullable|array',
             'tags' => 'nullable|string',
+            'is_multi_step' => 'nullable|boolean',
+            'steps_json' => 'nullable|string',
         ]);
 
         $tagsArray = [];
         if ($request->filled('tags')) {
             $tagsArray = array_map('trim', array_filter(explode(',', $request->tags)));
+        }
+
+        $steps = null;
+        if ($request->boolean('is_multi_step') && $request->filled('steps_json')) {
+            $steps = json_decode($request->steps_json, true);
         }
 
         SignupForm::create([
@@ -128,6 +141,7 @@ class SignupFormController extends Controller
             'subscribed_topics' => $request->subscribed_topics ?? [],
             'custom_fields' => $request->custom_fields ?? [],
             'tags' => $tagsArray,
+            'steps' => $steps,
         ]);
 
         return redirect()->route('admin.signup-forms.index')->with('success', 'Signup form created successfully.');
@@ -167,11 +181,18 @@ class SignupFormController extends Controller
             'subscribed_topics' => 'nullable|array',
             'custom_fields' => 'nullable|array',
             'tags' => 'nullable|string',
+            'is_multi_step' => 'nullable|boolean',
+            'steps_json' => 'nullable|string',
         ]);
 
         $tagsArray = [];
         if ($request->filled('tags')) {
             $tagsArray = array_map('trim', array_filter(explode(',', $request->tags)));
+        }
+
+        $steps = null;
+        if ($request->boolean('is_multi_step') && $request->filled('steps_json')) {
+            $steps = json_decode($request->steps_json, true);
         }
 
         $signupForm->update([
@@ -186,6 +207,7 @@ class SignupFormController extends Controller
             'subscribed_topics' => $request->subscribed_topics ?? [],
             'custom_fields' => $request->custom_fields ?? [],
             'tags' => $tagsArray,
+            'steps' => $steps,
         ]);
 
         return redirect()->route('admin.signup-forms.index')->with('success', 'Signup form updated successfully.');
@@ -202,5 +224,124 @@ class SignupFormController extends Controller
         $signupForm->delete();
 
         return redirect()->route('admin.signup-forms.index')->with('success', 'Signup form deleted successfully.');
+    }
+
+    public function analytics(SignupForm $signupForm)
+    {
+        $emailList = $this->getActiveList();
+
+        if ($signupForm->email_list_id !== $emailList->id) {
+            abort(403, 'Unauthorized.');
+        }
+
+        // Get views and submissions counts
+        $totalViews = \App\Models\FormView::where('signup_form_id', $signupForm->id)->count();
+        $uniqueViews = \App\Models\FormView::where('signup_form_id', $signupForm->id)->distinct('session_id')->count();
+        
+        $totalSubmissions = \App\Models\FormSubmission::where('signup_form_id', $signupForm->id)->where('is_completed', true)->count();
+        $abandonedSubmissions = \App\Models\FormSubmission::where('signup_form_id', $signupForm->id)->where('is_completed', false)->count();
+
+        $conversionRate = $uniqueViews > 0 ? round(($totalSubmissions / $uniqueViews) * 100, 1) : 0;
+
+        // Group by day for the last 30 days
+        $viewsByDay = \App\Models\FormView::where('signup_form_id', $signupForm->id)
+            ->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->pluck('count', 'date');
+
+        $submissionsByDay = \App\Models\FormSubmission::where('signup_form_id', $signupForm->id)
+            ->where('is_completed', true)
+            ->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->pluck('count', 'date');
+
+        $chartDates = [];
+        $chartViews = [];
+        $chartSubmissions = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $dateStr = now()->subDays($i)->format('Y-m-d');
+            $chartDates[] = now()->subDays($i)->format('M d');
+            $chartViews[] = $viewsByDay[$dateStr] ?? 0;
+            $chartSubmissions[] = $submissionsByDay[$dateStr] ?? 0;
+        }
+
+        // Referrers breakdown
+        $referrers = \App\Models\FormView::where('signup_form_id', $signupForm->id)
+            ->selectRaw('referrer, COUNT(*) as count')
+            ->groupBy('referrer')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get()
+            ->map(function ($row) {
+                $host = $row->referrer ? parse_url($row->referrer, PHP_URL_HOST) : 'Direct / Search';
+                return [
+                    'url' => $row->referrer ?? 'Direct / Search',
+                    'host' => $host ?: 'Direct / Search',
+                    'count' => $row->count,
+                ];
+            });
+
+        // Step Funnel analysis
+        $stepsStats = [];
+        $steps = $signupForm->steps ?? [];
+        if (!empty($steps)) {
+            $stepsCount = count($steps);
+            for ($i = 0; $i < $stepsCount; $i++) {
+                $stepNumber = $i + 1;
+                $stepTitle = $steps[$i]['title'] ?? "Step {$stepNumber}";
+                
+                // Reached Step i
+                if ($stepNumber === 1) {
+                    $reached = $uniqueViews;
+                } else {
+                    $reached = $totalSubmissions + \App\Models\FormSubmission::where('signup_form_id', $signupForm->id)
+                        ->where('is_completed', false)
+                        ->where('abandoned_step', '>=', $stepNumber)
+                        ->count();
+                }
+
+                // Drop-offs at Step i
+                if ($stepNumber < $stepsCount) {
+                    // Next step reached
+                    $nextStepReached = $totalSubmissions + \App\Models\FormSubmission::where('signup_form_id', $signupForm->id)
+                        ->where('is_completed', false)
+                        ->where('abandoned_step', '>=', $stepNumber + 1)
+                        ->count();
+                    $dropoff = $reached - $nextStepReached;
+                } else {
+                    $dropoff = $reached - $totalSubmissions;
+                }
+
+                $stepsStats[] = [
+                    'step_number' => $stepNumber,
+                    'title' => $stepTitle,
+                    'reached' => $reached,
+                    'reached_pct' => $uniqueViews > 0 ? round(($reached / $uniqueViews) * 100, 1) : 0,
+                    'dropoff' => $dropoff,
+                    'dropoff_pct' => $reached > 0 ? round(($dropoff / $reached) * 100, 1) : 0,
+                ];
+            }
+        }
+
+        return view('crm.forms.analytics', compact(
+            'signupForm',
+            'emailList',
+            'totalViews',
+            'uniqueViews',
+            'totalSubmissions',
+            'abandonedSubmissions',
+            'conversionRate',
+            'chartDates',
+            'chartViews',
+            'chartSubmissions',
+            'referrers',
+            'stepsStats'
+        ));
     }
 }

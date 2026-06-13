@@ -23,6 +23,7 @@ Route::name('admin.')->group(function () {
     Route::get('/horizon', function () {
         return redirect('/horizon/dashboard');
     });
+
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -55,6 +56,7 @@ Route::name('admin.')->group(function () {
         Route::post('/{emailList}/scrub', [EmailListController::class, 'scrubList'])->name('scrub')->middleware('permission:crm.scrub');
         Route::post('/{emailList}/bulk-action', [EmailListController::class, 'bulkAction'])->name('bulk-action')->middleware('permission:crm.bulk');
         Route::get('/{emailList}/export', [EmailListController::class, 'exportContacts'])->name('export')->middleware('permission:crm.export');
+        Route::get('/exports/download/{logId}', [EmailListController::class, 'downloadExport'])->name('exports.download')->middleware('permission:crm.export');
         Route::get('/{emailList}/fix-invalid', [EmailListController::class, 'fixInvalid'])->name('fix-invalid')->middleware('permission:crm.scrub');
         Route::delete('/{emailList}/fix-invalid/delete-all', [EmailListController::class, 'deleteAllInvalid'])->name('fix-invalid.delete-all')->middleware('permission:crm.scrub');
         Route::post('/{emailList}/save-invalid', [EmailListController::class, 'saveInvalid'])->name('save-invalid')->middleware('permission:crm.scrub');
@@ -276,6 +278,7 @@ Route::name('admin.')->group(function () {
     // ──────────────────────────────────────────────────────
     Route::prefix('segments')->name('segments.')->group(function () {
         Route::get('/', [\App\Http\Controllers\SegmentBuilderController::class, 'index'])->name('index')->middleware('permission:segments.view');
+        Route::post('/refresh-counts', [\App\Http\Controllers\SegmentBuilderController::class, 'refreshCounts'])->name('refresh-counts')->middleware('permission:segments.manage');
         Route::get('/create', [\App\Http\Controllers\SegmentBuilderController::class, 'create'])->name('create')->middleware('permission:segments.manage');
         Route::post('/', [\App\Http\Controllers\SegmentBuilderController::class, 'store'])->name('store')->middleware('permission:segments.manage');
         Route::post('/preview', [\App\Http\Controllers\SegmentBuilderController::class, 'preview'])->name('preview')->middleware('permission:segments.view');
@@ -346,6 +349,7 @@ Route::name('admin.')->group(function () {
         Route::post('/', [\App\Http\Controllers\SignupFormController::class, 'store'])->name('store')->middleware('permission:crm.edit');
         Route::get('/{signupForm}/edit', [\App\Http\Controllers\SignupFormController::class, 'edit'])->name('edit')->middleware('permission:crm.edit');
         Route::put('/{signupForm}', [\App\Http\Controllers\SignupFormController::class, 'update'])->name('update')->middleware('permission:crm.edit');
+        Route::get('/{signupForm}/analytics', [\App\Http\Controllers\SignupFormController::class, 'analytics'])->name('analytics')->middleware('permission:crm.view');
         Route::delete('/{signupForm}', [\App\Http\Controllers\SignupFormController::class, 'destroy'])->name('destroy')->middleware('permission:crm.edit');
     });
 

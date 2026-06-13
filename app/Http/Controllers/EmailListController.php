@@ -358,7 +358,7 @@ class EmailListController extends Controller
         // Match Alpine.js default filter: Active Only (is_archived = false)
         // simplePaginate avoids COUNT(*) on millions of rows — only checks for next page
         $emails = $emailList->emails()->with(['deals.stage.pipeline', 'user'])->where('is_archived', false)->orderBy('created_at', 'desc')->simplePaginate(50);
-        // Skip loadDynamicSegments on initial load — uses stored segment_name column instead
+        $emails = $this->loadDynamicSegments($emails, $emailList);
 
         // Cache filters (segments, tags, sources, addedBy) in Redis with 24h TTL
         $filterCacheKey = "list_filters:{$emailList->id}";
@@ -825,6 +825,7 @@ class EmailListController extends Controller
 
         // simplePaginate avoids COUNT(*) — only checks for next page
         $emails = $query->simplePaginate(50);
+        $emails = $this->loadDynamicSegments($emails, $emailList);
         $topics = \App\Models\SubscriptionTopic::where('email_list_id', $emailList->id)->get();
         return response()->json([
             'html' => view('email-lists.partials.email-table-rows', ['emails' => $emails, 'emailList' => $emailList, 'topics' => $topics])->render(),
@@ -863,39 +864,56 @@ class EmailListController extends Controller
         $defaultFilename = Str::slug($emailList->name) . '_contacts_' . now()->format('Ymd_His');
         $filename = ($request->input('filename') ?: $defaultFilename) . '.' . $ext;
 
-        \App\Models\ActivityLog::create([
+        $activityLog = \App\Models\ActivityLog::create([
             'email_list_id' => $emailList->id,
             'user_id' => auth()->id(),
             'type' => 'export',
             'details' => [
                 'filename' => $filename,
                 'format' => $ext,
-                'filters' => $request->only(['status', 'search', 'segment', 'tag', 'source', 'subscription'])
+                'status' => 'started',
+                'filters' => $request->only(['status', 'search', 'segment', 'tag', 'source', 'subscription', 'topic', 'channel', 'wa_status', 'archived', 'added_by', 'advanced_rules'])
             ]
         ]);
 
-        $isConsolidated = $request->input('consolidate') === '1';
+        \App\Jobs\ExportContactsJob::dispatch(
+            $emailList->id,
+            $request->all(),
+            auth()->id(),
+            $activityLog->id
+        );
 
-        if ($isConsolidated) {
-            // Consolidation logic: Group by original_row_id (or ID if null)
-            // Use ANY_VALUE for non-aggregated columns to satisfy only_full_group_by
-            $query->selectRaw('ANY_VALUE(original_row_id) as original_row_id')
-                  ->selectRaw('ANY_VALUE(name) as name')
-                  ->selectRaw('ANY_VALUE(meta) as meta')
-                  ->selectRaw('ANY_VALUE(created_at) as created_at')
-                  ->selectRaw('ANY_VALUE(tags) as tags')
-                  ->selectRaw('ANY_VALUE(email_status) as email_status')
-                  ->selectRaw('ANY_VALUE(status) as status')
-                  ->selectRaw('ANY_VALUE(validation_reason) as validation_reason')
-                  ->selectRaw('ANY_VALUE(reason) as reason')
-                  ->selectRaw('GROUP_CONCAT(DISTINCT email SEPARATOR ", ") as email')
-                  ->selectRaw('GROUP_CONCAT(DISTINCT whatsapp_number SEPARATOR ", ") as whatsapp_number')
-                  ->groupBy(\Illuminate\Support\Facades\DB::raw("CASE WHEN name IS NOT NULL AND TRIM(name) != '' THEN CONCAT('name_', LOWER(TRIM(name))) ELSE COALESCE(original_row_id, CAST(id AS CHAR)) END"))
-                  ->reorder()
-                  ->orderByRaw('ANY_VALUE(created_at) DESC');
+        return redirect()->route('admin.email-lists.show', $emailList->id)
+            ->with('success', 'Your export has started in the background. Once ready, you can download it from the Activity History table below.');
+    }
+
+    public function downloadExport(int $logId)
+    {
+        $log = \App\Models\ActivityLog::findOrFail($logId);
+        
+        $emailList = \App\Models\EmailList::findOrFail($log->email_list_id);
+        if (app()->has('team_user')) {
+            $teamUserId = app('team_user')->id;
+            if (!$emailList->is_public && $emailList->created_by_id !== $teamUserId) {
+                abort(403, 'Unauthorized.');
+            }
         }
 
-        return Excel::download(new ContactsExport($query, $extraFields), $filename);
+        if ($log->type !== 'export') {
+            abort(400, 'Invalid log type.');
+        }
+
+        $filename = $log->details['filename'] ?? null;
+        if (!$filename) {
+            abort(404, 'File not found.');
+        }
+
+        $path = \Illuminate\Support\Facades\Storage::disk('local')->path('exports/' . $filename);
+        if (!file_exists($path)) {
+            abort(404, 'Export file no longer exists on disk.');
+        }
+
+        return response()->download($path, $filename);
     }
 
     public function destroyEmail(Request $request, EmailList $emailList, int $emailId)
@@ -997,10 +1015,25 @@ class EmailListController extends Controller
             ->latest()
             ->first();
 
+        $activeExportLog = $emailList->activityLogs()
+            ->where('type', 'export')
+            ->where('details->status', 'started')
+            ->latest()
+            ->first();
+
+        $lastCompletedExportLog = $emailList->activityLogs()
+            ->where('type', 'export')
+            ->where('details->status', 'completed')
+            ->where('updated_at', '>=', now()->subSeconds(15))
+            ->latest()
+            ->first();
+
         $data = [
             'status' => $emailList->status,
             'active_bulk_action' => $activeBulkActionLog ? $activeBulkActionLog->details : null,
             'last_bulk_action_completed' => !is_null($lastCompletedBulkAction),
+            'active_export' => $activeExportLog ? array_merge($activeExportLog->details, ['id' => $activeExportLog->id]) : null,
+            'last_export_completed' => $lastCompletedExportLog ? array_merge($lastCompletedExportLog->details, ['id' => $lastCompletedExportLog->id]) : null,
             'total_records' => $emailList->total_records,
             'valid_count' => $emailList->valid_count,
             'invalid_count' => $emailList->invalid_count,
@@ -2030,7 +2063,7 @@ class EmailListController extends Controller
             $q->with('user')->latest();
         }, 'tasks' => function($q) {
             $q->latest();
-        }, 'sequenceEnrollments.sequence'])->findOrFail($emailId);
+        }, 'sequenceEnrollments.sequence', 'logs.campaign'])->findOrFail($emailId);
 
         return response()->json($email);
     }

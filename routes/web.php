@@ -33,7 +33,9 @@ Route::post('/webhooks/ses', [SESWebhookController::class, 'handle'])->name('web
 
 // Public Signup Forms & Opt-In Confirmations
 Route::get('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'show'])->name('public.forms.show');
+Route::get('/forms/{token}/widget.js', [\App\Http\Controllers\PublicFormController::class, 'widgetJs'])->name('public.forms.widget-js');
 Route::post('/forms/{token}', [\App\Http\Controllers\PublicFormController::class, 'submit'])->name('public.forms.submit');
+Route::post('/forms/{token}/progress', [\App\Http\Controllers\PublicFormController::class, 'recordProgress'])->name('public.forms.progress');
 Route::get('/confirm-subscription/{token}', [\App\Http\Controllers\PublicFormController::class, 'confirm'])
     ->name('public.confirm-subscription')
     ->where('token', '.*');

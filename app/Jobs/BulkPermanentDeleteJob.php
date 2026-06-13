@@ -48,8 +48,24 @@ class BulkPermanentDeleteJob implements ShouldQueue
                 $query->where('status', $filters['status']);
             if (isset($filters['subscription']) && $filters['subscription'] !== 'all')
                 $query->where('subscription_status', $filters['subscription']);
-            if (isset($filters['segment']) && $filters['segment'] !== 'all')
-                $query->where('segment_name', $filters['segment']);
+            if (!empty($filters['segment']) && $filters['segment'] !== 'all') {
+                $segments = is_array($filters['segment']) ? $filters['segment'] : [$filters['segment']];
+                $query->where(function($q) use ($segments, $emailList) {
+                    foreach ($segments as $value) {
+                        $segmentModel = \App\Models\Segment::where(function($sq) use ($emailList) {
+                                $sq->whereNull('email_list_id')->orWhere('email_list_id', $emailList->id);
+                            })->where('name', $value)->first();
+
+                        if ($segmentModel) {
+                            $q->orWhere(function($subQ) use ($segmentModel) {
+                                \App\Models\Segment::applyRulesToQuery($subQ, $segmentModel->rules ?? []);
+                            });
+                        } else {
+                            $q->orWhere('segment_name', $value);
+                        }
+                    }
+                });
+            }
             if (isset($filters['tag']) && $filters['tag'] !== 'all')
                 $query->where('tags', 'like', '%' . $filters['tag'] . '%');
             if (isset($filters['source']) && $filters['source'] !== 'all')

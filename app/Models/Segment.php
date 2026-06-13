@@ -22,6 +22,7 @@ class Segment extends Model
         return [
             'rules' => 'array',
             'email_list_id' => 'integer',
+            'last_refreshed_at' => 'datetime',
         ];
     }
 

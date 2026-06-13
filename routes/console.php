@@ -13,12 +13,14 @@ use App\Jobs\UpdateContactSegmentsJob;
 use App\Jobs\ProcessWebhookBatchJob;
 use App\Jobs\ProcessAutomationWorkflowsJob;
 use App\Jobs\ProcessSequenceEnrollmentsJob;
+use App\Jobs\RefreshAllSegmentsJob;
 
 Schedule::job(new CheckSenderVerificationStatusJob)->everyTenSeconds();
 Schedule::job(new UpdateContactSegmentsJob)->everyTenMinutes();
 Schedule::job(new ProcessWebhookBatchJob)->everyFiveSeconds();
 Schedule::job(new ProcessAutomationWorkflowsJob)->everyMinute();
 Schedule::job(new ProcessSequenceEnrollmentsJob)->everyMinute();
+Schedule::job(new RefreshAllSegmentsJob)->hourly();
 
 Schedule::call(function () {
     $scheduledCampaigns = \App\Models\Campaign::where('status', 'scheduled')

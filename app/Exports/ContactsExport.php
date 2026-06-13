@@ -22,11 +22,13 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 {
     protected $query;
     protected array $extraFields;
+    protected array $topicsMap;
 
-    public function __construct($query, array $extraFields = [])
+    public function __construct($query, array $extraFields = [], array $topicsMap = [])
     {
         $this->query = $query;
         $this->extraFields = $extraFields;
+        $this->topicsMap = $topicsMap;
     }
 
     public function query()
@@ -36,50 +38,65 @@ class ContactsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function headings(): array
     {
-        // Order: Name, Email, Phone, Tags, Health, Valid Reason, [Extras], Joined
-        $base = ['Full Name', 'Email Address', 'Phone', 'Tags', 'Health'];
-        $extra = array_map(fn($f) => ucwords(str_replace('_', ' ', $f)), $this->extraFields);
-        $tail = ['Joined'];
+        $base = [
+            'ID',
+            'Full Name',
+            'Email Address',
+            'WhatsApp Number',
+            'Subscription Status',
+            'Status',
+            'Email Status',
+            'WhatsApp Subscription Status',
+            'Engagement Score',
+            'Email Lead Score',
+            'WhatsApp Lead Score',
+            'Tags',
+            'Subscribed Topics',
+            'Signup Source',
+            'Bounce Count',
+            'Complaint Count',
+            'Joined'
+        ];
+        $extra = array_map(fn($f) => ucwords(str_replace(['_', 'custom_'], [' ', ''], $f)), $this->extraFields);
 
-        return array_merge($base, $extra, $tail);
+        return array_merge($base, $extra);
     }
 
     public function map($email): array
     {
         $meta = $email->meta ?? [];
-
-        // Use whatsapp_number, fallback to meta['phone'] if exists
-        $phoneValue = $email->whatsapp_number ?: ($meta['phone'] ?? '');
         $tagsValue = is_array($email->tags) ? implode(', ', $email->tags) : ($email->tags ?? '');
-        $healthValue = match($email->email_status ?? $email->status) {
-            'clean', 'valid' => 'Clean',
-            'risky', 'suspicious' => 'Risky',
-            'role_based' => 'Role',
-            'disposable' => 'Temp',
-            'invalid' => 'Invalid',
-            'hard_bounce' => 'Bounce',
-            'complaint' => 'Spam',
-            'blocked' => 'Banned',
-            default => 'Unknown',
-        };
-        // $validReasonValue = $email->validation_reason ?: ($email->reason ?? '');
+        
+        $topics = is_array($email->subscribed_topics) ? $email->subscribed_topics : (json_decode($email->subscribed_topics ?? '[]', true) ?: []);
+        $topicsNames = [];
+        foreach ($topics as $tid) {
+            $topicsNames[] = $this->topicsMap[$tid] ?? 'Topic ' . $tid;
+        }
+        $topicsValue = implode(', ', $topicsNames);
 
         $base = [
+            $email->id,
             $email->name ?? '',
-            $email->email,
-            $phoneValue,
+            $email->email ?? '',
+            $email->whatsapp_number ?? '',
+            $email->subscription_status ?? 'subscribed',
+            $email->status ?? '',
+            $email->email_status ?? '',
+            $email->whatsapp_subscription_status ?? '',
+            $email->engagement_score ?? 0,
+            $email->email_lead_score ?? 0,
+            $email->whatsapp_lead_score ?? 0,
             $tagsValue,
-            $healthValue,
-            // $validReasonValue,
+            $topicsValue,
+            $email->signup_source ?? '',
+            $email->bounce_count ?? 0,
+            $email->complaint_count ?? 0,
+            $email->created_at ? $email->created_at->format('d M Y H:i:s') : '',
         ];
 
         $extra = array_map(fn($f) => $meta[$f] ?? '', $this->extraFields);
 
-        $tail = [
-            $email->created_at?->format('d M Y') ?? '',
-        ];
-
-        return array_merge($base, $extra, $tail);
+        return array_merge($base, $extra);
     }
 
     public function styles(Worksheet $sheet): array

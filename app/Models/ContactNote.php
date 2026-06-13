@@ -13,6 +13,22 @@ class ContactNote extends Model
         'content',
     ];
 
+    protected static function booted()
+    {
+        static::created(function ($note) {
+            if ($note->email_id) {
+                \App\Models\ContactActivity::create([
+                    'user_id' => $note->user_id,
+                    'email_id' => $note->email_id,
+                    'type' => 'note_added',
+                    'meta' => [
+                        'description' => "Added a note: \"" . \Illuminate\Support\Str::limit($note->content, 60) . "\""
+                    ]
+                ]);
+            }
+        });
+    }
+
     public function email(): BelongsTo
     {
         return $this->belongsTo(Email::class);

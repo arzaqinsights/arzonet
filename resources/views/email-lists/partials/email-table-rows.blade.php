@@ -212,22 +212,16 @@
 
             {{-- Segment Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
-                <template x-if="!editing">
-                    <div class="flex items-center justify-center">
-                        <template x-if="row.segment_name">
-                            <span
-                                class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50"
-                                x-text="row.segment_name"></span>
-                        </template>
-                        <template x-if="!row.segment_name">
-                            <span class="text-[10px] font-bold text-surface-400 uppercase tracking-widest">—</span>
-                        </template>
-                    </div>
-                </template>
-                <template x-if="editing">
-                    <input type="text" x-model="row.segment_name"
-                        class="w-24 px-2 py-1 bg-white border border-gray-100 rounded-sm text-xs font-bold focus:ring-0 focus:outline-none">
-                </template>
+                <div class="flex items-center justify-center">
+                    <template x-if="row.segment_name">
+                        <span
+                            class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50"
+                            x-text="row.segment_name"></span>
+                    </template>
+                    <template x-if="!row.segment_name">
+                        <span class="text-[10px] font-bold text-surface-400 uppercase tracking-widest">—</span>
+                    </template>
+                </div>
             </td>
 
             {{-- Tag Column --}}

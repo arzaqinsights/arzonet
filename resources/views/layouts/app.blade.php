@@ -582,6 +582,62 @@
         <div x-show="$store.sidebar.open" @click="$store.sidebar.toggle()" x-transition.opacity
             class="fixed inset-0 bg-black/20 z-30 lg:hidden"></div>
     </div>
+
+    {{-- Global Dynamic Client-side Toast System --}}
+    <div x-data="{ toasts: [] }"
+         @toast.window="
+            let id = Date.now();
+            toasts.push({ id: id, message: $event.detail.message, type: $event.detail.type || 'success', show: true });
+            setTimeout(() => {
+                toasts = toasts.map(t => t.id === id ? { ...t, show: false } : t);
+                setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 500);
+            }, 4000);
+         "
+         class="fixed bottom-8 right-8 z-[200] flex flex-col gap-3 pointer-events-none">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div x-show="toast.show"
+                 x-transition:enter="transition ease-out duration-300 transform"
+                 x-transition:enter-start="translate-y-4 opacity-0 scale-95"
+                 x-transition:enter-end="translate-y-0 opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-200 transform"
+                 x-transition:leave-start="translate-y-0 opacity-100 scale-100"
+                 x-transition:leave-end="translate-y-4 opacity-0 scale-95"
+                 class="flex items-center gap-4 bg-surface-900 text-white p-4 rounded-sm shadow-2xl border border-white/5 min-w-[320px] max-w-[420px] pointer-events-auto"
+                 :class="toast.type === 'success' ? 'border-l-4 border-emerald-500' : 'border-l-4 border-red-500'">
+                
+                {{-- Status Icon --}}
+                <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                     :class="toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'">
+                    <template x-if="toast.type === 'success'">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </template>
+                    <template x-if="toast.type !== 'success'">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </template>
+                </div>
+
+                {{-- Content --}}
+                <div class="flex-1 pr-4">
+                    <p class="text-[9px] font-black uppercase tracking-[0.2em]"
+                       :class="toast.type === 'success' ? 'text-emerald-400' : 'text-red-400'"
+                       x-text="toast.type === 'success' ? 'Action Success' : 'System Error'"></p>
+                    <p class="text-xs font-medium text-white/95 mt-0.5 leading-snug" x-text="toast.message"></p>
+                </div>
+
+                {{-- Close Button --}}
+                <button @click="toast.show = false" class="shrink-0 p-1 hover:text-white text-white/30 transition-colors cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+    </div>
+
     @stack('scripts')
 </body>
 
