@@ -263,7 +263,10 @@ class Campaign extends Model
             $topicId = $this->subscription_topic_id;
             $query->where(function ($q) use ($topicId) {
                 $q->whereNull('subscribed_topics')
-                  ->orWhereJsonContains('subscribed_topics', $topicId);
+                  ->orWhere(function($subQ) use ($topicId) {
+                      $subQ->whereJsonContains('subscribed_topics', (int) $topicId)
+                           ->orWhereJsonContains('subscribed_topics', (string) $topicId);
+                  });
             });
         }
 
@@ -305,8 +308,7 @@ class Campaign extends Model
             if (!empty($includeTags) || !empty($includeSegments)) {
                 $query->where(function($q) use ($includeTags, $includeSegments, $listIds) {
                     foreach ($includeTags as $tag) {
-                        $q->orWhere('tags', 'LIKE', "%\"{$tag}\"%")
-                          ->orWhere('tags', 'LIKE', "%{$tag}%");
+                        $q->orWhereJsonContains('tags', $tag);
                     }
                     foreach ($includeSegments as $seg) {
                         $segmentModel = \App\Models\Segment::where(function ($q) use ($listIds) {
@@ -333,10 +335,7 @@ class Campaign extends Model
                     foreach ($excludeTags as $tag) {
                         $q->where(function($subQ) use ($tag) {
                             $subQ->whereNull('tags')
-                                 ->orWhere(function($sub2) use ($tag) {
-                                     $sub2->where('tags', 'NOT LIKE', "%\"{$tag}\"%")
-                                          ->where('tags', 'NOT LIKE', "%{$tag}%");
-                                 });
+                                 ->orWhereJsonDoesntContain('tags', $tag);
                         });
                     }
                     foreach ($excludeSegments as $seg) {

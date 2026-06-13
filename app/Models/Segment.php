@@ -84,11 +84,15 @@ class Segment extends Model
                     default              => null,
                 };
             } elseif ($field === 'topic') {
-                match ($operator) {
-                    'equals', 'contains' => $query->whereJsonContains('subscribed_topics', (string)$value),
-                    'not_equals'         => $query->whereJsonDoesntContain('subscribed_topics', (string)$value),
-                    default              => null,
-                };
+                if ($operator === 'equals' || $operator === 'contains') {
+                    $query->where(function($q) use ($value) {
+                        $q->whereJsonContains('subscribed_topics', (string)$value)
+                          ->orWhereJsonContains('subscribed_topics', (int)$value);
+                    });
+                } elseif ($operator === 'not_equals') {
+                    $query->whereJsonDoesntContain('subscribed_topics', (string)$value)
+                          ->whereJsonDoesntContain('subscribed_topics', (int)$value);
+                }
             } elseif ($field === 'last_sent_at') {
                 match ($operator) {
                     'recent_days' => $query->whereExists(function ($q) use ($value) {

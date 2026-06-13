@@ -220,4 +220,114 @@ class ContactFilteringTest extends TestCase
         $this->assertStringContainsString('highbounce@example.com', $data['html']);
         $this->assertStringNotContainsString('nobounce@example.com', $data['html']);
     }
+
+    public function test_filter_by_tags()
+    {
+        config(['app.url' => 'http://email.test']);
+        config(['app.domain' => 'email.test']);
+
+        $user = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($user);
+
+        $list = EmailList::create([
+            'user_id' => $user->id,
+            'name' => 'Tag List',
+            'list_type' => EmailList::TYPE_EMAIL,
+            'status' => 'completed',
+        ]);
+
+        Email::create([
+            'user_id' => $user->id,
+            'email_list_id' => $list->id,
+            'email' => 'tagged-vip@example.com',
+            'name' => 'VIP Contact',
+            'tags' => ['VIP', 'Lead'],
+            'status' => 'valid',
+        ]);
+
+        Email::create([
+            'user_id' => $user->id,
+            'email_list_id' => $list->id,
+            'email' => 'tagged-regular@example.com',
+            'name' => 'Regular Contact',
+            'tags' => ['Regular'],
+            'status' => 'valid',
+        ]);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.filter', $list->id, false);
+
+        $response = $this->postJson($url, [
+            'tag' => ['VIP']
+        ], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertOk();
+        $data = $response->json();
+
+        $this->assertStringContainsString('tagged-vip@example.com', $data['html']);
+        $this->assertStringNotContainsString('tagged-regular@example.com', $data['html']);
+    }
+
+    public function test_filter_by_topics_as_integers_and_strings()
+    {
+        config(['app.url' => 'http://email.test']);
+        config(['app.domain' => 'email.test']);
+
+        $user = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($user);
+
+        $list = EmailList::create([
+            'user_id' => $user->id,
+            'name' => 'Topic List',
+            'list_type' => EmailList::TYPE_EMAIL,
+            'status' => 'completed',
+        ]);
+
+        // Contact with integer topic ID in json array
+        Email::create([
+            'user_id' => $user->id,
+            'email_list_id' => $list->id,
+            'email' => 'int-topic@example.com',
+            'name' => 'Int Topic',
+            'subscribed_topics' => [1],
+            'status' => 'valid',
+        ]);
+
+        // Contact with string topic ID in json array
+        Email::create([
+            'user_id' => $user->id,
+            'email_list_id' => $list->id,
+            'email' => 'string-topic@example.com',
+            'name' => 'String Topic',
+            'subscribed_topics' => ['1'],
+            'status' => 'valid',
+        ]);
+
+        // Contact with different topic ID
+        Email::create([
+            'user_id' => $user->id,
+            'email_list_id' => $list->id,
+            'email' => 'other-topic@example.com',
+            'name' => 'Other Topic',
+            'subscribed_topics' => [99],
+            'status' => 'valid',
+        ]);
+
+        $url = 'http://admin.' . config('app.domain') . route('admin.email-lists.filter', $list->id, false);
+
+        // Filter by topic 1 (front-end sends strings)
+        $response = $this->postJson($url, [
+            'topic' => ['1']
+        ], [
+            'Host' => 'admin.' . config('app.domain')
+        ]);
+
+        $response->assertOk();
+        $data = $response->json();
+
+        $this->assertStringContainsString('int-topic@example.com', $data['html']);
+        $this->assertStringContainsString('string-topic@example.com', $data['html']);
+        $this->assertStringNotContainsString('other-topic@example.com', $data['html']);
+    }
 }

@@ -459,12 +459,18 @@ class EmailListController extends Controller
         foreach ($listTopics as $topic) {
             $subCount = \App\Models\Email::where('email_list_id', $emailList->id)
                 ->where('subscription_status', 'subscribed')
-                ->whereJsonContains('subscribed_topics', (string) $topic->id)
+                ->where(function($q) use ($topic) {
+                    $q->whereJsonContains('subscribed_topics', (string) $topic->id)
+                      ->orWhereJsonContains('subscribed_topics', (int) $topic->id);
+                })
                 ->count();
 
             $unsubCount = \App\Models\Email::where('email_list_id', $emailList->id)
                 ->where('subscription_status', 'unsubscribed')
-                ->whereJsonContains('subscribed_topics', (string) $topic->id)
+                ->where(function($q) use ($topic) {
+                    $q->whereJsonContains('subscribed_topics', (string) $topic->id)
+                      ->orWhereJsonContains('subscribed_topics', (int) $topic->id);
+                })
                 ->count();
 
             $total = $subCount + $unsubCount;
@@ -591,7 +597,8 @@ class EmailListController extends Controller
             $topics = is_array($request->topic) ? $request->topic : [$request->topic];
             $query->where(function($q) use ($topics) {
                 foreach ($topics as $t) {
-                    $q->orWhereJsonContains('subscribed_topics', (string) $t);
+                    $q->orWhereJsonContains('subscribed_topics', (string) $t)
+                      ->orWhereJsonContains('subscribed_topics', (int) $t);
                 }
             });
         }
@@ -607,7 +614,7 @@ class EmailListController extends Controller
             $tags = is_array($request->tag) ? $request->tag : [$request->tag];
             $query->where(function($q) use ($tags) {
                 foreach ($tags as $t) {
-                    $q->orWhere('tags', 'like', "%{$t}%");
+                    $q->orWhereJsonContains('tags', $t);
                 }
             });
         }
@@ -744,9 +751,20 @@ class EmailListController extends Controller
             'duplicate' => $emailList->duplicate_count,
             'cross_duplicate' => $emailList->cross_duplicate_count,
             'subscribed' => $stats['subscribed'],
-            'segment' => ($request->segment && $request->segment !== 'all') ? $emailList->emails()->where('segment_name', $request->segment)->count() : 0,
-            'tag' => ($request->tag && $request->tag !== 'all') ? $emailList->emails()->where('tags', 'like', "%{$request->tag}%")->count() : 0,
-            'source' => ($request->source && $request->source !== 'all') ? $emailList->emails()->where('signup_source', $request->source)->count() : 0,
+            'segment' => ($request->segment && $request->segment !== 'all') ? $emailList->emails()->where(function($q) use ($request) {
+                $segments = is_array($request->segment) ? $request->segment : [$request->segment];
+                $q->whereIn('segment_name', $segments);
+            })->count() : 0,
+            'tag' => ($request->tag && $request->tag !== 'all') ? $emailList->emails()->where(function($q) use ($request) {
+                $tags = is_array($request->tag) ? $request->tag : [$request->tag];
+                foreach ($tags as $t) {
+                    $q->orWhereJsonContains('tags', $t);
+                }
+            })->count() : 0,
+            'source' => ($request->source && $request->source !== 'all') ? $emailList->emails()->where(function($q) use ($request) {
+                $sources = is_array($request->source) ? $request->source : [$request->source];
+                $q->whereIn('signup_source', $sources);
+            })->count() : 0,
         ];
 
         // 2. Calculate stats for the CURRENT filtered set
