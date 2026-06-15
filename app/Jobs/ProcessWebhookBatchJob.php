@@ -141,22 +141,8 @@ class ProcessWebhookBatchJob implements ShouldQueue
         foreach ($events as $event) {
             $log = $findLog($event);
             if (!$log) {
-                Log::warning("ProcessWebhookBatchJob: Log not found for event", [
-                    'event_type' => $event['event'] ?? 'unknown',
-                    'log_id' => $event['log_id'] ?? null,
-                    'sg_message_id' => $event['sg_message_id'] ?? null,
-                    'email' => $event['email'] ?? null,
-                ]);
                 continue;
             }
-
-            Log::info("ProcessWebhookBatchJob: Log found for event", [
-                'event_type' => $event['event'] ?? 'unknown',
-                'log_id' => $event['log_id'] ?? null,
-                'sg_message_id' => $event['sg_message_id'] ?? null,
-                'email' => $event['email'] ?? null,
-                'found_log_id' => $log->id,
-            ]);
 
             $type = $event['event'];
             $eventId = $event['sg_event_id'] ?? null;
