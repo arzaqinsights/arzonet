@@ -393,8 +393,37 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     
     $redisLen = 0;
     $redisError = null;
+    $redisKeys = [];
     try {
         $redisLen = \Illuminate\Support\Facades\Redis::llen('webhook:sendgrid:buffer');
+        // Let's get all keys starting with queues: or horizon: or webhook:
+        $keys = \Illuminate\Support\Facades\Redis::keys('*');
+        foreach ($keys as $key) {
+            // Strip the prefix if any
+            $cleanKey = str_replace(config('database.redis.options.prefix', ''), '', $key);
+            if (str_contains($cleanKey, 'queue') || str_contains($cleanKey, 'webhook') || str_contains($cleanKey, 'horizon')) {
+                $type = \Illuminate\Support\Facades\Redis::type($cleanKey);
+                $size = 0;
+                if ($type == 1) { // string
+                    $size = strlen(\Illuminate\Support\Facades\Redis::get($cleanKey) ?? '');
+                } elseif ($type == 3) { // list
+                    $size = \Illuminate\Support\Facades\Redis::llen($cleanKey);
+                } elseif ($type == 4) { // set
+                    $size = \Illuminate\Support\Facades\Redis::scard($cleanKey);
+                } elseif ($type == 5) { // zset
+                    $size = \Illuminate\Support\Facades\Redis::zcard($cleanKey);
+                } elseif ($type == 6) { // hash
+                    $size = \Illuminate\Support\Facades\Redis::hlen($cleanKey);
+                }
+                // Convert type ID to name
+                $typeNames = [1 => 'string', 2 => 'set', 3 => 'list', 4 => 'set', 5 => 'zset', 6 => 'hash'];
+                $typeName = $typeNames[$type] ?? 'unknown';
+                $redisKeys[$cleanKey] = [
+                    'type' => $typeName,
+                    'size' => $size,
+                ];
+            }
+        }
     } catch (\Exception $e) {
         $redisError = $e->getMessage();
     }
@@ -406,7 +435,7 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
         $failedCount = \Illuminate\Support\Facades\DB::table('failed_jobs')->count();
         $failedJobs = \Illuminate\Support\Facades\DB::table('failed_jobs')
             ->orderBy('failed_at', 'desc')
-            ->limit(10)
+            ->limit(15)
             ->get()
             ->map(function($job) {
                 return [
@@ -414,7 +443,7 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
                     'queue' => $job->queue,
                     'failed_at' => $job->failed_at,
                     'payload_name' => json_decode($job->payload)->displayName ?? 'Unknown',
-                    'exception' => substr($job->exception, 0, 1000) // Get more of the exception message
+                    'exception' => substr($job->exception, 0, 500)
                 ];
             });
     } catch (\Exception $e) {
@@ -444,6 +473,7 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     return response()->json([
         'queue_connection' => config('queue.default'),
         'redis_buffer_len' => $redisLen,
+        'redis_keys' => $redisKeys,
         'redis_error' => $redisError,
         'failed_count' => $failedCount,
         'failed_jobs' => $failedJobs,
