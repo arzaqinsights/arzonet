@@ -493,11 +493,32 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     
     $todayLogs = [];
     $logsError = null;
+    $bouncedLogsAnalysis = [];
+    $todayBouncesSample = [];
+    $emailLogsColumns = [];
     try {
+        $emailLogsColumns = \Illuminate\Support\Facades\DB::getSchemaBuilder()->getColumnListing('email_logs');
+
         $todayLogs = \Illuminate\Support\Facades\DB::table('email_logs')
             ->whereDate('created_at', date('Y-m-d'))
             ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
             ->groupBy('status')
+            ->get();
+            
+        // Fetch details of bounced logs from today (using campaigns relation)
+        $bouncedLogsAnalysis = \Illuminate\Support\Facades\DB::table('email_logs')
+            ->join('campaigns', 'email_logs.campaign_id', '=', 'campaigns.id')
+            ->leftJoin('senders', 'campaigns.sender_id', '=', 'senders.id')
+            ->where('email_logs.status', 'bounced')
+            ->whereDate('email_logs.created_at', date('Y-m-d'))
+            ->select('senders.type as sender_type', 'email_logs.campaign_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('senders.type', 'email_logs.campaign_id')
+            ->get();
+
+        $todayBouncesSample = \Illuminate\Support\Facades\DB::table('email_logs')
+            ->where('status', 'bounced')
+            ->whereDate('created_at', date('Y-m-d'))
+            ->limit(20)
             ->get();
     } catch (\Exception $e) {
         $logsError = $e->getMessage();
@@ -568,6 +589,9 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
         'failed_error' => $failedError,
         'today_logs' => $todayLogs,
         'logs_error' => $logsError,
+        'bounced_logs_analysis' => $bouncedLogsAnalysis,
+        'today_bounces_sample' => $todayBouncesSample,
+        'email_logs_columns' => $emailLogsColumns,
         'horizon_status' => $horizonStatus,
         'running_processes' => $runningProcesses,
         'cron_jobs' => $cronJobs,
