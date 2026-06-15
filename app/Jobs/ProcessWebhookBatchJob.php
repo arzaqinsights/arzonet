@@ -205,7 +205,6 @@ class ProcessWebhookBatchJob implements ShouldQueue
                             'sg_machine_open' => $event['sg_machine_open'] ?? false,
                         ]),
                         'created_at'   => now(),
-                        'updated_at'   => now(),
                     ];
                     break;
 
@@ -235,7 +234,6 @@ class ProcessWebhookBatchJob implements ShouldQueue
                             'sg_event_id' => $eventId,
                         ]),
                         'created_at'   => now(),
-                        'updated_at'   => now(),
                     ];
                     break;
 
