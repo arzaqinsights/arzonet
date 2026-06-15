@@ -503,6 +503,28 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     } catch (\Exception $e) {
         $runningProcesses = 'error: ' . $e->getMessage();
     }
+
+    $laravelLog = '';
+    try {
+        $logPath = storage_path('logs/laravel.log');
+        if (file_exists($logPath)) {
+            // Read last 100 lines
+            $file = new \SplFileObject($logPath, 'r');
+            $file->seek(PHP_INT_MAX);
+            $totalLines = $file->key();
+            $startLine = max(0, $totalLines - 100);
+            
+            $file->seek($startLine);
+            while (!$file->eof()) {
+                $laravelLog .= $file->current();
+                $file->next();
+            }
+        } else {
+            $laravelLog = 'laravel.log not found';
+        }
+    } catch (\Exception $e) {
+        $laravelLog = 'error reading log: ' . $e->getMessage();
+    }
     
     return response()->json([
         'queue_connection' => config('queue.default'),
@@ -518,6 +540,7 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
         'horizon_status' => $horizonStatus,
         'running_processes' => $runningProcesses,
         'cron_jobs' => $cronJobs,
+        'laravel_log' => $laravelLog,
         'app_time' => now()->toIso8601String(),
     ]);
 })->withoutMiddleware(['auth']);
