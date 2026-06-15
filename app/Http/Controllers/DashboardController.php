@@ -15,16 +15,8 @@ class DashboardController extends Controller
 {
     public function index(UsageTrackingService $usageService)
     {
-        $activeListId = session('last_opened_list_id');
-
         // ── 1. CORE PERFORMANCE METRICS (Consolidated Queries) ──
-        $logQuery = \App\Models\EmailLog::query();
-        if ($activeListId) {
-            $logQuery->whereHas('campaign', function($q) use ($activeListId) {
-                $q->where('email_list_id', $activeListId);
-            });
-        }
-        $logStats = $logQuery->selectRaw("
+        $logStats = \App\Models\EmailLog::selectRaw("
             SUM(CASE WHEN status NOT IN ('pending') THEN 1 ELSE 0 END) as total_sent,
             SUM(CASE WHEN status IN ('sent','delivered','processed','opened','clicked') THEN 1 ELSE 0 END) as total_delivered,
             SUM(CASE WHEN status = 'bounced' THEN 1 ELSE 0 END) as total_bounced,
@@ -33,11 +25,7 @@ class DashboardController extends Controller
             SUM(CASE WHEN click_count > 0 THEN 1 ELSE 0 END) as total_clicks
         ")->first();
 
-        $contactQuery = \App\Models\Email::query();
-        if ($activeListId) {
-            $contactQuery->where('email_list_id', $activeListId);
-        }
-        $contactStats = $contactQuery->selectRaw("
+        $contactStats = \App\Models\Email::selectRaw("
             COUNT(*) as total_contacts,
             SUM(CASE WHEN unsubscribed_at IS NOT NULL THEN 1 ELSE 0 END) as total_unsubscribed,
             SUM(CASE WHEN status = 'valid' THEN 1 ELSE 0 END) as valid_contacts,
@@ -63,13 +51,7 @@ class DashboardController extends Controller
         
         if (!$hasStatsData) {
             // Generate from logs if UsageStat table is empty (Migration/Legacy data)
-            $logTrendsQuery = \App\Models\EmailLog::where('created_at', '>=', now()->subDays(30));
-            if ($activeListId) {
-                $logTrendsQuery->whereHas('campaign', function($q) use ($activeListId) {
-                    $q->where('email_list_id', $activeListId);
-                });
-            }
-            $logTrends = $logTrendsQuery
+            $logTrends = \App\Models\EmailLog::where('created_at', '>=', now()->subDays(30))
                 ->select(\DB::raw('DATE(created_at) as date'), 
                          \DB::raw('count(*) as sent'),
                          \DB::raw('count(CASE WHEN status = "failed" OR status = "bounced" THEN 1 END) as failed'))
@@ -92,13 +74,7 @@ class DashboardController extends Controller
         }
 
         // ── 3. ISP HEALTH & DOMAIN PERFORMANCE ──
-        $ispQuery = \App\Models\EmailLog::query();
-        if ($activeListId) {
-            $ispQuery->whereHas('campaign', function($q) use ($activeListId) {
-                $q->where('email_list_id', $activeListId);
-            });
-        }
-        $ispPerformance = $ispQuery->select(\DB::raw('SUBSTRING_INDEX(email_address, "@", -1) as domain'), 
+        $ispPerformance = \App\Models\EmailLog::select(\DB::raw('SUBSTRING_INDEX(email_address, "@", -1) as domain'), 
                                 \DB::raw('count(*) as total'),
                                 \DB::raw('count(CASE WHEN status IN ("sent", "delivered", "processed", "opened", "clicked") THEN 1 END) as delivered'))
             ->groupBy('domain')
@@ -111,14 +87,8 @@ class DashboardController extends Controller
             });
 
         // ── 4. HOURLY ENGAGEMENT HEATMAP ──
-        $activityQuery = \App\Models\ContactActivity::where('type', 'opened')
-            ->where('created_at', '>=', now()->subDays(7));
-        if ($activeListId) {
-            $activityQuery->whereHas('email', function($q) use ($activeListId) {
-                $q->where('email_list_id', $activeListId);
-            });
-        }
-        $hourlyStats = $activityQuery
+        $hourlyStats = \App\Models\ContactActivity::where('type', 'opened')
+            ->where('created_at', '>=', now()->subDays(7))
             ->select(\DB::raw('HOUR(created_at) as hour'), \DB::raw('count(*) as count'))
             ->groupBy('hour')
             ->get()
@@ -126,14 +96,8 @@ class DashboardController extends Controller
             
         if ($hourlyStats->isEmpty()) {
             // Fallback to EmailLog first_open_at for historical engagement timing
-            $logHourlyQuery = \App\Models\EmailLog::whereNotNull('first_open_at')
-                ->where('first_open_at', '>=', now()->subDays(7));
-            if ($activeListId) {
-                $logHourlyQuery->whereHas('campaign', function($q) use ($activeListId) {
-                    $q->where('email_list_id', $activeListId);
-                });
-            }
-            $hourlyStats = $logHourlyQuery
+            $hourlyStats = \App\Models\EmailLog::whereNotNull('first_open_at')
+                ->where('first_open_at', '>=', now()->subDays(7))
                 ->select(\DB::raw('HOUR(first_open_at) as hour'), \DB::raw('count(*) as count'))
                 ->groupBy('hour')
                 ->get()
@@ -141,23 +105,13 @@ class DashboardController extends Controller
         }
 
         // ── 5. RECENT CAMPAIGNS & LISTS ──
-        $campaignQuery = \App\Models\Campaign::with(['emailList', 'template']);
-        if ($activeListId) {
-            $campaignQuery->where('email_list_id', $activeListId);
-        }
-        $recentCampaigns = $campaignQuery
+        $recentCampaigns = \App\Models\Campaign::with(['emailList', 'template'])
             ->latest()
             ->take(5)
             ->get();
 
-        $topLinksQuery = \App\Models\ContactActivity::where('type', 'clicked')
-            ->whereNotNull('url');
-        if ($activeListId) {
-            $topLinksQuery->whereHas('email', function($q) use ($activeListId) {
-                $q->where('email_list_id', $activeListId);
-            });
-        }
-        $topLinks = $topLinksQuery
+        $topLinks = \App\Models\ContactActivity::where('type', 'clicked')
+            ->whereNotNull('url')
             ->select('url', \DB::raw('count(*) as clicks'))
             ->groupBy('url')
             ->orderByDesc('clicks')
@@ -186,18 +140,8 @@ class DashboardController extends Controller
         $emailReputation = max(0, min(100, round(100 - ($bounceRate * 2) - ($complaintRate * 5))));
 
         // WhatsApp Reputation
-        $waSentQuery = \App\Models\WhatsAppMessage::where('direction', 'outbound');
-        $waFailedQuery = \App\Models\WhatsAppMessage::where('direction', 'outbound')->whereIn('status', ['failed', 'undelivered']);
-        if ($activeListId) {
-            $waSentQuery->whereHas('contact', function($q) use ($activeListId) {
-                $q->where('email_list_id', $activeListId);
-            });
-            $waFailedQuery->whereHas('contact', function($q) use ($activeListId) {
-                $q->where('email_list_id', $activeListId);
-            });
-        }
-        $waTotalSent = $waSentQuery->count();
-        $waFailed = $waFailedQuery->count();
+        $waTotalSent = \App\Models\WhatsAppMessage::where('direction', 'outbound')->count();
+        $waFailed = \App\Models\WhatsAppMessage::where('direction', 'outbound')->whereIn('status', ['failed', 'undelivered'])->count();
         $waBounceRate = $waTotalSent > 0 ? ($waFailed / $waTotalSent) * 100 : 0;
         $waReputation = max(0, min(100, round(100 - ($waBounceRate * 2))));
 
