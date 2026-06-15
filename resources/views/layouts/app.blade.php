@@ -474,11 +474,13 @@
             {{-- Sidebar Footer --}}
             <div class="p-3 border-t border-gray-300 bg-white mt-auto space-y-3">
                 @php
-                    $globalTotalSent = \App\Models\EmailLog::count();
-                    $globalTotalComplaints = \App\Models\EmailLog::where('status', 'complaint')->count();
-                    $globalTotalBounced = \App\Models\EmailLog::where('status', 'bounced')->count();
+                    $globalTotalSent = \DB::table('email_logs')->where('status', '!=', 'pending')->count();
+                    $globalTotalComplaints = \DB::table('email_logs')->where('status', 'complaint')->count();
+                    $globalTotalBounced = \DB::table('email_logs')->where('status', 'bounced')->count();
+                    
+                    $globalBounceRate = $globalTotalSent > 0 ? round(($globalTotalBounced / $globalTotalSent) * 100, 1) : 0;
                     $globalComplaintRate = $globalTotalSent > 0 ? ($globalTotalComplaints / $globalTotalSent) * 100 : 0;
-                    $globalBounceRate = $globalTotalSent > 0 ? ($globalTotalBounced / $globalTotalSent) * 100 : 0;
+                    
                     $globalReputation = max(0, min(100, round(100 - ($globalBounceRate * 2) - ($globalComplaintRate * 5))));
                 @endphp
 
@@ -487,8 +489,8 @@
                         Sender Reputation
                         @if($globalReputation >= 90)
                             <span class="text-emerald-500">Excellent</span>
-                        @elseif($globalReputation >= 70)
-                            <span class="text-yellow-500">Average</span>
+                        @elseif($globalReputation >= 75)
+                            <span class="text-amber-500">Good</span>
                         @else
                             <span class="text-red-500">Poor</span>
                         @endif
@@ -497,14 +499,11 @@
                         <h3 class="text-2xl font-black text-surface-900 tracking-tight" style="font-family:'Outfit',sans-serif;">{{ $globalReputation }}</h3>
                         <span class="text-[10px] font-bold text-surface-400">/ 100</span>
                     </div>
-                    <div class="mt-2 w-full h-1 bg-surface-200 rounded-sm flex overflow-hidden">
-                        <div class="bg-emerald-500 h-full" style="width: {{ $globalReputation >= 90 ? $globalReputation : ($globalReputation > 70 ? 70 : $globalReputation) }}%"></div>
-                        @if($globalReputation < 90 && $globalReputation > 0)
-                            <div class="bg-yellow-400 h-full" style="width: {{ $globalReputation >= 70 ? $globalReputation - 70 : 0 }}%"></div>
-                        @endif
-                        @if($globalReputation < 70 && $globalReputation > 0)
-                            <div class="bg-red-500 h-full" style="width: {{ $globalReputation }}%"></div>
-                        @endif
+                    <div class="mt-2 w-full h-1 bg-surface-200 rounded-sm overflow-hidden">
+                        @php
+                            $globalRepColor = $globalReputation >= 90 ? 'bg-emerald-500' : ($globalReputation >= 75 ? 'bg-amber-500' : 'bg-red-500');
+                        @endphp
+                        <div class="{{ $globalRepColor }} h-full rounded-sm" style="width: {{ $globalReputation }}%"></div>
                     </div>
                 </div>
 
