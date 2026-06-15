@@ -394,6 +394,7 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     $redisLen = 0;
     $redisError = null;
     $redisKeys = [];
+    $queuedJobs = [];
     try {
         $redisLen = \Illuminate\Support\Facades\Redis::llen('webhook:sendgrid:buffer');
         // Let's get all keys starting with queues: or horizon: or webhook:
@@ -422,6 +423,26 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
                     'type' => $typeName,
                     'size' => $size,
                 ];
+            }
+        }
+
+        // Peek at queues:default
+        $defaultQueueLength = \Illuminate\Support\Facades\Redis::llen('queues:default');
+        if ($defaultQueueLength > 0) {
+            $rawJobs = \Illuminate\Support\Facades\Redis::lrange('queues:default', 0, 10);
+            foreach ($rawJobs as $rawJob) {
+                $decodedJob = json_decode($rawJob, true);
+                if ($decodedJob) {
+                    $queuedJobs[] = [
+                        'displayName' => $decodedJob['displayName'] ?? 'Unknown',
+                        'id' => $decodedJob['id'] ?? null,
+                        'attempts' => $decodedJob['attempts'] ?? 0,
+                    ];
+                } else {
+                    $queuedJobs[] = [
+                        'raw' => substr($rawJob, 0, 100)
+                    ];
+                }
             }
         }
     } catch (\Exception $e) {
@@ -474,6 +495,7 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
         'queue_connection' => config('queue.default'),
         'redis_buffer_len' => $redisLen,
         'redis_keys' => $redisKeys,
+        'queued_jobs' => $queuedJobs,
         'redis_error' => $redisError,
         'failed_count' => $failedCount,
         'failed_jobs' => $failedJobs,
