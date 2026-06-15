@@ -525,9 +525,19 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     } catch (\Exception $e) {
         $laravelLog = 'error reading log: ' . $e->getMessage();
     }
+
+    // Inspect Config
+    $redisConfig = [
+        'default_connection' => config('database.redis.default.host') . ':' . config('database.redis.default.port') . '/' . config('database.redis.default.database'),
+        'default_prefix' => config('database.redis.options.prefix'),
+        'horizon_prefix' => config('horizon.prefix'),
+        'queue_redis_connection' => config('queue.connections.redis.connection'),
+        'queue_redis_queue' => config('queue.connections.redis.queue'),
+    ];
     
     return response()->json([
         'queue_connection' => config('queue.default'),
+        'redis_config' => $redisConfig,
         'redis_buffer_len' => $redisLen,
         'redis_keys' => $redisKeys,
         'queued_jobs' => $queuedJobs,
