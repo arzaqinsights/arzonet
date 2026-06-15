@@ -113,10 +113,10 @@
                                 <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-2">Active Team</p>
                                 <div class="flex items-baseline gap-2">
                                     <h3 class="text-5xl font-black text-blue-600 tracking-tight" style="font-family:'Outfit',sans-serif;">{{ $teamMembersCount }}</h3>
-                                    <span class="text-[10px] font-bold text-blue-400">/ 5 Members</span>
+                                    <span class="text-[10px] font-bold text-blue-400">/ {{ $teamLimit >= 999 ? 'Unlimited' : $teamLimit . ' Members' }}</span>
                                 </div>
                                 <div class="mt-4 flex items-center justify-between text-[9px] font-bold text-blue-600/70 uppercase tracking-widest">
-                                    <span>Available Seats: {{ 5 - $teamMembersCount }}</span>
+                                    <span>Available Seats: {{ $teamLimit >= 999 ? 'Unlimited' : max(0, $teamLimit - $teamMembersCount) }}</span>
                                 </div>
                             </div>
                         </div>

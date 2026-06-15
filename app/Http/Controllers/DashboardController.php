@@ -128,7 +128,10 @@ class DashboardController extends Controller
         // ── 7. ADVANCED STATS (WHATSAPP & TEAM) ──
         $waTotalContacts = (int) $contactStats->wa_total;
         $waSubscribed = (int) $contactStats->wa_subscribed;
-        $teamMembersCount = \DB::table('users')->count();
+        $ownerId = auth()->user()->getOwnerId();
+        $teamMembersCount = \App\Models\User::where('parent_id', $ownerId)->count();
+        $owner = \App\Models\User::find($ownerId);
+        $teamLimit = $owner ? $owner->getTeamLimit() : 0;
 
         // ── 8. SENDER REPUTATION & COMPLAINTS ──
         $totalComplaints = (int) $logStats->total_complaints;
@@ -147,7 +150,7 @@ class DashboardController extends Controller
             'totalContacts', 'totalUnsubscribed', 'globalOpenRate', 'globalClickRate',
             'bounceRate', 'chartData', 'ispPerformance', 'hourlyStats', 'recentCampaigns',
             'topLinks', 'usageStats', 'validPercent', 'invalidPercent',
-            'waTotalContacts', 'waSubscribed', 'teamMembersCount',
+            'waTotalContacts', 'waSubscribed', 'teamMembersCount', 'teamLimit',
             'totalComplaints', 'complaintRate', 'emailReputation', 'waTotalSent', 'waFailed', 'waBounceRate', 'waReputation'
         ));
     }
