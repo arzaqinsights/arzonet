@@ -490,6 +490,19 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     } catch (\Exception $e) {
         $horizonStatus = 'error: ' . $e->getMessage();
     }
+
+    $runningProcesses = '';
+    $cronJobs = '';
+    try {
+        if (function_exists('shell_exec')) {
+            $runningProcesses = shell_exec('ps aux | grep -i artisan') ?? 'None found';
+            $cronJobs = shell_exec('crontab -l') ?? 'No crontab';
+        } else {
+            $runningProcesses = 'shell_exec disabled';
+        }
+    } catch (\Exception $e) {
+        $runningProcesses = 'error: ' . $e->getMessage();
+    }
     
     return response()->json([
         'queue_connection' => config('queue.default'),
@@ -503,6 +516,8 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
         'today_logs' => $todayLogs,
         'logs_error' => $logsError,
         'horizon_status' => $horizonStatus,
+        'running_processes' => $runningProcesses,
+        'cron_jobs' => $cronJobs,
         'app_time' => now()->toIso8601String(),
     ]);
 })->withoutMiddleware(['auth']);
