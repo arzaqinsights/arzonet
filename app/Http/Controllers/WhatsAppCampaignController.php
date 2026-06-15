@@ -12,14 +12,7 @@ class WhatsAppCampaignController extends Controller
 {
     public function index()
     {
-        $activeWorkspaceId = session('last_opened_list_id');
         $query = WhatsAppCampaign::where('user_id', Auth::id());
-        if ($activeWorkspaceId) {
-            $query->where(function ($q) use ($activeWorkspaceId) {
-                $q->where('email_list_id', $activeWorkspaceId)
-                  ->orWhereNull('email_list_id');
-            });
-        }
         $campaigns = $query->latest()->get();
         return view('admin.whatsapp.campaigns.index', compact('campaigns'));
     }

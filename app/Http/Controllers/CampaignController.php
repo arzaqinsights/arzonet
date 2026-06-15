@@ -15,16 +15,8 @@ class CampaignController extends Controller
 {
     public function index()
     {
-        $activeWorkspaceId = session('last_opened_list_id');
         $query = Campaign::with(['emailList', 'template', 'sender'])
             ->latest();
-
-        if ($activeWorkspaceId) {
-            $query->where(function ($q) use ($activeWorkspaceId) {
-                $q->where('email_list_id', $activeWorkspaceId)
-                  ->orWhereNull('email_list_id');
-            });
-        }
 
         if (auth()->check() && !auth()->user()->isAdmin()) {
             $query->whereHas('sender', function ($q) {
