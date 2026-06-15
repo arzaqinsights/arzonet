@@ -1551,6 +1551,7 @@
                                         Operation</label>
                                     <div class="relative">
                                         <select x-model="bulkActionType"
+                                            @change="bulkPayload.topics = []; bulkPayload.tags = []; bulkPayload.pipeline_id = ''; bulkPayload.stage_id = ''; bulkPayload.target_list_id = ''; bulkPayload.sequence_id = ''; bulkUpdateColumn = ''; bulkUpdateValue = ''; permanentDeleteConfirmText = '';"
                                             class="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-surface-900 text-sm font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all appearance-none cursor-pointer">
                                             <option value="">-- Choose an action --</option>
                                             @if($emailList->canPerformAction('edit_contact'))
@@ -1736,16 +1737,46 @@
                                     </div>
                                 </template>
 
-                                <template x-if="['add_topics', 'remove_topics'].includes(bulkActionType)">
-                                    <div class="bg-gray-50 border border-gray-200 p-4 rounded-sm animate-fade-in space-y-4">
-                                        <div>
-                                            <label class="block text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1.5">Select Topics</label>
-                                            <select x-model="bulkPayload.topics" multiple class="w-full px-3 py-2 border border-gray-300 rounded-sm bg-white text-sm font-bold text-gray-900 focus:border-brand focus:ring-0 transition-all h-32">
-                                                @foreach($topics as $topic)
-                                                    <option value="{{ $topic->id }}">{{ $topic->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            <p class="text-[10px] text-gray-500 mt-1.5 font-semibold">Hold Ctrl (Windows) or Cmd (Mac) to select multiple topics.</p>
+                                <template x-if="bulkActionType === 'add_topics'">
+                                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-sm animate-fade-in space-y-3">
+                                        <div class="flex items-center gap-2 mb-3 text-blue-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <h4 class="font-bold text-xs">Subscribe to Topics</h4>
+                                        </div>
+                                        <p class="text-[10px] text-blue-700 font-semibold mb-2">Check the topics you want to subscribe these contacts to:</p>
+                                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                                            @forelse($topics as $topic)
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" x-model="bulkPayload.topics" value="{{ $topic->id }}" class="rounded border-blue-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                                    <span class="text-sm font-semibold text-blue-900 group-hover:text-blue-700 transition-colors">{{ $topic->name }}</span>
+                                                </label>
+                                            @empty
+                                                <p class="text-xs text-blue-500 font-semibold">No topics available. Add topics in the Workspace settings.</p>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <template x-if="bulkActionType === 'remove_topics'">
+                                    <div class="bg-red-50 border border-red-200 p-4 rounded-sm animate-fade-in space-y-3">
+                                        <div class="flex items-center gap-2 mb-3 text-red-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <h4 class="font-bold text-xs">Unsubscribe from Topics</h4>
+                                        </div>
+                                        <p class="text-[10px] text-red-700 font-semibold mb-2">Check the topics you want to unsubscribe these contacts from:</p>
+                                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                                            @forelse($topics as $topic)
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" x-model="bulkPayload.topics" value="{{ $topic->id }}" class="rounded border-red-300 text-red-600 focus:ring-red-500 cursor-pointer">
+                                                    <span class="text-sm font-semibold text-red-900 group-hover:text-red-700 transition-colors">{{ $topic->name }}</span>
+                                                </label>
+                                            @empty
+                                                <p class="text-xs text-red-500 font-semibold">No topics available. Add topics in the Workspace settings.</p>
+                                            @endforelse
                                         </div>
                                     </div>
                                 </template>
