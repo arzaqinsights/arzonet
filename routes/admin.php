@@ -599,3 +599,214 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
         'app_time' => now()->toIso8601String(),
     ]);
 })->withoutMiddleware(['auth']);
+
+Route::get('/sync-sendgrid-bounces', function (\Illuminate\Http\Request $request) {
+    if ($request->query('token') !== 'secret-diagnostics-9932') {
+        abort(403);
+    }
+    
+    $apiKey = env('SENDGRID_API_KEY');
+    if (!$apiKey) {
+        return response()->json(['error' => 'SENDGRID_API_KEY not set in env'], 400);
+    }
+
+    $startTime = strtotime('-24 hours');
+    $bouncesCount = 0;
+    $blocksCount = 0;
+    $spamReportsCount = 0;
+    
+    $logsUpdated = 0;
+    $emailsUpdated = 0;
+
+    try {
+        // 1. Fetch Bounces
+        $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
+            ->get("https://api.sendgrid.com/v3/suppression/bounces", [
+                'start_time' => $startTime
+            ]);
+            
+        if ($response->successful()) {
+            $bounces = $response->json();
+            $bouncesCount = count($bounces);
+            
+            foreach ($bounces as $bounce) {
+                $emailAddress = $bounce['email'] ?? null;
+                $reason = $bounce['reason'] ?? 'Bounced';
+                if (!$emailAddress) continue;
+                
+                // Find matching email log from last 24 hours
+                $matchingLogs = \Illuminate\Support\Facades\DB::table('email_logs')
+                    ->where('email_address', $emailAddress)
+                    ->where('status', '!=', 'bounced')
+                    ->where('created_at', '>=', now()->subHours(24))
+                    ->get();
+                    
+                foreach ($matchingLogs as $log) {
+                    // Update log
+                    \Illuminate\Support\Facades\DB::table('email_logs')
+                        ->where('id', $log->id)
+                        ->update([
+                            'status' => 'bounced',
+                            'error_message' => $reason,
+                            'updated_at' => now(),
+                        ]);
+                    $logsUpdated++;
+                    
+                    // Update email record
+                    if ($log->email_id) {
+                        $isSoftBounce = stripos($reason, 'full') !== false || 
+                                        stripos($reason, 'quota') !== false || 
+                                        stripos($reason, 'temporary') !== false ||
+                                        stripos($reason, 'limit') !== false ||
+                                        stripos($reason, 'over') !== false;
+                                        
+                        if ($isSoftBounce) {
+                            \Illuminate\Support\Facades\DB::table('emails')
+                                ->where('id', $log->email_id)
+                                ->update([
+                                    'email_status' => 'soft_bounce',
+                                    'validation_reason' => 'Soft Bounce: ' . $reason,
+                                    'updated_at' => now(),
+                                ]);
+                        } else {
+                            \Illuminate\Support\Facades\DB::table('emails')
+                                ->where('id', $log->email_id)
+                                ->update([
+                                    'status' => 'invalid',
+                                    'email_status' => 'hard_bounce',
+                                    'subscription_status' => 'unsubscribed',
+                                    'unsubscribed_at' => now(),
+                                    'email_score' => 1,
+                                    'validation_reason' => 'Hard Bounce: ' . $reason,
+                                    'subscribed_topics' => json_encode([]),
+                                    'updated_at' => now(),
+                                ]);
+                        }
+                        $emailsUpdated++;
+                    }
+                }
+            }
+        }
+        
+        // 2. Fetch Blocks
+        $responseBlocks = \Illuminate\Support\Facades\Http::withToken($apiKey)
+            ->get("https://api.sendgrid.com/v3/suppression/blocks", [
+                'start_time' => $startTime
+            ]);
+            
+        if ($responseBlocks->successful()) {
+            $blocks = $responseBlocks->json();
+            $blocksCount = count($blocks);
+            
+            foreach ($blocks as $block) {
+                $emailAddress = $block['email'] ?? null;
+                $reason = $block['reason'] ?? 'Blocked';
+                if (!$emailAddress) continue;
+                
+                $matchingLogs = \Illuminate\Support\Facades\DB::table('email_logs')
+                    ->where('email_address', $emailAddress)
+                    ->where('status', '!=', 'blocked')
+                    ->where('created_at', '>=', now()->subHours(24))
+                    ->get();
+                    
+                foreach ($matchingLogs as $log) {
+                    \Illuminate\Support\Facades\DB::table('email_logs')
+                        ->where('id', $log->id)
+                        ->update([
+                            'status' => 'blocked',
+                            'error_message' => $reason,
+                            'updated_at' => now(),
+                        ]);
+                    $logsUpdated++;
+                }
+            }
+        }
+
+        // 3. Fetch Spam Reports
+        $responseSpam = \Illuminate\Support\Facades\Http::withToken($apiKey)
+            ->get("https://api.sendgrid.com/v3/suppression/spam_reports", [
+                'start_time' => $startTime
+            ]);
+            
+        if ($responseSpam->successful()) {
+            $spamReports = $responseSpam->json();
+            $spamReportsCount = count($spamReports);
+            
+            foreach ($spamReports as $spam) {
+                $emailAddress = $spam['email'] ?? null;
+                if (!$emailAddress) continue;
+                
+                $matchingLogs = \Illuminate\Support\Facades\DB::table('email_logs')
+                    ->where('email_address', $emailAddress)
+                    ->where('status', '!=', 'spamreport')
+                    ->where('created_at', '>=', now()->subHours(24))
+                    ->get();
+                    
+                foreach ($matchingLogs as $log) {
+                    \Illuminate\Support\Facades\DB::table('email_logs')
+                        ->where('id', $log->id)
+                        ->update([
+                            'status' => 'spamreport',
+                            'error_message' => 'Spam Complaint via Sync',
+                            'updated_at' => now(),
+                        ]);
+                    $logsUpdated++;
+                    
+                    // Unsubscribe
+                    if ($log->email_id) {
+                        \Illuminate\Support\Facades\DB::table('emails')
+                            ->where('id', $log->email_id)
+                            ->update([
+                                'subscription_status' => 'unsubscribed',
+                                'unsubscribed_at' => now(),
+                                'subscribed_topics' => json_encode([]),
+                                'updated_at' => now(),
+                            ]);
+                        $emailsUpdated++;
+                    }
+                    
+                    \Illuminate\Support\Facades\DB::table('unsubscribes')->insertOrIgnore([
+                        'email' => $emailAddress,
+                        'campaign_id' => $log->campaign_id,
+                        'unsubscribed_at' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+    
+    // Clear list stats cache
+    if ($logsUpdated > 0) {
+        try {
+            $campaignIds = \Illuminate\Support\Facades\DB::table('email_logs')
+                ->where('created_at', '>=', now()->subHours(24))
+                ->pluck('campaign_id')
+                ->unique()
+                ->toArray();
+                
+            foreach ($campaignIds as $campaignId) {
+                \Illuminate\Support\Facades\Redis::del("campaign_stats:{$campaignId}");
+            }
+        } catch (\Exception $e) {
+            // ignore redis error
+        }
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'startTime' => date('Y-m-d H:i:s', $startTime),
+        'sendgrid_bounces_found' => $bouncesCount,
+        'sendgrid_blocks_found' => $blocksCount,
+        'sendgrid_spam_reports_found' => $spamReportsCount,
+        'logs_updated' => $logsUpdated,
+        'emails_updated' => $emailsUpdated,
+    ]);
+});
