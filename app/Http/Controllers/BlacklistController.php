@@ -16,14 +16,31 @@ class BlacklistController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'email'  => 'required|email|unique:blacklisted_emails,email',
+            'email'  => 'required|email',
             'reason' => 'nullable|string|max:255',
         ]);
 
+        $email = strtolower(trim($request->email));
+
+        // Scoped to the current owner automatically by BelongsToUser trait
+        $exists = BlacklistedEmail::where('email', $email)->exists();
+        if ($exists) {
+            return back()->with('error', 'This email is already on your blacklist.');
+        }
+
         BlacklistedEmail::create([
-            'email'  => strtolower($request->email),
+            'email'  => $email,
             'reason' => $request->reason,
         ]);
+
+        // Mark matching contacts across all lists/workspaces of this user as blacklisted
+        \App\Models\Email::where('email', $email)
+            ->update([
+                'status' => 'invalid',
+                'email_status' => 'blocked',
+                'subscription_status' => 'unsubscribed',
+                'validation_reason' => 'Blacklisted email',
+            ]);
 
         return back()->with('success', 'Email added to blacklist.');
     }
@@ -32,30 +49,59 @@ class BlacklistController extends Controller
     {
         $request->validate([
             'emails' => 'required|string',
+            'reason' => 'nullable|string|max:255',
         ]);
 
-        $emails = array_filter(
-            array_map('trim', explode("\n", $request->emails))
-        );
-
+        // Split by commas, newlines, semicolons, or whitespace
+        $rawEmails = preg_split('/[\s,;]+/', $request->emails);
+        
         $added = 0;
-        foreach ($emails as $email) {
-            $email = strtolower($email);
+        $emailsToBlock = [];
+
+        foreach ($rawEmails as $rawEmail) {
+            $email = strtolower(trim($rawEmail));
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                BlacklistedEmail::firstOrCreate(
-                    ['email' => $email],
-                    ['reason' => $request->reason ?? 'Bulk blacklist']
-                );
-                $added++;
+                // Scoped automatically by BelongsToUser
+                $exists = BlacklistedEmail::where('email', $email)->exists();
+                if (!$exists) {
+                    BlacklistedEmail::create([
+                        'email' => $email,
+                        'reason' => $request->reason ?? 'Bulk blacklist'
+                    ]);
+                    $emailsToBlock[] = $email;
+                    $added++;
+                }
             }
         }
 
-        return back()->with('success', "{$added} emails added to blacklist.");
+        if (!empty($emailsToBlock)) {
+            // Bulk update existing contacts for this user across all lists/workspaces
+            \App\Models\Email::whereIn('email', $emailsToBlock)
+                ->update([
+                    'status' => 'invalid',
+                    'email_status' => 'blocked',
+                    'subscription_status' => 'unsubscribed',
+                    'validation_reason' => 'Blacklisted email',
+                ]);
+        }
+
+        return back()->with('success', "{$added} emails added to blacklist and matching contacts updated across all your lists.");
     }
 
     public function destroy(BlacklistedEmail $blacklistedEmail)
     {
+        $email = $blacklistedEmail->email;
         $blacklistedEmail->delete();
+
+        // Restore matching contacts status back to valid if they were blocked
+        \App\Models\Email::where('email', $email)
+            ->where('email_status', 'blocked')
+            ->update([
+                'status' => 'valid',
+                'email_status' => 'valid',
+                'validation_reason' => 'Removed from blacklist',
+            ]);
+
         return back()->with('success', 'Email removed from blacklist.');
     }
 }
