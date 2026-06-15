@@ -303,6 +303,60 @@ class DefaultSegmentsTest extends TestCase
         $this->assertEquals(['new-tag-1', 'new-tag-2'], $john->tags);
     }
 
+    public function test_add_and_remove_topics_bulk_action()
+    {
+        $john = Email::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'email' => 'john-topics@example.com',
+            'name' => 'John Topics',
+            'subscribed_topics' => ['1', '2'],
+            'status' => 'valid',
+            'subscription_status' => 'subscribed',
+        ]);
+
+        $activityLog = \App\Models\ActivityLog::create([
+            'user_id' => $this->user->id,
+            'email_list_id' => $this->emailList->id,
+            'type' => 'bulk_action',
+            'details' => ['action' => 'add_topics', 'status' => 'processing'],
+        ]);
+
+        // Test Add Topics (adds '3' to '1', '2')
+        $job = new \App\Jobs\AdvancedBulkActionJob(
+            $this->emailList->id,
+            'add_topics',
+            false,
+            [],
+            [$john->id],
+            ['topics' => ['3']],
+            $this->user->id,
+            $activityLog->id
+        );
+
+        $job->handle();
+
+        $john->refresh();
+        $this->assertEquals([1, 2, 3], $john->subscribed_topics);
+
+        // Test Remove Topics (removes '2')
+        $job2 = new \App\Jobs\AdvancedBulkActionJob(
+            $this->emailList->id,
+            'remove_topics',
+            false,
+            [],
+            [$john->id],
+            ['topics' => ['2']],
+            $this->user->id,
+            $activityLog->id
+        );
+
+        $job2->handle();
+
+        $john->refresh();
+        $this->assertEquals([1, 3], $john->subscribed_topics);
+    }
+
     public function test_export_contacts_dispatches_job()
     {
         \Illuminate\Support\Facades\Queue::fake();

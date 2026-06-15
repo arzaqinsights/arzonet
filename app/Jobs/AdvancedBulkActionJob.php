@@ -254,6 +254,46 @@ class AdvancedBulkActionJob implements ShouldQueue
                         }
                         break;
 
+                    case 'add_topics':
+                        $newTopics = $this->payload['topics'] ?? [];
+                        if (!is_array($newTopics))
+                            $newTopics = [];
+
+                        $existingTopics = is_array($email->subscribed_topics) ? $email->subscribed_topics : [];
+                        $existingTopics = array_map('strval', $existingTopics);
+                        $newTopics = array_map('strval', $newTopics);
+
+                        $mergedTopics = array_values(array_unique(array_merge($existingTopics, $newTopics)));
+
+                        $email->update([
+                            'subscribed_topics' => $mergedTopics,
+                            'subscription_status' => 'subscribed',
+                        ]);
+                        break;
+
+                    case 'remove_topics':
+                    case 'unsubscribe_topics':
+                        $removeTopics = $this->payload['topics'] ?? [];
+                        if (!is_array($removeTopics))
+                            $removeTopics = [];
+
+                        $existingTopics = is_array($email->subscribed_topics) ? $email->subscribed_topics : [];
+                        $existingTopics = array_map('strval', $existingTopics);
+                        $removeTopics = array_map('strval', $removeTopics);
+
+                        $finalTopics = array_values(array_diff($existingTopics, $removeTopics));
+
+                        $email->update([
+                            'subscribed_topics' => $finalTopics,
+                        ]);
+
+                        if (empty($finalTopics)) {
+                            $email->update([
+                                'subscription_status' => 'unsubscribed',
+                            ]);
+                        }
+                        break;
+
                     case 'create_deals':
                         if (!empty($this->payload['pipeline_id']) && !empty($this->payload['stage_id'])) {
                             $targetUserId = $this->userId;

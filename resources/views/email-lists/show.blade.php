@@ -1561,7 +1561,9 @@
                                                     <option value="add_tags">Add Tags</option>
                                                     <option value="remove_tags">Remove Tags</option>
                                                     <option value="replace_tags">Replace Tags</option>
-                                                    <option value="manage_subscriptions">Manage Subscriptions</option>
+                                                    <option value="manage_subscriptions">Manage Subscriptions (Replace All)</option>
+                                                    <option value="add_topics">Subscribe to Topics</option>
+                                                    <option value="remove_topics">Unsubscribe from Topics</option>
                                                 </optgroup>
                                                 <optgroup label="CRM Actions">
                                                     <option value="add_note">Add Note</option>
@@ -1740,7 +1742,7 @@
                                             <label class="block text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1.5">Select Topics</label>
                                             <select x-model="bulkPayload.topics" multiple class="w-full px-3 py-2 border border-gray-300 rounded-sm bg-white text-sm font-bold text-gray-900 focus:border-brand focus:ring-0 transition-all h-32">
                                                 @foreach($topics as $topic)
-                                                    <option value="{{ $topic->name }}">{{ $topic->name }}</option>
+                                                    <option value="{{ $topic->id }}">{{ $topic->name }}</option>
                                                 @endforeach
                                             </select>
                                             <p class="text-[10px] text-gray-500 mt-1.5 font-semibold">Hold Ctrl (Windows) or Cmd (Mac) to select multiple topics.</p>
@@ -2649,7 +2651,11 @@
                     } else if (actionName === 'unarchive') {
                         confirmMsg = `Are you sure you want to restore ${count.toLocaleString()} contact(s) to active?`;
                     } else if (actionName === 'manage_subscriptions') {
-                        confirmMsg = `Are you sure you want to update subscriptions for ${count.toLocaleString()} contact(s)?`;
+                        confirmMsg = `Are you sure you want to replace all topic subscriptions for ${count.toLocaleString()} contact(s) with the selected topics?`;
+                    } else if (actionName === 'add_topics') {
+                        confirmMsg = `Are you sure you want to subscribe ${count.toLocaleString()} contact(s) to the selected topics?`;
+                    } else if (actionName === 'remove_topics') {
+                        confirmMsg = `Are you sure you want to unsubscribe ${count.toLocaleString()} contact(s) from the selected topics?`;
                     }
 
                     if (!confirm(confirmMsg)) return;

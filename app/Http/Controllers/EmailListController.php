@@ -1519,7 +1519,7 @@ class EmailListController extends Controller
     public function bulkAction(Request $request, EmailList $emailList)
     {
         $request->validate([
-            'action' => 'required|in:archive,unarchive,unsubscribe,subscribe,permanent_delete,edit_column,update_column,add_tags,remove_tags,manage_subscriptions,create_deals,transfer,add_note,add_task,enroll_sequence'
+            'action' => 'required|in:archive,unarchive,unsubscribe,subscribe,permanent_delete,edit_column,update_column,add_tags,remove_tags,manage_subscriptions,create_deals,transfer,add_note,add_task,enroll_sequence,add_topics,remove_topics'
         ]);
 
         if ($request->global && $request->filters) {
@@ -1540,7 +1540,8 @@ class EmailListController extends Controller
         $advancedActions = [
             'add_tags', 'remove_tags', 'manage_subscriptions', 'create_deals', 
             'transfer', 'add_note', 'add_task', 'unsubscribe', 'subscribe', 
-            'archive', 'unarchive', 'edit_column', 'update_column', 'enroll_sequence'
+            'archive', 'unarchive', 'edit_column', 'update_column', 'enroll_sequence',
+            'add_topics', 'remove_topics'
         ];
 
         if (in_array($request->action, $advancedActions)) {
