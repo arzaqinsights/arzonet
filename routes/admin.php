@@ -394,10 +394,31 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
     $redisLen = 0;
     $redisError = null;
     $redisKeys = [];
+    $rawRedisKeys = [];
     $queuedJobs = [];
     try {
         $redisLen = \Illuminate\Support\Facades\Redis::llen('webhook:sendgrid:buffer');
-        // Let's get all keys starting with queues: or horizon: or webhook:
+        
+        // Let's get raw keys by disabling the prefix option on the Redis client
+        $redisClient = \Illuminate\Support\Facades\Redis::connection()->client();
+        if ($redisClient instanceof \Redis) {
+            // phpRedis client: temporarily disable prefix to get absolute keys
+            $redisClient->setOption(\Redis::OPT_PREFIX, '');
+            $rawKeys = $redisClient->keys('*');
+            // Restore prefix (optional, since request is terminating)
+            $redisClient->setOption(\Redis::OPT_PREFIX, config('database.redis.options.prefix'));
+        } else {
+            // Predis client
+            $rawKeys = \Illuminate\Support\Facades\Redis::keys('*');
+        }
+
+        foreach ($rawKeys as $key) {
+            if (str_contains($key, 'queue') || str_contains($key, 'webhook') || str_contains($key, 'horizon')) {
+                $rawRedisKeys[] = $key;
+            }
+        }
+        
+        // Let's also do the standard prefix-aware lookup
         $keys = \Illuminate\Support\Facades\Redis::keys('*');
         foreach ($keys as $key) {
             // Strip the prefix if any
@@ -416,7 +437,6 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
                 } elseif ($type == 6) { // hash
                     $size = \Illuminate\Support\Facades\Redis::hlen($cleanKey);
                 }
-                // Convert type ID to name
                 $typeNames = [1 => 'string', 2 => 'set', 3 => 'list', 4 => 'set', 5 => 'zset', 6 => 'hash'];
                 $typeName = $typeNames[$type] ?? 'unknown';
                 $redisKeys[$cleanKey] = [
@@ -540,6 +560,7 @@ Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $req
         'redis_config' => $redisConfig,
         'redis_buffer_len' => $redisLen,
         'redis_keys' => $redisKeys,
+        'raw_redis_keys' => $rawRedisKeys,
         'queued_jobs' => $queuedJobs,
         'redis_error' => $redisError,
         'failed_count' => $failedCount,
