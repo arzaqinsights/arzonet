@@ -66,3 +66,62 @@ Route::domain('account.' . config('app.domain'))->group(function () {
         Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])->middleware(['throttle:6,1'])->name('verification.send');
     });
 });
+
+Route::get('/diagnose-production-queue', function (\Illuminate\Http\Request $request) {
+    if ($request->query('token') !== 'secret-diagnostics-9932') {
+        abort(403);
+    }
+    $redisLen = 0;
+    $redisError = null;
+    try {
+        $redisLen = \Illuminate\Support\Facades\Redis::llen('webhook:sendgrid:buffer');
+    } catch (\Exception $e) {
+        $redisError = $e->getMessage();
+    }
+    
+    $failedCount = 0;
+    $failedJobs = [];
+    $failedError = null;
+    try {
+        $failedCount = \Illuminate\Support\Facades\DB::table('failed_jobs')->count();
+        $failedJobs = \Illuminate\Support\Facades\DB::table('failed_jobs')
+            ->orderBy('failed_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function($job) {
+                return [
+                    'id' => $job->id,
+                    'queue' => $job->queue,
+                    'failed_at' => $job->failed_at,
+                    'payload_name' => json_decode($job->payload)->displayName ?? 'Unknown',
+                    'exception' => substr($job->exception, 0, 300)
+                ];
+            });
+    } catch (\Exception $e) {
+        $failedError = $e->getMessage();
+    }
+    
+    $todayLogs = [];
+    $logsError = null;
+    try {
+        $todayLogs = \Illuminate\Support\Facades\DB::table('email_logs')
+            ->whereDate('created_at', date('Y-m-d'))
+            ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->get();
+    } catch (\Exception $e) {
+        $logsError = $e->getMessage();
+    }
+    
+    return response()->json([
+        'queue_connection' => config('queue.default'),
+        'redis_buffer_len' => $redisLen,
+        'redis_error' => $redisError,
+        'failed_count' => $failedCount,
+        'failed_jobs' => $failedJobs,
+        'failed_error' => $failedError,
+        'today_logs' => $todayLogs,
+        'logs_error' => $logsError,
+    ]);
+});
+
