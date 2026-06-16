@@ -239,8 +239,11 @@ class SendEmailBatchJob implements ShouldQueue
                 $caseStr = implode(' ', $cases);
                 $idPlaceholders = implode(',', array_fill(0, count($sentIds), '?'));
                 DB::update(
-                    "UPDATE email_logs SET status='sent', sent_at=NOW(), updated_at=NOW(), 
-                     message_id = CASE {$caseStr} END 
+                    "UPDATE email_logs SET 
+                        status = CASE WHEN status = 'pending' THEN 'sent' ELSE status END,
+                        sent_at = COALESCE(sent_at, NOW()),
+                        updated_at = NOW(), 
+                        message_id = CASE {$caseStr} END 
                      WHERE id IN ({$idPlaceholders})",
                     array_merge($bindings, $sentIds)
                 );
