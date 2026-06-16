@@ -50,7 +50,8 @@ class Segment extends Model
                 'is_role_based', 'is_disposable', 'is_catch_all', 'has_typo',
                 'bounce_count', 'complaint_count', 'email_score',
                 'last_engaged_at', 'last_active_at', 'whatsapp_number',
-                'email_lead_score', 'whatsapp_lead_score', 'last_campaign_status', 'last_bounce_type'
+                'email_lead_score', 'whatsapp_lead_score', 'last_campaign_status', 'last_bounce_type',
+                'signup_source', 'validation_reason'
             ];
 
             if (in_array($field, $standardFields)) {
@@ -232,7 +233,8 @@ class Segment extends Model
                 'is_role_based', 'is_disposable', 'is_catch_all', 'has_typo',
                 'bounce_count', 'complaint_count', 'email_score',
                 'last_engaged_at', 'last_active_at', 'whatsapp_number',
-                'email_lead_score', 'whatsapp_lead_score', 'last_campaign_status', 'last_bounce_type'
+                'email_lead_score', 'whatsapp_lead_score', 'last_campaign_status', 'last_bounce_type',
+                'signup_source', 'validation_reason'
             ];
 
             if (in_array($field, $standardFields)) {

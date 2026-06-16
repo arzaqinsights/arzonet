@@ -63,6 +63,16 @@
                                     <option value="status">Status</option>
                                     <option value="subscription_status">Subscription Status</option>
                                     <option value="engagement_score">Engagement Score</option>
+                                    <option value="tag">Tag</option>
+                                    <option value="topic">Subscription Topic</option>
+                                    <option value="whatsapp_number">WhatsApp Number</option>
+                                    <option value="whatsapp_subscription_status">WhatsApp Subscription Status</option>
+                                    <option value="email_score">Email Score</option>
+                                    <option value="signup_source">Signup Source</option>
+                                    <option value="validation_reason">Validation Reason</option>
+                                    @foreach($customFields as $cf)
+                                        <option value="{{ $cf->key }}">{{ $cf->name }}</option>
+                                    @endforeach
                                 </optgroup>
                                 <optgroup label="Activity Metrics">
                                     <option value="last_engaged_at">Last Engaged (Opens/Clicks)</option>
@@ -76,13 +86,6 @@
                                     <option value="clicked_email">Clicked Any Link</option>
                                     <option value="sent_in_last_campaign">Sent in Last Campaign</option>
                                 </optgroup>
-                                @if($customFields->isNotEmpty())
-                                    <optgroup label="Custom Attributes">
-                                        @foreach($customFields as $cf)
-                                            <option value="{{ $cf->key }}">{{ $cf->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                @endif
                             </select>
                         </div>
 
