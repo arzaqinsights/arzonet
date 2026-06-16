@@ -41,7 +41,12 @@ class PrepareCampaignDispatchJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $campaign = Campaign::findOrFail($this->campaignId);
+        $campaign = Campaign::find($this->campaignId);
+
+        if (!$campaign) {
+            \Illuminate\Support\Facades\Log::warning("PrepareCampaignDispatchJob: Campaign ID {$this->campaignId} not found. Skipping execution.");
+            return;
+        }
 
         // Check if the campaign is in a state that allows sending
         if ($campaign->status === 'cancelled' || $campaign->status === 'completed') {

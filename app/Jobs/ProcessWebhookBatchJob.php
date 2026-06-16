@@ -198,6 +198,7 @@ class ProcessWebhookBatchJob implements ShouldQueue
                     $eventsToInsert[] = [
                         'email_log_id' => $log->id,
                         'type'         => 'open',
+                        'url'          => null,
                         'ip_address'   => $event['ip'] ?? null,
                         'user_agent'   => $event['useragent'] ?? null,
                         'metadata'     => json_encode([
