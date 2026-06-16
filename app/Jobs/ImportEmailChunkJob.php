@@ -49,6 +49,14 @@ class ImportEmailChunkJob implements ShouldQueue
                 ->pluck('id')
                 ->toArray();
  
+        $uploaderId = $emailList->user_id;
+        if ($this->activityLogId) {
+            $log = \App\Models\ActivityLog::find($this->activityLogId);
+            if ($log && $log->user_id) {
+                $uploaderId = $log->user_id;
+            }
+        }
+ 
         try {
             $skipDns = $emailList->column_mapping['_settings']['skip_dns'] ?? false;
  
@@ -57,13 +65,13 @@ class ImportEmailChunkJob implements ShouldQueue
             // ── Step 1: Build new inserts (valid + invalid + cross_duplicate) ──
             $batchEntries = [];
             foreach ($results['valid'] as $entry) {
-                $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid', $topicsToAssign);
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'valid', $topicsToAssign, $uploaderId);
             }
             foreach ($results['invalid'] as $entry) {
-                $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid', $topicsToAssign);
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'invalid', $topicsToAssign, $uploaderId);
             }
             foreach ($results['cross_duplicate'] as $entry) {
-                $batchEntries[] = $this->formatEntry($emailList, $entry, 'cross_duplicate', $topicsToAssign);
+                $batchEntries[] = $this->formatEntry($emailList, $entry, 'cross_duplicate', $topicsToAssign, $uploaderId);
             }
             // Duplicates are NOT inserted — they already exist
 
@@ -93,7 +101,7 @@ class ImportEmailChunkJob implements ShouldQueue
                 $mergedTags = array_values(array_unique(array_merge($existingTags, $this->selectedTags)));
  
                 $query->update([
-                        'user_id'             => $emailList->user_id,
+                        'user_id'             => $uploaderId,
                         'is_archived'         => false,
                         'archived_at'         => null,
                         'name'                => DB::raw("COALESCE(NULLIF(name,''), " . DB::getPdo()->quote($entry['name'] ?? '') . ")"),
@@ -183,7 +191,7 @@ class ImportEmailChunkJob implements ShouldQueue
         }
     }
 
-    protected function formatEntry($emailList, $entry, $status, array $listTopicIds = []): array
+    protected function formatEntry($emailList, $entry, $status, array $listTopicIds = [], int $uploaderId = null): array
     {
         $tagsRaw = $entry['meta']['tags'] ?? null;
         $rowTags = [];
@@ -197,7 +205,7 @@ class ImportEmailChunkJob implements ShouldQueue
         $subStatus = ($status === 'invalid') ? 'unsubscribed' : 'subscribed';
  
         return [
-            'user_id'             => $emailList->user_id,
+            'user_id'             => $uploaderId ?? $emailList->user_id,
             'email_list_id'       => $emailList->id,
             'activity_log_id'     => $this->activityLogId, // Only new inserts get this link
             'email'               => $entry['email'],

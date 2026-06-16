@@ -239,7 +239,7 @@ class EmailListController extends Controller
             }
 
             Email::create([
-                'user_id' => auth()->id(),
+                'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
                 'email_list_id' => $emailList->id,
                 'email' => $processedEntry['email'] ?? $request->manual_email,
                 'name' => $request->manual_name,
@@ -866,7 +866,7 @@ class EmailListController extends Controller
 
         $activityLog = \App\Models\ActivityLog::create([
             'email_list_id' => $emailList->id,
-            'user_id' => auth()->id(),
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'type' => 'export',
             'details' => [
                 'filename' => $filename,
@@ -1296,7 +1296,7 @@ class EmailListController extends Controller
 
             // If exists and not archived, create a duplicate entry as usual for tracking
             $email = $emailList->emails()->create([
-                'user_id' => auth()->id(),
+                'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
                 'email' => $request->email,
                 'name' => $request->name,
                 'whatsapp_number' => $request->whatsapp_number,
@@ -1309,7 +1309,7 @@ class EmailListController extends Controller
             ]);
         } else {
             $email = $emailList->emails()->create([
-                'user_id' => auth()->id(),
+                'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
                 'email' => $request->email,
                 'name' => $request->name,
                 'whatsapp_number' => $request->whatsapp_number,
@@ -1391,7 +1391,7 @@ class EmailListController extends Controller
         }
 
         $newContact = $emailList->emails()->create([
-            'user_id' => auth()->id(),
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'email' => $request->email ?? '',
             'whatsapp_number' => $whatsappNumber,
             'name' => $parentContact->name,
@@ -1558,7 +1558,7 @@ class EmailListController extends Controller
             $emailList->update(['status' => 'processing']);
 
             $activityLog = $emailList->activityLogs()->create([
-                'user_id' => auth()->id(),
+                'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
                 'type' => 'bulk_action',
                 'details' => [
                     'action' => $request->action,
@@ -1593,7 +1593,7 @@ class EmailListController extends Controller
             $emailList->update(['status' => 'processing']);
 
             $activityLog = $emailList->activityLogs()->create([
-                'user_id' => auth()->id(),
+                'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
                 'type' => 'bulk_action',
                 'details' => [
                     'action' => 'permanent_delete',
@@ -1622,7 +1622,7 @@ class EmailListController extends Controller
         $emailList->recalculateStats();
 
         $emailList->activityLogs()->create([
-            'user_id' => auth()->id(),
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'type' => 'bulk_action',
             'details' => [
                 'action' => $request->action,
@@ -1671,7 +1671,7 @@ class EmailListController extends Controller
 
             $log = \App\Models\ActivityLog::create([
                 'email_list_id' => $emailList->id,
-                'user_id' => auth()->id(),
+                'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
                 'type' => 'import',
                 'details' => [
                     'status' => 'started',
@@ -2032,7 +2032,7 @@ class EmailListController extends Controller
             'value' => $request->value ?? 0,
             'currency' => 'INR',
             'status' => 'open',
-            'user_id' => auth()->id(), // admin user id
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(), // admin user id
             'order' => \App\Models\Deal::where('pipeline_stage_id', $request->pipeline_stage_id)->count(),
         ]);
 
@@ -2076,7 +2076,7 @@ class EmailListController extends Controller
         
         $note = \App\Models\ContactNote::create([
             'email_id' => $email->id,
-            'user_id' => auth()->id(),
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'content' => $request->content,
         ]);
 
@@ -2095,7 +2095,7 @@ class EmailListController extends Controller
         
         $task = \App\Models\ContactTask::create([
             'email_id' => $email->id,
-            'user_id' => auth()->id(),
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
@@ -2232,7 +2232,7 @@ class EmailListController extends Controller
 
         $log = \App\Models\ActivityLog::create([
             'email_list_id' => $emailList->id,
-            'user_id' => auth()->id(),
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'type' => 'import',
             'details' => [
                 'status' => 'started',
@@ -2261,7 +2261,7 @@ class EmailListController extends Controller
         ]);
 
         $topic = \App\Models\SubscriptionTopic::create([
-            'user_id' => auth()->id(),
+            'user_id' => app()->has('team_user') ? app('team_user')->id : auth()->id(),
             'email_list_id' => $emailList->id,
             'name' => $request->name,
             'description' => $request->description,
