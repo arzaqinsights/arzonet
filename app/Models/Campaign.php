@@ -301,15 +301,20 @@ class Campaign extends Model
                 }
             }
 
-            // --- INCLUDES (OR logic: match AT LEAST ONE of the tags/segments) ---
+            // --- INCLUDES (Tags are ORed together, Segments are ORed together. Tags AND Segments are ANDed) ---
             $includeTags = $config['include_tags'] ?? [];
             $includeSegments = $config['include_segments'] ?? [];
             
-            if (!empty($includeTags) || !empty($includeSegments)) {
-                $query->where(function($q) use ($includeTags, $includeSegments, $listIds) {
+            if (!empty($includeTags)) {
+                $query->where(function($q) use ($includeTags) {
                     foreach ($includeTags as $tag) {
                         $q->orWhereJsonContains('tags', $tag);
                     }
+                });
+            }
+
+            if (!empty($includeSegments)) {
+                $query->where(function($q) use ($includeSegments, $listIds) {
                     foreach ($includeSegments as $seg) {
                         $segmentModel = \App\Models\Segment::where(function ($q) use ($listIds) {
                             $q->whereIn('email_list_id', $listIds)
