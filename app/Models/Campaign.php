@@ -348,10 +348,14 @@ class Campaign extends Model
                             $q->whereIn('email_list_id', $listIds)
                               ->orWhereNull('email_list_id');
                         })->where('name', $seg)->first();
-                        $q->where(function($subQ) use ($seg, $segmentModel) {
+                        $q->where(function($subQ) use ($seg, $segmentModel, $listIds) {
                             if ($segmentModel) {
-                                // Exclude those who match the segment rules
-                                $subQ->whereNot(function($s1) use ($segmentModel) {
+                                // Exclude those who match the segment rules using whereNotIn to handle NULL logic correctly
+                                $subQ->whereNotIn('emails.id', function($s1) use ($segmentModel, $listIds) {
+                                    $s1->select('emails.id')->from('emails');
+                                    if ($listIds) {
+                                        $s1->whereIn('email_list_id', $listIds);
+                                    }
                                     \App\Models\Segment::applyRulesToQuery($s1, $segmentModel->rules ?? []);
                                 });
                             } else {
