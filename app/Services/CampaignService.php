@@ -176,12 +176,9 @@ class CampaignService
         }
 
         // 1. Audit and Recreate MISSING logs
-        $campaign->emailList->emails()
-            ->valid()
-            ->subscribed()
-            ->whereNotNull('email')
-            ->where('email', '!=', '')
-            ->leftJoin('email_logs', function ($join) use ($campaign) {
+        $query = $campaign->getAudienceQueryBuilder();
+        if ($query) {
+            $query->leftJoin('email_logs', function ($join) use ($campaign) {
                 $join->on('emails.id', '=', 'email_logs.email_id')
                      ->where('email_logs.campaign_id', '=', $campaign->id);
             })
@@ -201,6 +198,7 @@ class CampaignService
 
                 DB::table('email_logs')->insert($newLogs);
             }, 'emails.id', 'id');
+        }
 
         // 2. Reset status to pending for the ones we are about to retry
         $campaign->logs()
