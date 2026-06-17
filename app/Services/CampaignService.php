@@ -200,7 +200,7 @@ class CampaignService
                 ])->toArray();
 
                 DB::table('email_logs')->insert($newLogs);
-            }, 'emails.id');
+            }, 'emails.id', 'id');
 
         // 2. Reset status to pending for the ones we are about to retry
         $campaign->logs()
