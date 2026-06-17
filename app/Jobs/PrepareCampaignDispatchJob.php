@@ -93,17 +93,20 @@ class PrepareCampaignDispatchJob implements ShouldQueue
         $queueName = "bulk-{$providerType}";
         $jobCount = 0;
         $emailsProcessed = 0;
-
+ 
+        $redisKey = "campaign_{$campaign->id}_jobs_count";
+        Redis::set($redisKey, 999999); // Padding to prevent premature completion
+ 
         // Use chunkById on emails to process without heavy memory overhead
         $query->chunkById(1000, function ($emails) use ($campaign, $batchSize, $queueName, &$jobCount, $providerType, $limit, &$emailsProcessed) {
             $logEntries = [];
             $emailIds = [];
-
+ 
             foreach ($emails as $email) {
                 if ($limit && $emailsProcessed >= $limit) {
                     break;
                 }
-
+ 
                 $logEntries[] = [
                     'user_id'        => $campaign->user_id,
                     'campaign_id'    => $campaign->id,
@@ -117,34 +120,48 @@ class PrepareCampaignDispatchJob implements ShouldQueue
                 $emailIds[] = $email->id;
                 $emailsProcessed++;
             }
-
+ 
             if (!empty($logEntries)) {
                 // Raw Bulk Insert for speed and lower memory
                 DB::table('email_logs')->insert($logEntries);
             }
-
+ 
             // Chunk email IDs to dispatch SendEmailBatchJob jobs
             foreach (array_chunk($emailIds, $batchSize) as $chunk) {
                 // Adaptive delay for SMTP
                 $delay = ($providerType === 'smtp') 
                     ? $this->calculateDelay($jobCount, $batchSize, $campaign->emails_per_minute)
                     : 0;
-
+ 
                 SendEmailBatchJob::dispatch($campaign->id, $chunk)
                     ->onQueue($queueName)
                     ->delay(now()->addSeconds($delay));
-
+ 
                 $jobCount++;
             }
-
+ 
             if ($limit && $emailsProcessed >= $limit) {
                 return false; // Stop chunking early
             }
         });
-
-        // Set Redis counter for monitoring campaign progress/completion
-        Redis::set("campaign_{$campaign->id}_jobs_count", $jobCount);
-        Redis::expire("campaign_{$campaign->id}_jobs_count", 86400); // 24-hour TTL
+ 
+        // Remove padding and check if already completed
+        $remaining = Redis::decrBy($redisKey, 999999 - $jobCount);
+        Redis::expire($redisKey, 86400); // 24-hour TTL
+ 
+        if ($remaining <= 0 && $jobCount > 0) {
+            $pendingCount = DB::table('email_logs')
+                ->where('campaign_id', $campaign->id)
+                ->where('status', 'pending')
+                ->count();
+ 
+            if ($pendingCount === 0) {
+                $campaign->update(['status' => 'completed', 'completed_at' => now()]);
+            } else {
+                $campaign->update(['status' => 'completed', 'completed_at' => now(), 'error_message' => 'Campaign finished with pending/stalled emails.']);
+            }
+            Redis::del($redisKey);
+        }
     }
 
     /**

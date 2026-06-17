@@ -38,10 +38,13 @@ class CampaignService
         
         $queueName = "bulk-{$providerType}";
         $jobCount = 0;
-
+ 
+        $redisKey = "campaign_{$campaign->id}_jobs_count";
+        Redis::set($redisKey, 999999);
+ 
         // Use cursor-based chunking to dispatch in bounded memory
         $campaign->logs()
-            ->whereNotIn('status', ['sent', 'delivered', 'bounced', 'complaint', 'spamreport', 'dropped'])
+            ->where('status', 'pending')
             ->chunkById(1000, function ($logs) use ($campaign, $batchSize, $queueName, &$jobCount, $providerType) {
                 $emailIds = $logs->pluck('email_id')->filter()->toArray();
                 if (empty($emailIds)) {
@@ -51,17 +54,22 @@ class CampaignService
                     $delay = ($providerType === 'smtp') 
                         ? $this->calculateDelay($jobCount, $batchSize, $campaign->emails_per_minute)
                         : 0;
-
+ 
                     SendEmailBatchJob::dispatch($campaign->id, $chunk)
                         ->onQueue($queueName)
                         ->delay(now()->addSeconds($delay));
-
+ 
                     $jobCount++;
                 }
             });
-
+ 
         if ($jobCount === 0) {
-            if ($campaign->logs()->count() > 0) {
+            Redis::del($redisKey);
+            $pendingCount = DB::table('email_logs')
+                ->where('campaign_id', $campaign->id)
+                ->where('status', 'pending')
+                ->count();
+            if ($pendingCount === 0 && $campaign->logs()->count() > 0) {
                 $campaign->update([
                     'status'       => 'completed',
                     'completed_at' => now(),
@@ -71,9 +79,23 @@ class CampaignService
             }
             return;
         }
-
-        Redis::set("campaign_{$campaign->id}_jobs_count", $jobCount);
-        Redis::expire("campaign_{$campaign->id}_jobs_count", 86400);
+ 
+        $remaining = Redis::decrBy($redisKey, 999999 - $jobCount);
+        Redis::expire($redisKey, 86400);
+ 
+        if ($remaining <= 0) {
+            $pendingCount = DB::table('email_logs')
+                ->where('campaign_id', $campaign->id)
+                ->where('status', 'pending')
+                ->count();
+ 
+            if ($pendingCount === 0) {
+                $campaign->update(['status' => 'completed', 'completed_at' => now()]);
+            } else {
+                $campaign->update(['status' => 'completed', 'completed_at' => now(), 'error_message' => 'Campaign finished with pending/stalled emails.']);
+            }
+            Redis::del($redisKey);
+        }
     }
 
     /**
@@ -210,7 +232,10 @@ class CampaignService
 
         $queueName = "bulk-{$providerType}";
         $jobCount = 0;
-
+ 
+        $redisKey = "campaign_{$campaign->id}_jobs_count";
+        Redis::set($redisKey, 999999);
+ 
         // 3. Chunk and dispatch the retry jobs
         $campaign->logs()
             ->where('status', 'pending')
@@ -221,16 +246,17 @@ class CampaignService
                     $delay = ($providerType === 'smtp')
                         ? $this->calculateDelay($jobCount, $batchSize, $campaign->emails_per_minute)
                         : 0;
-
+ 
                     SendEmailBatchJob::dispatch($campaign->id, $chunk)
                         ->onQueue($queueName)
                         ->delay(now()->addSeconds($delay));
-
+ 
                     $jobCount++;
                 }
             });
-
+ 
         if ($jobCount === 0) {
+            Redis::del($redisKey);
             $campaign->refresh();
             $processedCount = $campaign->logs()
                 ->whereIn('status', ['sent', 'delivered', 'failed', 'bounced', 'complaint', 'spamreport', 'dropped'])
@@ -240,10 +266,23 @@ class CampaignService
             }
             return;
         }
-
-        // Track jobs in Redis
-        Redis::set("campaign_{$campaign->id}_jobs_count", $jobCount);
-        Redis::expire("campaign_{$campaign->id}_jobs_count", 86400);
+ 
+        $remaining = Redis::decrBy($redisKey, 999999 - $jobCount);
+        Redis::expire($redisKey, 86400);
+ 
+        if ($remaining <= 0) {
+            $pendingCount = DB::table('email_logs')
+                ->where('campaign_id', $campaign->id)
+                ->where('status', 'pending')
+                ->count();
+ 
+            if ($pendingCount === 0) {
+                $campaign->update(['status' => 'completed', 'completed_at' => now()]);
+            } else {
+                $campaign->update(['status' => 'completed', 'completed_at' => now(), 'error_message' => 'Campaign finished with pending/stalled emails.']);
+            }
+            Redis::del($redisKey);
+        }
     }
 
     public function sendTestEmail(Campaign $campaign, string $testEmail): void
