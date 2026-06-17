@@ -218,7 +218,7 @@ class Email extends Model
 
     public function scopeSubscribed($query)
     {
-        return $query->where('subscription_status', 'subscribed');
+        return $query->where($this->getTable() . '.subscription_status', 'subscribed');
     }
 
     public function emailList(): BelongsTo
@@ -258,21 +258,21 @@ class Email extends Model
 
     public function scopeValid($query)
     {
-        return $query->where('status', 'valid');
+        return $query->where($this->getTable() . '.status', 'valid');
     }
 
     public function scopeInvalid($query)
     {
-        return $query->where('status', 'invalid');
+        return $query->where($this->getTable() . '.status', 'invalid');
     }
 
     public function scopeDuplicate($query)
     {
-        return $query->where('status', 'duplicate');
+        return $query->where($this->getTable() . '.status', 'duplicate');
     }
 
     public function scopeCrossDuplicate($query)
     {
-        return $query->where('status', 'cross_duplicate');
+        return $query->where($this->getTable() . '.status', 'cross_duplicate');
     }
 }
