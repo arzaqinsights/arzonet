@@ -111,6 +111,10 @@
                                                 if (!this.tags) return [];
                                                 return this.tags.split(',').map(t => t.trim()).filter(t => t);
                                             },
+                                            get segmentsArray() {
+                                                if (!this.segment_name) return [];
+                                                return this.segment_name.split(',').map(s => s.trim()).filter(s => s);
+                                            },
                                             get topicNames() {
                                                 let map = {
                                                     @foreach($topics ?? [] as $t)
@@ -213,13 +217,29 @@
             {{-- Segment Column --}}
             <td class="px-8 py-4 whitespace-nowrap text-center">
                 <div class="flex items-center justify-center">
-                    <template x-if="row.segment_name">
-                        <span
-                            class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50"
-                            x-text="row.segment_name"></span>
-                    </template>
-                    <template x-if="!row.segment_name">
+                    <template x-if="row.segmentsArray.length === 0">
                         <span class="text-[10px] font-bold text-surface-400 uppercase tracking-widest">—</span>
+                    </template>
+                    <template x-if="row.segmentsArray.length > 0">
+                        <div class="segment-tooltip">
+                            <div class="inline-flex items-center gap-1">
+                                <span
+                                    class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-wider border border-blue-100/50"
+                                    x-text="row.segmentsArray[0]"></span>
+                                <template x-if="row.segmentsArray.length > 1">
+                                    <span
+                                        class="inline-flex px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-700 text-[8px] font-black border border-blue-200"
+                                        x-text="'+' + (row.segmentsArray.length - 1)"></span>
+                                </template>
+                            </div>
+                            <template x-if="row.segmentsArray.length > 1">
+                                <div class="tooltip-content flex flex-col gap-1">
+                                    <template x-for="seg in row.segmentsArray" :key="seg">
+                                        <span class="text-[8px] uppercase tracking-wider text-blue-200" x-text="seg"></span>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
                     </template>
                 </div>
             </td>
