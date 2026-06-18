@@ -323,9 +323,13 @@ class EmailListController extends Controller
             return back()->withErrors(['mapping' => 'You must map the Email Address column.']);
         }
 
+        $existingMapping = $emailList->column_mapping ?? [];
+        $existingCustomColumns = $existingMapping['_custom_columns'] ?? [];
+        $mergedCustomColumns = array_values(array_unique(array_merge($existingCustomColumns, $customColumns)));
+
         // Store list of custom columns to preserve in meta
-        if (!empty($customColumns)) {
-            $finalMapping['_custom_columns'] = $customColumns;
+        if (!empty($mergedCustomColumns)) {
+            $finalMapping['_custom_columns'] = $mergedCustomColumns;
         }
 
         $finalMapping['_settings'] = ['skip_dns' => false];
