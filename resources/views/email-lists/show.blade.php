@@ -26,7 +26,7 @@
 
 @section('header-actions')
     <div class="flex items-center gap-3" x-data>
-        @if(!app()->has('team_user') || $emailList->created_by_id === app('team_user')->id)
+        <!-- @if(!app()->has('team_user') || $emailList->created_by_id === app('team_user')->id)
             <form action="{{ route('admin.email-lists.destroy', $emailList) }}" method="POST"
                 onsubmit="return confirm('WARNING: Deleting this list will permanently delete all its contacts. This action cannot be undone. Are you sure you want to delete this list?')"
                 class="inline">
@@ -41,7 +41,7 @@
                     Delete List
                 </button>
             </form>
-        @endif
+        @endif -->
         <button @click="$dispatch('open-export-modal')"
             class="px-4 py-3 flex items-center rounded-sm bg-white border border-gray-100 text-surface-600 hover:text-surface-900 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-0 cursor-pointer">
             <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,7 +280,7 @@
                     }
                 }
             @endphp
-            <div class="mb-8 space-y-3" x-data="{
+            <div class="mb-6 space-y-3" x-data="{
                 filterNames: {
                     filter: @js($healthOptions),
                     segment: @js($segmentOptions),
@@ -538,35 +538,35 @@
             {{-- Premium Counts & Advanced Metrics Dashboard --}}
             <div class="">
                 {{-- Simple Stats Text --}}
-                <div class="mb-6 text-sm text-surface-600 flex items-center">
+                <div class="mb-6 text-sm bg-surface-0 py-2 px-4 border border-brand/10 rounded-sm text-surface-600 flex items-center">
                     <template x-if="!stats.is_filtered && archived !== 'yes'">
                         <div class="flex flex-wrap gap-x-4 gap-y-2 items-center">
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-black text-surface-900" x-text="stats.global_main_rows.toLocaleString()"></span>
-                                <span class="font-medium text-2xl tracking-wide">profiles</span>
+                                <span class="text-2xl font-semibold text-surface-900" x-text="stats.global_main_rows.toLocaleString()"></span>
+                                <span class="font-medium text-lg tracking-wide">profiles</span>
                             </span>
-                            <span class="text-gray-300">|</span>
+                            <span class="text-gray-300 text-xl">|</span>
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-black text-surface-700" x-text="stats.full_total.toLocaleString()"></span>
-                                <span class="font-medium text-2xl tracking-wide">rows</span>
+                                <span class="text-2xl font-semibold text-surface-700" x-text="stats.full_total.toLocaleString()"></span>
+                                <span class="font-medium text-lg tracking-wide">rows</span>
                             </span>
-                            <span class="text-gray-300">|</span>
+                            <span class="text-gray-300 text-xl">|</span>
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-black text-blue-600" x-text="stats.subscribed_emails.toLocaleString()"></span>
-                                <span class="font-medium text-2xl tracking-wide">email subscribers</span>
+                                <span class="text-2xl font-semibold text-blue-600" x-text="stats.subscribed_emails.toLocaleString()"></span>
+                                <span class="font-medium text-lg tracking-wide">email subscribers</span>
                             </span>
-                            <span class="text-gray-300">|</span>
+                            <span class="text-gray-300 text-xl">|</span>
                             <span class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-black text-emerald-600" x-text="stats.subscribed_whatsapps.toLocaleString()"></span>
-                                <span class="font-medium text-2xl tracking-wide">whatsapp opt-in</span>
+                                <span class="text-2xl font-semibold text-emerald-600" x-text="stats.subscribed_whatsapps.toLocaleString()"></span>
+                                <span class="font-medium text-lg tracking-wide">whatsapp opt-in</span>
                             </span>
                         </div>
                     </template>
                     <template x-if="stats.is_filtered || archived === 'yes'">
                         <div class="flex items-baseline gap-2">
                             <span class="text-surface-600 font-medium">Total</span>
-                            <span class="text-xl font-black text-brand" x-text="stats.filtered_main_rows.toLocaleString()"></span>
-                            <span class="text-brand font-bold tracking-wide">contacts</span>
+                            <span class="text-2xl font-semibold text-brand" x-text="stats.filtered_main_rows.toLocaleString()"></span>
+                            <span class="text-brand font-bold text-lg tracking-wide">contacts</span>
                         </div>
                     </template>
                 </div>
