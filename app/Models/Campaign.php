@@ -301,32 +301,35 @@ class Campaign extends Model
                 }
             }
 
-            // --- INCLUDES (Tags are ORed together, Segments are ORed together. Tags AND Segments are ANDed) ---
+            // --- INCLUDES (Tags and Segments are ORed together) ---
             $includeTags = $config['include_tags'] ?? [];
             $includeSegments = $config['include_segments'] ?? [];
             
-            if (!empty($includeTags)) {
-                $query->where(function($q) use ($includeTags) {
-                    foreach ($includeTags as $tag) {
-                        $q->orWhereJsonContains('tags', $tag);
+            if (!empty($includeTags) || !empty($includeSegments)) {
+                $query->where(function($q) use ($includeTags, $includeSegments, $listIds) {
+                    if (!empty($includeTags)) {
+                        foreach ($includeTags as $tag) {
+                            $q->orWhereJsonContains('tags', $tag);
+                        }
                     }
-                });
-            }
 
-            if (!empty($includeSegments)) {
-                $query->where(function($q) use ($includeSegments, $listIds) {
-                    foreach ($includeSegments as $seg) {
-                        $segmentModel = \App\Models\Segment::where(function ($q) use ($listIds) {
-                            $q->whereIn('email_list_id', $listIds)
-                              ->orWhereNull('email_list_id');
-                        })->where('name', $seg)->first();
-                        $q->orWhere(function($sub) use ($seg, $segmentModel) {
-                            if ($segmentModel) {
-                                \App\Models\Segment::applyRulesToQuery($sub, $segmentModel->rules ?? []);
-                            } else {
-                                $sub->where('segment_name', $seg);
-                            }
-                        });
+                    if (!empty($includeSegments)) {
+                        foreach ($includeSegments as $seg) {
+                            $segmentModel = \App\Models\Segment::where(function ($sq) use ($listIds) {
+                                if (!empty($listIds)) {
+                                    $sq->whereIn('email_list_id', $listIds)
+                                       ->orWhereNull('email_list_id');
+                                }
+                            })->where('name', $seg)->first();
+
+                            $q->orWhere(function($sub) use ($seg, $segmentModel) {
+                                if ($segmentModel) {
+                                    \App\Models\Segment::applyRulesToQuery($sub, $segmentModel->rules ?? []);
+                                } else {
+                                    $sub->where('segment_name', $seg);
+                                }
+                            });
+                        }
                     }
                 });
             }
@@ -344,19 +347,25 @@ class Campaign extends Model
                         });
                     }
                     foreach ($excludeSegments as $seg) {
-                        $segmentModel = \App\Models\Segment::where(function ($q) use ($listIds) {
-                            $q->whereIn('email_list_id', $listIds)
-                              ->orWhereNull('email_list_id');
+                        $segmentModel = \App\Models\Segment::where(function ($sq) use ($listIds) {
+                            if (!empty($listIds)) {
+                                $sq->whereIn('email_list_id', $listIds)
+                                   ->orWhereNull('email_list_id');
+                            }
                         })->where('name', $seg)->first();
+                        
                         $q->where(function($subQ) use ($seg, $segmentModel, $listIds) {
                             if ($segmentModel) {
-                                // Exclude those who match the segment rules using whereNotIn to handle NULL logic correctly
-                                $subQ->whereNotIn('emails.id', function($s1) use ($segmentModel, $listIds) {
-                                    $s1->select('emails.id')->from('emails');
-                                    if ($listIds) {
-                                        $s1->whereIn('email_list_id', $listIds);
+                                // Exclude those who match the segment rules using whereNotExists
+                                $subQ->whereNotExists(function($s1) use ($segmentModel, $listIds) {
+                                    $s1->select(DB::raw(1))
+                                       ->from('emails as e_ex')
+                                       ->whereColumn('e_ex.id', 'emails.id');
+                                    
+                                    if (!empty($listIds)) {
+                                        $s1->whereIn('e_ex.email_list_id', $listIds);
                                     }
-                                    \App\Models\Segment::applyRulesToQuery($s1, $segmentModel->rules ?? []);
+                                    \App\Models\Segment::applyRulesToQuery($s1, $segmentModel->rules ?? [], 'e_ex');
                                 });
                             } else {
                                 $subQ->where(function($s1) use ($seg) {
