@@ -24,8 +24,36 @@
 
 <body x-data class="min-h-screen flex flex-col">
 
-    {{-- ── Global Navbar ── --}}
-    <nav class="sticky top-0 z-50 w-full bg-white border-b border-color py-2 flex items-center justify-between">
+    @php
+        $cUsage = auth()->user()->getContactsUsage();
+        $eUsage = auth()->user()->getEmailsUsage();
+        $limitExceeded = $cUsage->is_exceeded || $eUsage->is_exceeded;
+    @endphp
+
+    {{-- ── Global Header Wrapper ── --}}
+    <div class="sticky top-0 z-[60] w-full flex flex-col">
+        @if($limitExceeded)
+            <div class="h-10 bg-red-600 text-white px-4 md:px-6 flex items-center justify-between shadow-sm w-full">
+                <div class="flex items-center gap-3 text-left">
+                    <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+                    <div class="text-xs font-bold">
+                        @if($cUsage->is_exceeded)
+                            Contact limit exceeded ({{ number_format($cUsage->total) }} / {{ number_format($cUsage->limit) }}).
+                        @elseif($eUsage->is_exceeded)
+                            Email limit exceeded ({{ number_format($eUsage->total) }} / {{ number_format($eUsage->limit) }}).
+                        @endif
+                        Campaigns and Imports are currently blocked.
+                    </div>
+                </div>
+                <a href="{{ route('admin.dashboard') }}"
+                    class="px-3 py-1 bg-white text-red-600 text-[10px] font-black rounded-sm uppercase tracking-widest hover:bg-red-50 transition-all shrink-0">
+                    Upgrade
+                </a>
+            </div>
+        @endif
+
+        {{-- ── Global Navbar ── --}}
+        <nav class="w-full bg-white border-b border-color py-2 flex items-center justify-between relative z-50">
         <div class="flex items-center justify-between w-full gap-4 px-4">
 
             <div class="flex items-center gap-6">
@@ -216,7 +244,7 @@
                 </div>
             </div>
         </div>
-    </nav>
+    </div>
 
         @php
             $workspaceQuery = \App\Models\EmailList::query();
@@ -241,7 +269,7 @@
             x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
             x-transition:leave="transition-transform duration-300" x-transition:leave-start="translate-x-0"
             x-transition:leave-end="-translate-x-full"
-            class="fixed left-0 z-40 w-[260px] h-full pt-16 flex flex-col border-r border-color bg-white">
+            class="fixed left-0 z-40 w-[260px] h-full {{ $limitExceeded ? 'pt-[104px]' : 'pt-16' }} flex flex-col border-r border-color bg-white">
 
             {{-- Workspace Switcher Dropdown --}}
             <div class="p-3 border-b border-gray-200 mb-3 relative" x-data="{ openWorkspace: false }">
@@ -521,38 +549,10 @@
 
         {{-- ── Main Content ── --}}
         <main class="w-full pl-[260px] overflow-y-auto">
-            {{-- Limit Warning Banner --}}
-            @php
-                $cUsage = auth()->user()->getContactsUsage();
-                $eUsage = auth()->user()->getEmailsUsage();
-            @endphp
-
-            @if($cUsage->is_exceeded || $eUsage->is_exceeded)
-                <div
-                    class="bg-red-600 text-white px-6 py-3 flex items-center justify-between shadow-lg sticky top-0 z-[60]">
-                    <div class="flex items-center gap-3 text-left">
-                        <i class="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
-                        <div class="text-sm font-bold">
-                            @if($cUsage->is_exceeded)
-                                You have exceeded your contact limit ({{ number_format($cUsage->total) }} /
-                                {{ number_format($cUsage->limit) }}).
-                            @elseif($eUsage->is_exceeded)
-                                You have exceeded your email sending limit ({{ number_format($eUsage->total) }} /
-                                {{ number_format($eUsage->limit) }}).
-                            @endif
-                            Campaigns and Imports are currently blocked.
-                        </div>
-                    </div>
-                    <a href="{{ route('admin.dashboard') }}"
-                        class="px-4 py-1.5 bg-white text-red-600 text-xs font-black rounded-sm uppercase tracking-widest hover:bg-red-50 transition-all shrink-0">
-                        Upgrade Now
-                    </a>
-                </div>
-            @endif
 
             @if(View::hasSection('heading') || View::hasSection('header-actions'))
                 <div
-                    class="fixed top-16 z-40 left-[260px] w-[calc(100%-260px)] flex justify-between items-center bg-surface-0 px-6 py-4 border-b border-color">
+                    class="fixed {{ $limitExceeded ? 'top-[104px]' : 'top-16' }} z-40 left-[260px] w-[calc(100%-260px)] flex justify-between items-center bg-surface-0 px-6 py-4 border-b border-color">
                     @if(View::hasSection('heading'))
                         <h1 class="font-black uppercase text-lg">@yield('heading')</h1>
                     @endif
@@ -572,7 +572,7 @@
             @endif
 
             {{-- Page Content --}}
-            <div class="p-6 {{ (View::hasSection('heading') || View::hasSection('header-actions')) ? 'pt-24' : '' }}">
+            <div class="p-6 {{ (View::hasSection('heading') || View::hasSection('header-actions')) ? ($limitExceeded ? 'pt-[100px]' : 'pt-24') : '' }}">
                 @yield('content')
             </div>
         </main>
