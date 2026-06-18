@@ -24,7 +24,8 @@ class SendEmailBatchJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries;
+    public int $tries = 1000;
+    public int $maxExceptions = 3;
     public int $timeout = 120;
 
     // Retry with exponential backoff (e.g., 10s, 30s, 90s, 270s, etc.)
@@ -33,12 +34,10 @@ class SendEmailBatchJob implements ShouldQueue
         return [10, 30, 90, 270];
     }
 
-
     public function __construct(
         public int $campaignId,
         public array $emailIds
     ) {
-        $this->tries = config('email.retry_attempts', 10); // Increased tries for smarter recovery
     }
 
     /**
@@ -323,6 +322,37 @@ class SendEmailBatchJob implements ShouldQueue
                 ]);
             }
             Redis::del($key); // Cleanup
+        }
+    }
+
+    /**
+     * Handle a job failure.
+     */
+    public function failed(\Throwable $exception)
+    {
+        $campaign = Campaign::find($this->campaignId);
+        if (!$campaign) return;
+
+        $key = "campaign_{$campaign->id}_jobs_count";
+        $remainingJobs = Redis::decr($key);
+
+        DB::table('email_logs')
+            ->where('campaign_id', $this->campaignId)
+            ->whereIn('email_id', $this->emailIds)
+            ->where('status', 'pending')
+            ->update([
+                'status' => 'failed',
+                'error_message' => substr($exception->getMessage(), 0, 255),
+                'updated_at' => now(),
+            ]);
+
+        if ($remainingJobs <= 0) {
+            $campaign->update([
+                'status'       => 'completed',
+                'completed_at' => now(),
+                'error_message' => 'Campaign finished with some failed jobs.'
+            ]);
+            Redis::del($key);
         }
     }
 }
