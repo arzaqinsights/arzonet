@@ -157,9 +157,8 @@ class PrepareCampaignDispatchJob implements ShouldQueue
  
             if ($pendingCount === 0) {
                 $campaign->update(['status' => 'completed', 'completed_at' => now()]);
-            } else {
-                $campaign->update(['status' => 'completed', 'completed_at' => now(), 'error_message' => 'Campaign finished with pending/stalled emails.']);
             }
+            // If pending emails still exist, don't force-complete — let jobs finish naturally
             Redis::del($redisKey);
         }
     }

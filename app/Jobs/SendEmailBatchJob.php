@@ -61,8 +61,6 @@ class SendEmailBatchJob implements ShouldQueue
         $campaign = Campaign::with(['template', 'sender'])->find($this->campaignId);
 
         if (!$campaign || in_array($campaign->status, ['paused', 'cancelled', 'completed'])) {
-            // Decrement counter so completion detection doesn't stall
-            $this->decrementJobCounter($campaign);
             return;
         }
 
@@ -75,7 +73,6 @@ class SendEmailBatchJob implements ShouldQueue
             // Clear the bypass flag since we just triggered auto-pause
             Redis::del("campaign_{$campaign->id}_autopause_bypass");
             Log::warning("Campaign {$campaign->id} auto-paused due to poor performance metrics.");
-            $this->decrementJobCounter($campaign);
             return;
         }
 
@@ -306,41 +303,15 @@ class SendEmailBatchJob implements ShouldQueue
         }
     }
 
-    /**
-     * Decrement the Redis job counter. If it reaches 0, trigger completion check.
-     */
-    protected function decrementJobCounter(?Campaign $campaign): void
-    {
-        if (!$campaign) return;
-        
-        $key = "campaign_{$campaign->id}_jobs_count";
-        $remaining = Redis::decr($key);
-        
-        if ($remaining <= 0) {
-            // All jobs done – check if campaign should be marked completed
-            if (in_array($campaign->status, ['sending'])) {
-                $pendingCount = DB::table('email_logs')
-                    ->where('campaign_id', $campaign->id)
-                    ->where('status', 'pending')
-                    ->count();
-
-                if ($pendingCount === 0) {
-                    $campaign->update([
-                        'status'       => 'completed',
-                        'completed_at' => now(),
-                    ]);
-                }
-            }
-            Redis::del($key);
-        }
-    }
-
     protected function checkCompletion(Campaign $campaign)
     {
         $key = "campaign_{$campaign->id}_jobs_count";
         $remainingJobs = Redis::decr($key);
 
         if ($remainingJobs <= 0) {
+            // Refresh campaign from DB to get latest counts
+            $campaign->refresh();
+            
             // Check if there are any remaining pending logs
             $pendingCount = DB::table('email_logs')
                 ->where('campaign_id', $campaign->id)
@@ -353,12 +324,8 @@ class SendEmailBatchJob implements ShouldQueue
                     'completed_at' => now(),
                 ]);
             } else {
-                // Stalled or partially failed
-                $campaign->update([
-                    'status'       => 'completed',
-                    'completed_at' => now(),
-                    'error_message' => 'Campaign finished with pending/stalled emails.'
-                ]);
+                // Still has pending emails — don't mark completed, log for debugging
+                Log::info("Campaign {$campaign->id} counter hit 0 but {$pendingCount} emails still pending. Keeping status as '{$campaign->status}'.");
             }
             Redis::del($key); // Cleanup
             Redis::del("campaign_{$campaign->id}_autopause_bypass"); // Cleanup bypass flag
@@ -387,11 +354,19 @@ class SendEmailBatchJob implements ShouldQueue
             ]);
 
         if ($remainingJobs <= 0) {
-            $campaign->update([
-                'status'       => 'completed',
-                'completed_at' => now(),
-                'error_message' => 'Campaign finished with some failed jobs.'
-            ]);
+            $pendingCount = DB::table('email_logs')
+                ->where('campaign_id', $campaign->id)
+                ->where('status', 'pending')
+                ->count();
+
+            if ($pendingCount === 0) {
+                $campaign->update([
+                    'status'       => 'completed',
+                    'completed_at' => now(),
+                    'error_message' => 'Campaign finished with some failed jobs.'
+                ]);
+            }
+            // If pending emails still exist, don't force-complete
             Redis::del($key);
         }
     }
