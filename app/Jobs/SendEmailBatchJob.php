@@ -61,6 +61,8 @@ class SendEmailBatchJob implements ShouldQueue
         $campaign = Campaign::with(['template', 'sender'])->find($this->campaignId);
 
         if (!$campaign || in_array($campaign->status, ['paused', 'cancelled', 'completed'])) {
+            // Decrement counter so completion detection doesn't stall
+            $this->decrementJobCounter($campaign);
             return;
         }
 
@@ -70,7 +72,10 @@ class SendEmailBatchJob implements ShouldQueue
                 'status' => 'paused',
                 'error_message' => 'Auto-paused: High bounce/complaint rate detected. Please check your list hygiene.'
             ]);
+            // Clear the bypass flag since we just triggered auto-pause
+            Redis::del("campaign_{$campaign->id}_autopause_bypass");
             Log::warning("Campaign {$campaign->id} auto-paused due to poor performance metrics.");
+            $this->decrementJobCounter($campaign);
             return;
         }
 
@@ -280,6 +285,11 @@ class SendEmailBatchJob implements ShouldQueue
 
     protected function shouldAutoPause(Campaign $campaign): bool
     {
+        // Skip auto-pause if manually resumed/retried by user
+        if (Redis::exists("campaign_{$campaign->id}_autopause_bypass")) {
+            return false;
+        }
+
         if ($campaign->sent_count < 50) return false;
         return ($campaign->bounceRate() > 15.0) || ($campaign->complaintRate() > 0.1);
     }
@@ -293,6 +303,35 @@ class SendEmailBatchJob implements ShouldQueue
             Redis::expire($key, 60);
         } catch (\Exception $e) {
             // Redis not available, ignore speed tracking
+        }
+    }
+
+    /**
+     * Decrement the Redis job counter. If it reaches 0, trigger completion check.
+     */
+    protected function decrementJobCounter(?Campaign $campaign): void
+    {
+        if (!$campaign) return;
+        
+        $key = "campaign_{$campaign->id}_jobs_count";
+        $remaining = Redis::decr($key);
+        
+        if ($remaining <= 0) {
+            // All jobs done – check if campaign should be marked completed
+            if (in_array($campaign->status, ['sending'])) {
+                $pendingCount = DB::table('email_logs')
+                    ->where('campaign_id', $campaign->id)
+                    ->where('status', 'pending')
+                    ->count();
+
+                if ($pendingCount === 0) {
+                    $campaign->update([
+                        'status'       => 'completed',
+                        'completed_at' => now(),
+                    ]);
+                }
+            }
+            Redis::del($key);
         }
     }
 
@@ -322,6 +361,7 @@ class SendEmailBatchJob implements ShouldQueue
                 ]);
             }
             Redis::del($key); // Cleanup
+            Redis::del("campaign_{$campaign->id}_autopause_bypass"); // Cleanup bypass flag
         }
     }
 

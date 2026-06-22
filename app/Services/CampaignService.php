@@ -26,7 +26,13 @@ class CampaignService
      */
     public function resume(Campaign $campaign): void
     {
-        $campaign->update(['status' => 'sending']);
+        // Bypass auto-pause on manual resume (user acknowledged the risk)
+        Redis::setex("campaign_{$campaign->id}_autopause_bypass", 86400, 1);
+
+        $campaign->update([
+            'status' => 'sending',
+            'error_message' => null,
+        ]);
 
         $providerType = $campaign->sender?->type ?? 'ses';
         $batchSize = match($providerType) {
@@ -169,7 +175,13 @@ class CampaignService
      */
     public function retryFailed(Campaign $campaign): void
     {
-        $campaign->update(['status' => 'sending']);
+        // Bypass auto-pause on manual retry (user acknowledged the risk)
+        Redis::setex("campaign_{$campaign->id}_autopause_bypass", 86400, 1);
+
+        $campaign->update([
+            'status' => 'sending',
+            'error_message' => null,
+        ]);
 
         if (!$campaign->emailList) {
             throw new \Exception("Campaign retry failed: The linked Email List has been deleted.");
