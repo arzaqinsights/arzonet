@@ -16,14 +16,15 @@ class DashboardController extends Controller
     public function index(UsageTrackingService $usageService)
     {
         // ── 1. CORE PERFORMANCE METRICS (Consolidated Queries) ──
-        $logStats = \App\Models\EmailLog::selectRaw("
-            SUM(CASE WHEN status NOT IN ('pending') THEN 1 ELSE 0 END) as total_sent,
-            SUM(CASE WHEN status IN ('sent','delivered','processed','opened','clicked') THEN 1 ELSE 0 END) as total_delivered,
-            SUM(CASE WHEN status = 'bounced' THEN 1 ELSE 0 END) as total_bounced,
-            SUM(CASE WHEN status = 'complaint' THEN 1 ELSE 0 END) as total_complaints,
-            SUM(CASE WHEN open_count > 0 OR click_count > 0 THEN 1 ELSE 0 END) as total_opens,
-            SUM(CASE WHEN click_count > 0 THEN 1 ELSE 0 END) as total_clicks
-        ")->first();
+        $logStats = \App\Models\EmailLog::countedTowardsUsage()
+            ->selectRaw("
+                COUNT(*) as total_sent,
+                SUM(CASE WHEN status IN ('sent','delivered','processed','opened','clicked') THEN 1 ELSE 0 END) as total_delivered,
+                SUM(CASE WHEN status = 'bounced' THEN 1 ELSE 0 END) as total_bounced,
+                SUM(CASE WHEN status = 'complaint' THEN 1 ELSE 0 END) as total_complaints,
+                SUM(CASE WHEN open_count > 0 OR click_count > 0 THEN 1 ELSE 0 END) as total_opens,
+                SUM(CASE WHEN click_count > 0 THEN 1 ELSE 0 END) as total_clicks
+            ")->first();
 
         $contactStats = \App\Models\Email::selectRaw("
             COUNT(*) as total_contacts,
@@ -51,7 +52,8 @@ class DashboardController extends Controller
         
         if (!$hasStatsData) {
             // Generate from logs if UsageStat table is empty (Migration/Legacy data)
-            $logTrends = \App\Models\EmailLog::where('created_at', '>=', now()->subDays(30))
+            $logTrends = \App\Models\EmailLog::countedTowardsUsage()
+                ->where('created_at', '>=', now()->subDays(30))
                 ->select(\DB::raw('DATE(created_at) as date'), 
                          \DB::raw('count(*) as sent'),
                          \DB::raw('count(CASE WHEN status = "failed" OR status = "bounced" THEN 1 END) as failed'))
@@ -74,9 +76,10 @@ class DashboardController extends Controller
         }
 
         // ── 3. ISP HEALTH & DOMAIN PERFORMANCE ──
-        $ispPerformance = \App\Models\EmailLog::select(\DB::raw('SUBSTRING_INDEX(email_address, "@", -1) as domain'), 
-                                \DB::raw('count(*) as total'),
-                                \DB::raw('count(CASE WHEN status IN ("sent", "delivered", "processed", "opened", "clicked") THEN 1 END) as delivered'))
+        $ispPerformance = \App\Models\EmailLog::countedTowardsUsage()
+            ->select(\DB::raw('SUBSTRING_INDEX(email_address, "@", -1) as domain'), 
+                     \DB::raw('count(*) as total'),
+                     \DB::raw('count(CASE WHEN status IN ("sent", "delivered", "processed", "opened", "clicked") THEN 1 END) as delivered'))
             ->groupBy('domain')
             ->orderByDesc('total')
             ->take(5)
