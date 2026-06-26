@@ -29,6 +29,8 @@ class ProcessTrackingEventJob implements ShouldQueue
         if (!$log) return;
 
         $metadata = $tracker->parseMetadata($this->data['ua'] ?? '');
+        $geo = $tracker->resolveGeo($this->data['ip'] ?? '');
+        $metadata['geo'] = $geo;
         
         // 1. Log Granular Event
         $eventRecord = EmailEvent::create([

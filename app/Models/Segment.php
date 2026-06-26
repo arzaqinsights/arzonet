@@ -190,6 +190,22 @@ class Segment extends Model
                           )');
                     });
                 }
+            } elseif ($field === 'device') {
+                $query->whereExists(function ($q) use ($value) {
+                    $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                      ->from('email_logs')
+                      ->join('email_events', 'email_events.email_log_id', '=', 'email_logs.id')
+                      ->whereColumn('email_logs.email_id', 'emails.id')
+                      ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(email_events.metadata, '$.device')) = ?", [$value]);
+                });
+            } elseif ($field === 'country') {
+                $query->whereExists(function ($q) use ($value) {
+                    $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                      ->from('email_logs')
+                      ->join('email_events', 'email_events.email_log_id', '=', 'email_logs.id')
+                      ->whereColumn('email_logs.email_id', 'emails.id')
+                      ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(email_events.metadata, '$.geo.country')) LIKE ?", ["%{$value}%"]);
+                });
             } else {
                 // Custom field — stored in meta JSON
                 $jsonPath = "$.{$field}";
@@ -284,6 +300,16 @@ class Segment extends Model
                         ->where('campaign_id', $lastCampaign->id)
                         ->exists() ? 1 : 0;
                 }
+            } elseif ($field === 'device') {
+                $contactValue = \App\Models\EmailLog::join('email_events', 'email_events.email_log_id', '=', 'email_logs.id')
+                    ->where('email_logs.email_id', $email->id)
+                    ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(email_events.metadata, '$.device')) = ?", [$value])
+                    ->exists() ? $value : null;
+            } elseif ($field === 'country') {
+                $contactValue = \App\Models\EmailLog::join('email_events', 'email_events.email_log_id', '=', 'email_logs.id')
+                    ->where('email_logs.email_id', $email->id)
+                    ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(email_events.metadata, '$.geo.country')) LIKE ?", ["%{$value}%"])
+                    ->exists() ? $value : null;
             } else {
                 $meta = $email->meta ?? [];
                 $contactValue = $meta[$field] ?? null;
@@ -405,6 +431,20 @@ class Segment extends Model
                 'description' => 'Contacts with invalid or bouncing addresses.',
                 'rules' => [
                     ['field' => 'status', 'operator' => 'equals', 'value' => 'invalid']
+                ]
+            ],
+            [
+                'name' => 'Engaged Mobile Users',
+                'description' => 'Contacts who engaged via a Mobile device.',
+                'rules' => [
+                    ['field' => 'device', 'operator' => 'equals', 'value' => 'Mobile']
+                ]
+            ],
+            [
+                'name' => 'Engaged Desktop Users',
+                'description' => 'Contacts who engaged via a Desktop device.',
+                'rules' => [
+                    ['field' => 'device', 'operator' => 'equals', 'value' => 'Desktop']
                 ]
             ]
         ];

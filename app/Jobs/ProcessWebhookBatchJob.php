@@ -29,7 +29,7 @@ class ProcessWebhookBatchJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(\App\Services\TrackingService $tracker): void
     {
         // 1. Drain raw webhook payloads from Redis
         $payloads = [];
@@ -127,6 +127,7 @@ class ProcessWebhookBatchJob implements ShouldQueue
         $unsubscribesToCreate = [];
         $emailUpdates = []; // email_id => [attributes]
         $logUpdates = []; // log_id => [attributes]
+        $suppressionsToCreate = [];
         $contactSegmentJobsToDispatch = [];
 
         // Track idempotency to avoid duplicate event insertions
@@ -195,16 +196,19 @@ class ProcessWebhookBatchJob implements ShouldQueue
                         $state['delivered_at'] = $state['delivered_at'] ?? now();
                     }
 
+                    $meta = $tracker->parseMetadata($event['useragent'] ?? '');
+                    $geo = $tracker->resolveGeo($event['ip'] ?? '');
+                    $meta['geo'] = $geo;
+                    $meta['sg_event_id'] = $eventId;
+                    $meta['sg_machine_open'] = $event['sg_machine_open'] ?? false;
+
                     $eventsToInsert[] = [
                         'email_log_id' => $log->id,
                         'type'         => 'open',
                         'url'          => null,
                         'ip_address'   => $event['ip'] ?? null,
                         'user_agent'   => $event['useragent'] ?? null,
-                        'metadata'     => json_encode([
-                            'sg_event_id' => $eventId,
-                            'sg_machine_open' => $event['sg_machine_open'] ?? false,
-                        ]),
+                        'metadata'     => json_encode($meta),
                         'created_at'   => now(),
                     ];
                     break;
@@ -225,15 +229,18 @@ class ProcessWebhookBatchJob implements ShouldQueue
                         $state['delivered_at'] = $state['delivered_at'] ?? now();
                     }
 
+                    $meta = $tracker->parseMetadata($event['useragent'] ?? '');
+                    $geo = $tracker->resolveGeo($event['ip'] ?? '');
+                    $meta['geo'] = $geo;
+                    $meta['sg_event_id'] = $eventId;
+
                     $eventsToInsert[] = [
                         'email_log_id' => $log->id,
                         'type'         => 'click',
                         'url'          => $event['url'] ?? null,
                         'ip_address'   => $event['ip'] ?? null,
                         'user_agent'   => $event['useragent'] ?? null,
-                        'metadata'     => json_encode([
-                            'sg_event_id' => $eventId,
-                        ]),
+                        'metadata'     => json_encode($meta),
                         'created_at'   => now(),
                     ];
                     break;
@@ -267,6 +274,15 @@ class ProcessWebhookBatchJob implements ShouldQueue
                                     'validation_reason'   => 'Hard Bounce: ' . $reason,
                                     'subscribed_topics'   => json_encode([]),
                                 ];
+
+                                $suppressionsToCreate[] = [
+                                    'email' => $log->email_address,
+                                    'user_id' => null, // Platform-wide global suppression
+                                    'reason' => 'hard_bounce',
+                                    'expires_at' => now()->addDays(180),
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ];
                             }
                         }
                     }
@@ -299,6 +315,7 @@ class ProcessWebhookBatchJob implements ShouldQueue
                     }
                     break;
  
+                case 'block':
                 case 'blocked':
                     $state['status'] = 'blocked';
                     $state['error_message'] = $event['reason'] ?? 'Blocked by Receiving MTA';
@@ -322,6 +339,15 @@ class ProcessWebhookBatchJob implements ShouldQueue
                             'subscribed_topics' => json_encode([]),
                         ];
                     }
+
+                    $suppressionsToCreate[] = [
+                        'email' => $log->email_address,
+                        'user_id' => $log->user_id ?? ($log->campaign?->user_id), // Scoped to this user
+                        'reason' => 'complaint',
+                        'expires_at' => null, // Permanent for this user
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
                     break;
  
                 case 'unsubscribe':
@@ -352,7 +378,7 @@ class ProcessWebhookBatchJob implements ShouldQueue
         }
 
         // 4. Perform database operations in bulk inside a transaction
-        DB::transaction(function () use ($logUpdates, $emailUpdates, $eventsToInsert, $unsubscribesToCreate) {
+        DB::transaction(function () use ($logUpdates, $emailUpdates, $eventsToInsert, $unsubscribesToCreate, $suppressionsToCreate) {
             // Bulk update email_logs
             if (!empty($logUpdates)) {
                 $this->performBulkUpdate('email_logs', $logUpdates);
@@ -374,9 +400,58 @@ class ProcessWebhookBatchJob implements ShouldQueue
                     DB::table('unsubscribes')->insertOrIgnore($unsub);
                 }
             }
+
+            // Bulk update or insert global suppressions
+            if (!empty($suppressionsToCreate)) {
+                foreach ($suppressionsToCreate as $supp) {
+                    DB::table('global_suppressions')->updateOrInsert(
+                        ['email' => $supp['email'], 'user_id' => $supp['user_id']],
+                        [
+                            'reason' => $supp['reason'],
+                            'expires_at' => $supp['expires_at'],
+                            'created_at' => $supp['created_at'],
+                            'updated_at' => $supp['updated_at'],
+                        ]
+                    );
+                }
+            }
         });
 
-        // 5. Clear list stats/filters cache in Redis directly
+        // 5. Check bounce/complaint rates for campaigns and mark as failed if they exceed safety thresholds
+        $campaignIds = [];
+        foreach ($events as $event) {
+            $log = $findLog($event);
+            if ($log && $log->campaign_id) {
+                $campaignIds[] = $log->campaign_id;
+            }
+        }
+        $campaignIds = array_unique(array_filter($campaignIds));
+
+        if (!empty($campaignIds)) {
+            foreach ($campaignIds as $campaignId) {
+                $campaign = \App\Models\Campaign::find($campaignId);
+                if ($campaign && $campaign->status !== 'failed') {
+                    if ($campaign->sent_count >= 50 && $campaign->bounceRate() > 15.0) {
+                        $campaign->update([
+                            'status' => 'failed',
+                            'error_message' => 'Campaign Suspended: The bounce rate of this campaign has exceeded the safety threshold of 15%. Continuing to send to this list will severely damage your sender reputation and lead to delivery blocks. Please clean your recipient list.'
+                        ]);
+
+                        // Cancel remaining pending logs
+                        DB::table('email_logs')
+                            ->where('campaign_id', $campaign->id)
+                            ->where('status', 'pending')
+                            ->update([
+                                'status' => 'failed',
+                                'error_message' => 'Skipped: Campaign suspended due to high bounce rate.',
+                                'updated_at' => now(),
+                            ]);
+                    }
+                }
+            }
+        }
+
+        // 6. Clear list stats/filters cache in Redis directly
         $uniqueEmailIds = array_unique(array_keys($emailUpdates));
         if (!empty($uniqueEmailIds)) {
             $listIds = DB::table('emails')

@@ -249,6 +249,7 @@ class Campaign extends Model
             return null;
         }
 
+        $userId = $this->user_id;
         $query = \App\Models\Email::query()
             ->whereIn('email_list_id', $listIds)
             ->valid()
@@ -257,7 +258,20 @@ class Campaign extends Model
                 $q->where('is_archived', false)->orWhereNull('is_archived');
             })
             ->whereNotNull('email')
-            ->where('email', '!=', '');
+            ->where('email', '!=', '')
+            ->whereNotExists(function($q) use ($userId) {
+                $q->select(DB::raw(1))
+                  ->from('global_suppressions')
+                  ->whereColumn('global_suppressions.email', 'emails.email')
+                  ->where(function($sub) use ($userId) {
+                      $sub->whereNull('global_suppressions.user_id')
+                          ->orWhere('global_suppressions.user_id', $userId);
+                  })
+                  ->where(function($sub) {
+                      $sub->whereNull('global_suppressions.expires_at')
+                          ->orWhere('global_suppressions.expires_at', '>', now());
+                  });
+            });
 
         if ($this->subscription_topic_id) {
             $topicId = $this->subscription_topic_id;

@@ -67,12 +67,23 @@ class SendEmailBatchJob implements ShouldQueue
         // ── 1. Safety Check: Bounce/Complaint Rates ──
         if ($this->shouldAutoPause($campaign)) {
             $campaign->update([
-                'status' => 'paused',
-                'error_message' => 'Auto-paused: High bounce/complaint rate detected. Please check your list hygiene.'
+                'status' => 'failed',
+                'error_message' => 'Campaign Suspended: The bounce rate of this campaign has exceeded the safety threshold of 15%. Continuing to send to this list will severely damage your sender reputation and lead to delivery blocks. Please clean your recipient list.'
             ]);
             // Clear the bypass flag since we just triggered auto-pause
             Redis::del("campaign_{$campaign->id}_autopause_bypass");
-            Log::warning("Campaign {$campaign->id} auto-paused due to poor performance metrics.");
+            Log::warning("Campaign {$campaign->id} failed due to poor performance metrics.");
+
+            // Cancel remaining pending logs
+            DB::table('email_logs')
+                ->where('campaign_id', $campaign->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'failed',
+                    'error_message' => 'Skipped: Campaign suspended due to high bounce rate.',
+                    'updated_at' => now(),
+                ]);
+
             return;
         }
 
@@ -319,10 +330,12 @@ class SendEmailBatchJob implements ShouldQueue
                 ->count();
 
             if ($pendingCount === 0) {
-                $campaign->update([
-                    'status'       => 'completed',
-                    'completed_at' => now(),
-                ]);
+                if (in_array($campaign->status, ['sending', 'preparing'])) {
+                    $campaign->update([
+                        'status'       => 'completed',
+                        'completed_at' => now(),
+                    ]);
+                }
             } else {
                 // Still has pending emails — don't mark completed, log for debugging
                 Log::info("Campaign {$campaign->id} counter hit 0 but {$pendingCount} emails still pending. Keeping status as '{$campaign->status}'.");

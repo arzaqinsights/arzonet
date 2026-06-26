@@ -114,7 +114,7 @@
     </div>
 
     {{-- Auto-Pause Warning Banner --}}
-    @if($campaign->status === 'paused' && $campaign->error_message && str_contains($campaign->error_message, 'Auto-paused'))
+    @if(in_array($campaign->status, ['paused', 'failed']) && $campaign->error_message && (str_contains($campaign->error_message, 'Auto-paused') || str_contains($campaign->error_message, 'Suspended') || str_contains($campaign->error_message, 'bounce')))
         @php
             $currentBounceRate = $campaign->bounceRate();
             $currentComplaintRate = $campaign->complaintRate();
@@ -130,9 +130,11 @@
 
                 {{-- Content --}}
                 <div class="flex-1 min-w-0">
-                    <h4 class="text-sm font-black text-rose-800 uppercase tracking-tight">Campaign Auto-Paused — Sender Reputation at Risk</h4>
+                    <h4 class="text-sm font-black text-rose-800 uppercase tracking-tight">
+                        Campaign {{ $campaign->status === 'failed' ? 'Suspended' : 'Auto-Paused' }} — Sender Reputation at Risk
+                    </h4>
                     <p class="text-xs text-rose-700/80 mt-1.5 leading-relaxed">
-                        This campaign was automatically paused because your bounce rate has exceeded safe thresholds. 
+                        This campaign was automatically {{ $campaign->status === 'failed' ? 'suspended' : 'paused' }} because your bounce rate has exceeded safe thresholds. 
                         Continuing to send emails to invalid or non-existent addresses can severely damage your sender reputation, 
                         cause your domain to be blacklisted, and result in your emails being permanently blocked by major providers like Gmail, Outlook, and Yahoo.
                     </p>
@@ -169,7 +171,7 @@
             <div class="px-5 py-3 bg-rose-100/40 border-t border-rose-200/50 flex items-center justify-between">
                 <p class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">
                     <svg class="w-3 h-3 inline-block mr-1 -mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                    Resuming is possible but may harm your domain reputation with email providers
+                    {{ $campaign->status === 'failed' ? 'Resuming is disabled. Please create a new campaign with a cleaned list.' : 'Resuming is possible but may harm your domain reputation with email providers' }}
                 </p>
             </div>
         </div>
