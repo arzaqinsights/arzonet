@@ -57,6 +57,21 @@ class EmailLog extends Model
         return $this->belongsTo(Email::class);
     }
 
+    /**
+     * Scope a query to only include logs that count towards the user's email limit/usage.
+     */
+    public function scopeCountedTowardsUsage($query)
+    {
+        return $query->where('status', '!=', 'pending')
+            ->where(function ($q) {
+                $q->whereNull('error_message')
+                  ->orWhere(function ($sub) {
+                      $sub->where('error_message', 'not like', 'Skipped:%')
+                          ->where('error_message', '!=', 'Campaign cancelled');
+                  });
+            });
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(EmailEvent::class);
