@@ -133,6 +133,15 @@ class WebhookController extends Controller
                 $selectedModules = $details['selected_modules'] ?? [];
                 $modulesStr = implode(', ', array_map('ucfirst', $selectedModules));
 
+                $existingSub = \App\Models\Subscription::where('user_id', $invoice->user_id)->first();
+                $startsAt = now();
+                $endsAt = now()->addMonth();
+
+                if ($existingSub && $existingSub->ends_at && $existingSub->ends_at > now()) {
+                    $startsAt = $existingSub->starts_at;
+                    $endsAt = $existingSub->ends_at;
+                }
+
                 \App\Models\Subscription::updateOrCreate(
                     ['user_id' => $invoice->user_id],
                     [
@@ -143,8 +152,8 @@ class WebhookController extends Controller
                         'whatsapp_limit' => $details['whatsapp_limit'] ?? 0,
                         'team_limit' => $details['team_limit'] ?? 0,
                         'status' => 'active',
-                        'starts_at' => now(),
-                        'ends_at' => now()->addMonth(),
+                        'starts_at' => $startsAt,
+                        'ends_at' => $endsAt,
                     ]
                 );
 

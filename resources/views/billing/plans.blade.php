@@ -161,6 +161,13 @@
 
     <!-- State B: Active Subscription Details Dashboard -->
     @else
+        @php
+            $isExpired = ($subscription->ends_at && $subscription->ends_at < now()) || strtolower($subscription->status) === 'expired';
+            $effContacts = $isExpired ? 0 : $subscription->contacts_limit;
+            $effEmails = $isExpired ? 0 : $subscription->emails_limit;
+            $effWa = $isExpired ? 0 : ($subscription->whatsapp_limit ?? 1);
+            $effTeam = $isExpired ? 0 : ($subscription->team_limit ?? 3);
+        @endphp
         <div class="mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-surface-100">
             <div>
                 <h1 class="text-3xl font-black text-black font-['Outfit'] tracking-tight">Active Subscription</h1>
@@ -201,8 +208,13 @@
                     <h3 class="text-2xl font-black text-white mt-1 font-['Outfit'] uppercase tracking-tight">{{ $subscription->plan_name }}</h3>
                     
                     <div class="mt-6 flex items-center gap-3">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">{{ strtoupper($subscription->status) }}</span>
+                        @if($isExpired)
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-red-400">EXPIRED</span>
+                        @else
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">{{ strtoupper($subscription->status) }}</span>
+                        @endif
                     </div>
 
                     <div class="border-t border-white/10 mt-6 pt-6 space-y-3.5 text-xs text-white/70">
@@ -267,7 +279,7 @@
                                     <i class="fa-solid fa-address-book text-surface-400"></i> CRM Contacts Limit
                                 </span>
                                 @if(in_array('crm', $activeModules))
-                                    <span>{{ number_format($contactsCount) }} / {{ number_format($subscription->contacts_limit) }}</span>
+                                    <span>{{ number_format($contactsCount) }} / {{ number_format($effContacts) }}</span>
                                 @else
                                     <span class="text-surface-400">Module Disabled</span>
                                 @endif
@@ -275,14 +287,14 @@
                             
                             @if(in_array('crm', $activeModules))
                                 @php
-                                    $contactsPct = $subscription->contacts_limit > 0 ? min(100, ($contactsCount / $subscription->contacts_limit) * 100) : 0;
+                                    $contactsPct = $effContacts > 0 ? min(100, ($contactsCount / $effContacts) * 100) : ($contactsCount > 0 ? 100 : 0);
                                 @endphp
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
                                     <div class="h-full bg-brand rounded-full transition-all duration-500" style="width: {{ $contactsPct }}%"></div>
                                 </div>
                                 <div class="flex justify-between mt-1.5 text-[9px] font-bold text-surface-400 uppercase">
                                     <span>{{ round($contactsPct) }}% consumed</span>
-                                    <span>{{ number_format(max(0, $subscription->contacts_limit - $contactsCount)) }} remaining</span>
+                                    <span>{{ number_format(max(0, $effContacts - $contactsCount)) }} remaining</span>
                                 </div>
                             @else
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden opacity-50">
@@ -298,7 +310,7 @@
                                     <i class="fa-solid fa-paper-plane text-surface-400"></i> Monthly Email Sent Quota
                                 </span>
                                 @if(in_array('email', $activeModules))
-                                    <span>{{ number_format($emailsCount) }} / {{ number_format($subscription->emails_limit) }}</span>
+                                    <span>{{ number_format($emailsCount) }} / {{ number_format($effEmails) }}</span>
                                 @else
                                     <span class="text-surface-400">Module Disabled</span>
                                 @endif
@@ -306,14 +318,14 @@
                             
                             @if(in_array('email', $activeModules))
                                 @php
-                                    $emailsPct = $subscription->emails_limit > 0 ? min(100, ($emailsCount / $subscription->emails_limit) * 100) : 0;
+                                    $emailsPct = $effEmails > 0 ? min(100, ($emailsCount / $effEmails) * 100) : ($emailsCount > 0 ? 100 : 0);
                                 @endphp
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
                                     <div class="h-full bg-brand rounded-full transition-all duration-500" style="width: {{ $emailsPct }}%"></div>
                                 </div>
                                 <div class="flex justify-between mt-1.5 text-[9px] font-bold text-surface-400 uppercase">
                                     <span>{{ round($emailsPct) }}% consumed</span>
-                                    <span>{{ number_format(max(0, $subscription->emails_limit - $emailsCount)) }} remaining</span>
+                                    <span>{{ number_format(max(0, $effEmails - $emailsCount)) }} remaining</span>
                                 </div>
                             @else
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden opacity-50">
@@ -329,7 +341,7 @@
                                     <i class="fa-solid fa-phone text-surface-400"></i> Connected WhatsApp Lines
                                 </span>
                                 @if(in_array('whatsapp', $activeModules))
-                                    <span>{{ $whatsappCount }} / {{ $subscription->whatsapp_limit ?? 1 }}</span>
+                                    <span>{{ $whatsappCount }} / {{ $effWa }}</span>
                                 @else
                                     <span class="text-surface-400">Module Disabled</span>
                                 @endif
@@ -337,15 +349,14 @@
                             
                             @if(in_array('whatsapp', $activeModules))
                                 @php
-                                    $waLimit = $subscription->whatsapp_limit ?? 1;
-                                    $waPct = $waLimit > 0 ? min(100, ($whatsappCount / $waLimit) * 100) : 0;
+                                    $waPct = $effWa > 0 ? min(100, ($whatsappCount / $effWa) * 100) : ($whatsappCount > 0 ? 100 : 0);
                                 @endphp
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
                                     <div class="h-full bg-brand rounded-full transition-all duration-500" style="width: {{ $waPct }}%"></div>
                                 </div>
                                 <div class="flex justify-between mt-1.5 text-[9px] font-bold text-surface-400 uppercase">
                                     <span>{{ round($waPct) }}% consumed</span>
-                                    <span>{{ max(0, $waLimit - $whatsappCount) }} channels available</span>
+                                    <span>{{ max(0, $effWa - $whatsappCount) }} channels available</span>
                                 </div>
                             @else
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden opacity-50">
@@ -361,7 +372,7 @@
                                     <i class="fa-solid fa-users-gear text-surface-400"></i> Team Seat Limits
                                 </span>
                                 @if(in_array('crm', $activeModules))
-                                    <span>{{ $teamCount }} / {{ $subscription->team_limit ?? 3 }}</span>
+                                    <span>{{ $teamCount }} / {{ $effTeam }}</span>
                                 @else
                                     <span class="text-surface-400">Module Disabled</span>
                                 @endif
@@ -369,15 +380,14 @@
                             
                             @if(in_array('crm', $activeModules))
                                 @php
-                                    $teamLimitVal = $subscription->team_limit ?? 3;
-                                    $teamPct = $teamLimitVal > 0 ? min(100, ($teamCount / $teamLimitVal) * 100) : 0;
+                                    $teamPct = $effTeam > 0 ? min(100, ($teamCount / $effTeam) * 100) : ($teamCount > 0 ? 100 : 0);
                                 @endphp
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
                                     <div class="h-full bg-brand rounded-full transition-all duration-500" style="width: {{ $teamPct }}%"></div>
                                 </div>
                                 <div class="flex justify-between mt-1.5 text-[9px] font-bold text-surface-400 uppercase">
                                     <span>{{ round($teamPct) }}% consumed</span>
-                                    <span>{{ max(0, $teamLimitVal - $teamCount) }} seats available</span>
+                                    <span>{{ max(0, $effTeam - $teamCount) }} seats available</span>
                                 </div>
                             @else
                                 <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden opacity-50">
