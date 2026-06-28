@@ -206,7 +206,7 @@
             current_whatsapp_messages: 0,
             
             // Slider values
-            crm_users: {{ ($subscription && !$isExpired) ? ($subscription->team_limit ?: 1) : ($custom['sliders']['crm_users']['default'] ?? 5) }},
+            crm_users: {{ ($subscription && !$isExpired) ? ($subscription->team_limit ?? 0) : ($custom['sliders']['crm_users']['default'] ?? 0) }},
             crm_contacts: {{ ($subscription && !$isExpired) ? ($subscription->contacts_limit ?: 1000) : ($custom['sliders']['crm_contacts']['default'] ?? 10000) }},
             emails_per_month: {{ ($subscription && !$isExpired) ? ($subscription->emails_limit ?: 5000) : ($custom['sliders']['emails_per_month']['default'] ?? 25000) }},
             whatsapp_numbers: {{ ($subscription && !$isExpired) ? ($subscription->whatsapp_limit ?: 1) : ($custom['sliders']['whatsapp_numbers']['default'] ?? 2) }},
@@ -288,9 +288,9 @@
                                 <span class="text-xs font-black text-brand bg-brand/5 px-2.5 py-1 rounded" x-text="crm_users + ' Users'"></span>
                             </div>
                         </div>
-                        <input type="range" :min="current_crm_users || 1" max="100" step="1" x-model.number="crm_users" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
+                        <input type="range" :min="current_crm_users" max="100" step="1" x-model.number="crm_users" class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand">
                         <div class="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                            <span x-text="(current_crm_users || 1) + ' User'"></span>
+                            <span x-text="current_crm_users + ' User'"></span>
                             <span class="text-brand" x-text="crmUsersCost > 0 ? '+₹' + crmUsersCost.toLocaleString('en-IN') + '/mo' : '₹0'"></span>
                             <span>100 Users</span>
                         </div>

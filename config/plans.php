@@ -33,7 +33,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'rates' => [
-        'crm_per_user'             => 699,     // ₹699 per extra CRM user / month
+        'crm_per_user'             => 399,     // ₹399 per extra CRM user / month
         'crm_per_1k_contacts'      => 12,      // ₹12 per 1000 extra contacts / month
         'email_per_1k'             => 82,      // ₹82 per 1,000 emails / month
         'whatsapp_per_number'      => 499,     // ₹499 per WhatsApp number / month
@@ -167,7 +167,7 @@ return [
         'sliders' => [
             'crm_users' => [
                 'label' => 'CRM Team Members',
-                'min'   => 1,
+                'min'   => 0,
                 'max'   => 100,
                 'step'  => 1,
                 'default' => 5,
