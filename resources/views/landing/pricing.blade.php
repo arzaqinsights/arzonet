@@ -186,6 +186,12 @@
 </section>
 
 <!-- Custom Plan Builder / Configurator -->
+@php
+    $isExpired = false;
+    if ($subscription) {
+        $isExpired = ($subscription->ends_at && $subscription->ends_at < now()) || strtolower($subscription->status) === 'expired';
+    }
+@endphp
 <section id="configurator" class="py-24 bg-slate-50 border-b border-slate-200">
     <div class="container"
          x-data="{
@@ -193,21 +199,21 @@
             sliders: {{ json_encode($custom['sliders'] ?? []) }},
             
             // Current limits (if active subscription exists)
-            current_crm_users: {{ $subscription ? ($subscription->team_limit ?? 0) : 0 }},
-            current_crm_contacts: {{ $subscription ? ($subscription->contacts_limit ?? 0) : 0 }},
-            current_emails_per_month: {{ $subscription ? ($subscription->emails_limit ?? 0) : 0 }},
-            current_whatsapp_numbers: {{ $subscription ? ($subscription->whatsapp_limit ?? 0) : 0 }},
+            current_crm_users: {{ ($subscription && !$isExpired) ? ($subscription->team_limit ?? 0) : 0 }},
+            current_crm_contacts: {{ ($subscription && !$isExpired) ? ($subscription->contacts_limit ?? 0) : 0 }},
+            current_emails_per_month: {{ ($subscription && !$isExpired) ? ($subscription->emails_limit ?? 0) : 0 }},
+            current_whatsapp_numbers: {{ ($subscription && !$isExpired) ? ($subscription->whatsapp_limit ?? 0) : 0 }},
             current_whatsapp_messages: 0,
             
             // Slider values
-            crm_users: {{ $subscription ? ($subscription->team_limit ?: 1) : ($custom['sliders']['crm_users']['default'] ?? 5) }},
-            crm_contacts: {{ $subscription ? ($subscription->contacts_limit ?: 1000) : ($custom['sliders']['crm_contacts']['default'] ?? 10000) }},
-            emails_per_month: {{ $subscription ? ($subscription->emails_limit ?: 5000) : ($custom['sliders']['emails_per_month']['default'] ?? 25000) }},
-            whatsapp_numbers: {{ $subscription ? ($subscription->whatsapp_limit ?: 1) : ($custom['sliders']['whatsapp_numbers']['default'] ?? 2) }},
+            crm_users: {{ ($subscription && !$isExpired) ? ($subscription->team_limit ?: 1) : ($custom['sliders']['crm_users']['default'] ?? 5) }},
+            crm_contacts: {{ ($subscription && !$isExpired) ? ($subscription->contacts_limit ?: 1000) : ($custom['sliders']['crm_contacts']['default'] ?? 10000) }},
+            emails_per_month: {{ ($subscription && !$isExpired) ? ($subscription->emails_limit ?: 5000) : ($custom['sliders']['emails_per_month']['default'] ?? 25000) }},
+            whatsapp_numbers: {{ ($subscription && !$isExpired) ? ($subscription->whatsapp_limit ?: 1) : ($custom['sliders']['whatsapp_numbers']['default'] ?? 2) }},
             whatsapp_messages: {{ $custom['sliders']['whatsapp_messages']['default'] ?? 5000 }},
 
-            include_email: {{ ($subscription && ($subscription->emails_limit ?? 0) == 0) ? 'false' : 'true' }},
-            include_whatsapp: {{ ($subscription && ($subscription->whatsapp_limit ?? 0) == 0) ? 'false' : 'true' }},
+            include_email: {{ ($subscription && !$isExpired && ($subscription->emails_limit ?? 0) == 0) ? 'false' : 'true' }},
+            include_whatsapp: {{ ($subscription && !$isExpired && ($subscription->whatsapp_limit ?? 0) == 0) ? 'false' : 'true' }},
 
             taxPercent: {{ config('plans.gst_percent', 0) }},
 
