@@ -49,14 +49,16 @@ class DashboardController extends Controller
         // ── 2. HYBRID PERFORMANCE TRENDS (Fall-back to Logs if Stats empty) ──
         $chartData = $usageService->getLast30DaysData();
         $hasStatsData = collect($chartData)->sum('sent') > 0;
-        
+
         if (!$hasStatsData) {
             // Generate from logs if UsageStat table is empty (Migration/Legacy data)
             $logTrends = \App\Models\EmailLog::countedTowardsUsage()
                 ->where('created_at', '>=', now()->subDays(30))
-                ->select(\DB::raw('DATE(created_at) as date'), 
-                         \DB::raw('count(*) as sent'),
-                         \DB::raw('count(CASE WHEN status = "failed" OR status = "bounced" THEN 1 END) as failed'))
+                ->select(
+                    \DB::raw('DATE(created_at) as date'),
+                    \DB::raw('count(*) as sent'),
+                    \DB::raw('count(CASE WHEN status = "failed" OR status = "bounced" THEN 1 END) as failed')
+                )
                 ->groupBy('date')
                 ->orderBy('date')
                 ->get()
@@ -77,14 +79,16 @@ class DashboardController extends Controller
 
         // ── 3. ISP HEALTH & DOMAIN PERFORMANCE ──
         $ispPerformance = \App\Models\EmailLog::countedTowardsUsage()
-            ->select(\DB::raw('SUBSTRING_INDEX(email_address, "@", -1) as domain'), 
-                     \DB::raw('count(*) as total'),
-                     \DB::raw('count(CASE WHEN status IN ("sent", "delivered", "processed", "opened", "clicked") THEN 1 END) as delivered'))
+            ->select(
+                \DB::raw('SUBSTRING_INDEX(email_address, "@", -1) as domain'),
+                \DB::raw('count(*) as total'),
+                \DB::raw('count(CASE WHEN status IN ("sent", "delivered", "processed", "opened", "clicked") THEN 1 END) as delivered')
+            )
             ->groupBy('domain')
             ->orderByDesc('total')
             ->take(5)
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
                 $item->delivery_rate = $item->total > 0 ? round(($item->delivered / $item->total) * 100, 1) : 0;
                 return $item;
             });
@@ -96,7 +100,7 @@ class DashboardController extends Controller
             ->groupBy('hour')
             ->get()
             ->pluck('count', 'hour');
-            
+
         if ($hourlyStats->isEmpty()) {
             // Fallback to EmailLog first_open_at for historical engagement timing
             $hourlyStats = \App\Models\EmailLog::whereNotNull('first_open_at')
@@ -149,12 +153,35 @@ class DashboardController extends Controller
         $waReputation = max(0, min(100, round(100 - ($waBounceRate * 2))));
 
         return view('dashboard.index', compact(
-            'totalSent', 'totalDelivered', 'totalBounced', 'totalOpens', 'totalClicks',
-            'totalContacts', 'totalUnsubscribed', 'globalOpenRate', 'globalClickRate',
-            'bounceRate', 'chartData', 'ispPerformance', 'hourlyStats', 'recentCampaigns',
-            'topLinks', 'usageStats', 'validPercent', 'invalidPercent',
-            'waTotalContacts', 'waSubscribed', 'teamMembersCount', 'teamLimit',
-            'totalComplaints', 'complaintRate', 'emailReputation', 'waTotalSent', 'waFailed', 'waBounceRate', 'waReputation'
+            'totalSent',
+            'totalDelivered',
+            'totalBounced',
+            'totalOpens',
+            'totalClicks',
+            'totalContacts',
+            'totalUnsubscribed',
+            'globalOpenRate',
+            'globalClickRate',
+            'bounceRate',
+            'chartData',
+            'ispPerformance',
+            'hourlyStats',
+            'recentCampaigns',
+            'topLinks',
+            'usageStats',
+            'validPercent',
+            'invalidPercent',
+            'waTotalContacts',
+            'waSubscribed',
+            'teamMembersCount',
+            'teamLimit',
+            'totalComplaints',
+            'complaintRate',
+            'emailReputation',
+            'waTotalSent',
+            'waFailed',
+            'waBounceRate',
+            'waReputation'
         ));
     }
 }
