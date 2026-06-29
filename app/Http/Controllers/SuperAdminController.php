@@ -54,15 +54,18 @@ class SuperAdminController extends Controller
         return back()->with('success', 'Pricing updated successfully!');
     }
 
-    public function suspend(Request $request, User $user)
+    public function suspend(Request $request)
     {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'suspension_reason' => 'required|string|max:1000',
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+
         if ($user->isSuperAdmin()) {
             return back()->with('error', 'Super Admin accounts cannot be suspended.');
         }
-
-        $request->validate([
-            'suspension_reason' => 'required|string|max:1000',
-        ]);
 
         $user->update([
             'is_suspended' => true,

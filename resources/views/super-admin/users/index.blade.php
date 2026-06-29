@@ -1,7 +1,7 @@
 @extends('layouts.super-admin')
 
 @section('content')
-<div class="p-6 md:p-10" x-data="{ showSuspendModal: false, suspendUserId: null, suspendUrl: '' }">
+<div class="p-6 md:p-10" x-data="{ showSuspendModal: false, suspendUserId: null }">
     <div class="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-3xl font-black text-black mb-2 font-['Outfit']">User Management</h1>
@@ -102,7 +102,7 @@
                                     <button type="submit" class="text-[10px] font-black uppercase text-emerald-600 hover:text-emerald-800 transition-all cursor-pointer">Unsuspend</button>
                                 </form>
                             @else
-                                <button @click="suspendUserId = {{ $user->id }}; suspendUrl = '{{ route('admin.super.users.suspend', $user) }}'; showSuspendModal = true" 
+                                <button @click="suspendUserId = {{ $user->id }}; showSuspendModal = true" 
                                         class="text-[10px] font-black uppercase text-rose-600 hover:text-rose-800 transition-all cursor-pointer">
                                     Suspend
                                 </button>
@@ -127,8 +127,9 @@
             </div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div class="inline-block align-bottom bg-white rounded-sm text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200 relative z-10">
-                <form :action="suspendUrl" method="POST">
+                <form action="{{ route('admin.super.users.suspend') }}" method="POST">
                     @csrf
+                    <input type="hidden" name="user_id" :value="suspendUserId">
                     <div class="bg-white px-6 pt-5 pb-4 sm:p-6 sm:pb-4">
                         <h3 class="text-lg font-black text-slate-900 uppercase font-['Outfit'] mb-2">Suspend User Account</h3>
                         <p class="text-xs text-slate-500 mb-4">Please type a suspension message. This message will be shown to the user on their dashboard blocking their access.</p>
