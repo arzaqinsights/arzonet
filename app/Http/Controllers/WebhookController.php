@@ -134,8 +134,9 @@ class WebhookController extends Controller
                 $modulesStr = implode(', ', array_map('ucfirst', $selectedModules));
 
                 $existingSub = \App\Models\Subscription::where('user_id', $invoice->user_id)->first();
+                $billingMonths = $details['billing_months'] ?? 1;
                 $startsAt = now();
-                $endsAt = now()->addMonth();
+                $endsAt = now()->addMonths($billingMonths);
 
                 if ($existingSub && $existingSub->ends_at && $existingSub->ends_at > now()) {
                     $startsAt = $existingSub->starts_at;

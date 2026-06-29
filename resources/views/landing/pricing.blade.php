@@ -217,6 +217,14 @@
 
             taxPercent: {{ config('plans.gst_percent', 0) }},
 
+            // Billing cycle
+            billing_months: 1,
+            billing_cycles: {{ json_encode(config('plans.billing_cycles')) }},
+
+            get cycleDiscount() {
+                return this.billing_cycles[this.billing_months]?.discount || 0;
+            },
+
             get crmUsersCost() {
                 let diff = Math.max(0, this.crm_users - this.current_crm_users);
                 return diff * this.rates.crm_per_user;
@@ -241,11 +249,23 @@
                 return diff * this.rates.whatsapp_per_message;
             },
 
-            get subtotal() {
+            get monthlySubtotal() {
                 return Math.round(this.crmUsersCost + this.crmContactsCost + this.emailsCost + this.whatsappNumbersCost + this.whatsappMessagesCost);
             },
-            get taxAmount() { return Math.round((this.subtotal * this.taxPercent) / 100); },
-            get grandTotal() { return this.subtotal + this.taxAmount; },
+            get subtotal() {
+                return this.monthlySubtotal * this.billing_months;
+            },
+            get discountAmount() {
+                return Math.round((this.subtotal * this.cycleDiscount) / 100);
+            },
+            get afterDiscount() {
+                return this.subtotal - this.discountAmount;
+            },
+            get taxAmount() { return Math.round((this.afterDiscount * this.taxPercent) / 100); },
+            get grandTotal() { return this.afterDiscount + this.taxAmount; },
+            get perMonthEffective() {
+                return this.billing_months > 0 ? Math.round(this.grandTotal / this.billing_months) : 0;
+            },
 
             proceedToCheckout() {
                 const params = new URLSearchParams();
@@ -255,6 +275,7 @@
                 params.set('emails_per_month', this.include_email ? this.emails_per_month : 0);
                 params.set('whatsapp_numbers', this.include_whatsapp ? this.whatsapp_numbers : 0);
                 params.set('whatsapp_messages', this.include_whatsapp ? this.whatsapp_messages : 0);
+                params.set('billing_months', this.billing_months);
                 window.location.href = '{{ route('admin.billing.plans') }}?' + params.toString();
             }
          }">
@@ -409,6 +430,25 @@
                 <div class="bg-slate-900 text-white rounded-sm p-8 shadow-2xl sticky top-8">
                     <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Custom Plan Summary</h3>
 
+                    {{-- Billing Cycle Selector --}}
+                    <div class="mb-6">
+                        <p class="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-3">Billing Cycle</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <template x-for="(info, months) in billing_cycles" :key="months">
+                                <button @click="billing_months = parseInt(months)"
+                                        :class="billing_months == months
+                                            ? 'bg-brand text-white border-brand shadow-lg shadow-brand/20'
+                                            : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500'"
+                                        class="relative py-2.5 px-2 rounded text-center border transition-all duration-200 cursor-pointer">
+                                    <span class="block text-[10px] font-black uppercase tracking-wider" x-text="info.label"></span>
+                                    <template x-if="info.discount > 0">
+                                        <span class="block text-[9px] font-bold mt-0.5 text-emerald-400" x-text="'Save ' + info.discount + '%'"></span>
+                                    </template>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
                     {{-- Line Items --}}
                     <div class="space-y-3 mb-8 text-xs">
                         <div class="flex justify-between">
@@ -431,24 +471,46 @@
                             <span class="text-slate-400">WhatsApp Msgs (<span x-text="whatsapp_messages.toLocaleString('en-IN')"></span>/mo)</span>
                             <span class="font-bold" x-text="whatsappMessagesCost > 0 ? '₹' + whatsappMessagesCost.toLocaleString('en-IN') : '₹0 (Meta Direct)'"></span>
                         </div>
+
+                        <div class="flex justify-between pt-2 border-t border-slate-700/50 text-slate-400">
+                            <span>Monthly Price</span>
+                            <span class="text-white font-bold" x-text="'₹' + monthlySubtotal.toLocaleString('en-IN')"></span>
+                        </div>
                     </div>
 
                     {{-- Totals --}}
                     <div class="border-t border-slate-700 pt-4 space-y-2 mb-8 text-xs">
                         <div class="flex justify-between text-slate-400">
-                            <span>Subtotal</span>
+                            <span x-text="'Subtotal (' + billing_months + (billing_months == 1 ? ' month' : ' months') + ')'"></span>
                             <span class="text-white font-bold" x-text="'₹' + subtotal.toLocaleString('en-IN')"></span>
                         </div>
+                        <template x-if="cycleDiscount > 0">
+                            <div class="flex justify-between text-emerald-400">
+                                <span class="flex items-center gap-1">
+                                    <i class="fa-solid fa-tag text-[8px]"></i>
+                                    <span x-text="cycleDiscount + '% Discount'"></span>
+                                </span>
+                                <span class="font-bold" x-text="'-₹' + discountAmount.toLocaleString('en-IN')"></span>
+                            </div>
+                        </template>
                         <div class="flex justify-between text-slate-400">
                             <span>GST (<span x-text="taxPercent"></span>%)</span>
                             <span class="text-white font-bold" x-text="'₹' + taxAmount.toLocaleString('en-IN')"></span>
                         </div>
                     </div>
 
-                    <div class="border-t border-slate-700 pt-6 mb-8">
-                        <p class="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Grand Total / Month</p>
+                    <div class="border-t border-slate-700 pt-6 mb-2">
+                        <p class="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Total Amount</p>
                         <h2 class="text-4xl font-black text-brand font-['Outfit']" x-text="'₹' + grandTotal.toLocaleString('en-IN')"></h2>
                     </div>
+                    <template x-if="billing_months > 1">
+                        <p class="text-[10px] text-slate-400 font-bold mb-6">
+                            Effective: <span class="text-emerald-400" x-text="'₹' + perMonthEffective.toLocaleString('en-IN') + '/month'"></span>
+                        </p>
+                    </template>
+                    <template x-if="billing_months == 1">
+                        <div class="mb-6"></div>
+                    </template>
 
                     <button @click="proceedToCheckout()"
                             class="w-full py-4 bg-brand hover:bg-[#e05638] text-white text-[11px] font-black uppercase tracking-widest rounded-sm transition-all shadow-[0_8px_30px_rgb(255,107,74,0.25)] cursor-pointer flex items-center justify-center gap-2">

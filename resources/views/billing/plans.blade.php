@@ -107,22 +107,43 @@
                 <div class="bg-black text-white p-8 rounded shadow-2xl border border-neutral-900">
                     <h3 class="text-xl font-black mb-6 font-['Outfit'] border-b border-white/10 pb-4 tracking-tight">Order Receipt</h3>
                     
+                    {{-- Billing Cycle Badge --}}
+                    <div class="mb-6 flex items-center gap-2">
+                        <span class="text-[9px] font-black uppercase text-white/40 tracking-widest">Billing Cycle:</span>
+                        <span class="text-xs font-black text-brand bg-brand/10 px-2.5 py-1 rounded uppercase tracking-wider">
+                            {{ $billingMonths }} {{ $billingMonths == 1 ? 'Month' : 'Months' }}
+                        </span>
+                        @if(($details['discount_percent'] ?? 0) > 0)
+                            <span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                                {{ $details['discount_percent'] }}% OFF
+                            </span>
+                        @endif
+                    </div>
+
                     <div class="space-y-4 mb-8 text-xs font-semibold">
                         <div class="flex items-center justify-between text-white/60">
-                            <span>{{ ucfirst($planKey) }} Plan Price</span>
-                            <span class="text-white">₹{{ number_format($details['base_price']) }}</span>
+                            <span>{{ ucfirst($planKey) }} Plan (Monthly)</span>
+                            <span class="text-white">₹{{ number_format($details['monthly_price']) }}</span>
                         </div>
 
-                        @if($details['extra_price'] > 0)
-                            <div class="flex items-center justify-between text-white/60">
-                                <span>Extra Capacity</span>
-                                <span class="text-white">₹{{ number_format($details['extra_price']) }}</span>
+                        <div class="flex items-center justify-between text-white/60">
+                            <span>× {{ $billingMonths }} {{ $billingMonths == 1 ? 'month' : 'months' }}</span>
+                            <span class="text-white">₹{{ number_format($details['subtotal']) }}</span>
+                        </div>
+
+                        @if(($details['discount_percent'] ?? 0) > 0)
+                            <div class="flex items-center justify-between text-emerald-400">
+                                <span class="flex items-center gap-1">
+                                    <i class="fa-solid fa-tag text-[8px]"></i>
+                                    {{ $details['discount_percent'] }}% Discount
+                                </span>
+                                <span class="font-bold">-₹{{ number_format($details['discount_amount']) }}</span>
                             </div>
                         @endif
 
                         <div class="border-t border-white/10 pt-4 flex items-center justify-between text-white/60">
-                            <span>Subtotal</span>
-                            <span class="text-white">₹{{ number_format($details['subtotal']) }}</span>
+                            <span>Subtotal After Discount</span>
+                            <span class="text-white">₹{{ number_format($details['after_discount']) }}</span>
                         </div>
 
                         <div class="flex items-center justify-between text-white/60">
@@ -131,12 +152,19 @@
                         </div>
                     </div>
 
-                    <div class="border-t border-white/10 pt-6 mb-8 flex items-end justify-between">
+                    <div class="border-t border-white/10 pt-6 mb-2 flex items-end justify-between">
                         <div>
-                            <p class="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1">Grand Total</p>
+                            <p class="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1">Total Amount</p>
                             <h2 class="text-4xl font-black font-['Outfit'] text-brand">₹{{ number_format($details['grand_total']) }}</h2>
                         </div>
                     </div>
+                    @if($billingMonths > 1)
+                        <p class="text-[10px] text-white/50 font-bold mb-6">
+                            Effective: <span class="text-emerald-400">₹{{ number_format(round($details['grand_total'] / $billingMonths)) }}/month</span>
+                        </p>
+                    @else
+                        <div class="mb-6"></div>
+                    @endif
 
                     <form action="{{ route('admin.billing.purchase') }}" method="POST">
                         @csrf
@@ -146,6 +174,7 @@
                         <input type="hidden" name="emails_per_month" value="{{ $limits['emails_per_month'] ?? 0 }}">
                         <input type="hidden" name="whatsapp_numbers" value="{{ $limits['whatsapp_numbers'] ?? 0 }}">
                         <input type="hidden" name="whatsapp_messages" value="{{ $limits['whatsapp_messages'] ?? 0 }}">
+                        <input type="hidden" name="billing_months" value="{{ $billingMonths }}">
 
                         <button type="submit" class="w-full py-4 bg-brand text-white font-black text-sm rounded hover:bg-brand/90 transition-all uppercase tracking-widest active:scale-[0.98]">
                             Proceed to Payment

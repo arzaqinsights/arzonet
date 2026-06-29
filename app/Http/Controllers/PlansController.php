@@ -28,22 +28,26 @@ class PlansController extends Controller
                 return redirect()->route('pricing')->with('error', 'Invalid plan selected.');
             }
 
+            $billingMonths = (int) $request->query('billing_months', 1);
+
             $details = $this->recalculatePricing(
                 $planKey,
                 $plan['limits']['crm_users'],
                 $plan['limits']['crm_contacts'],
                 $plan['limits']['emails_per_month'],
                 $plan['limits']['whatsapp_numbers'],
-                $plan['limits']['whatsapp_messages']
+                $plan['limits']['whatsapp_messages'],
+                $billingMonths
             );
 
             return view('billing.plans', [
-                'pricing'    => $pricing,
-                'checkout'   => true,
-                'planKey'    => $planKey,
-                'planName'   => $plan['name'],
-                'limits'     => $plan['limits'],
-                'details'    => $details,
+                'pricing'       => $pricing,
+                'checkout'      => true,
+                'planKey'       => $planKey,
+                'planName'      => $plan['name'],
+                'limits'        => $plan['limits'],
+                'details'       => $details,
+                'billingMonths' => $billingMonths,
             ]);
         }
 
@@ -57,22 +61,26 @@ class PlansController extends Controller
                 'whatsapp_messages' => (int) $request->query('whatsapp_messages', 5000),
             ];
 
+            $billingMonths = (int) $request->query('billing_months', 1);
+
             $details = $this->recalculatePricing(
                 'custom',
                 $limits['crm_users'],
                 $limits['crm_contacts'],
                 $limits['emails_per_month'],
                 $limits['whatsapp_numbers'],
-                $limits['whatsapp_messages']
+                $limits['whatsapp_messages'],
+                $billingMonths
             );
 
             return view('billing.plans', [
-                'pricing'    => $pricing,
-                'checkout'   => true,
-                'planKey'    => 'custom',
-                'planName'   => 'Custom',
-                'limits'     => $limits,
-                'details'    => $details,
+                'pricing'       => $pricing,
+                'checkout'      => true,
+                'planKey'       => 'custom',
+                'planName'      => 'Custom',
+                'limits'        => $limits,
+                'details'       => $details,
+                'billingMonths' => $billingMonths,
             ]);
         }
 
@@ -101,23 +109,21 @@ class PlansController extends Controller
      * For fixed plans: uses the fixed plan price.
      * For custom: sums per-unit rates for user-chosen quantities.
      */
-    public function recalculatePricing($planKey, $crmUsers, $crmContacts, $emailsPerMonth, $whatsappNumbers, $whatsappMessages)
+    public function recalculatePricing($planKey, $crmUsers, $crmContacts, $emailsPerMonth, $whatsappNumbers, $whatsappMessages, $billingMonths = 1)
     {
         $pricingRules = GlobalSetting::get('pricing_rules') ?: [];
-        // GST: config/plans.php 'gst_percent' is the primary source.
-        // Super Admin DB setting overrides it only if explicitly saved there.
         $taxPercent = config('plans.gst_percent', 0);
         $rates = config('plans.rates');
+        $billingCycles = config('plans.billing_cycles', []);
+        $discountPercent = $billingCycles[$billingMonths]['discount'] ?? 0;
 
         if ($planKey !== 'custom') {
             // Fixed plan — use plan price directly
             $plan = config("plans.plans.{$planKey}");
-            $basePrice = $plan['price'] ?? 0;
-            $extraPrice = 0;
+            $monthlyPrice = $plan['price'] ?? 0;
         } else {
             // Custom plan — calculate from per-unit rates
-            $basePrice = 0;
-            $extraPrice = 0;
+            $monthlyPrice = 0;
 
             // Get current subscription limits if logged in
             $subscription = auth()->check() ? auth()->user()->subscription : null;
@@ -126,39 +132,39 @@ class PlansController extends Controller
             $currentEmails = $subscription ? ($subscription->emails_limit ?? 0) : 0;
             $currentWhatsappNumbers = $subscription ? ($subscription->whatsapp_limit ?? 0) : 0;
 
-            // CRM users: ₹600 per user
             $crmUsersDiff = max(0, $crmUsers - $currentCrmUsers);
-            $basePrice += $crmUsersDiff * $rates['crm_per_user'];
+            $monthlyPrice += $crmUsersDiff * $rates['crm_per_user'];
 
-            // CRM contacts: ₹10 per 1,000 contacts
             $crmContactsDiff = max(0, $crmContacts - $currentCrmContacts);
-            $basePrice += ($crmContactsDiff / 1000) * $rates['crm_per_1k_contacts'];
+            $monthlyPrice += ($crmContactsDiff / 1000) * $rates['crm_per_1k_contacts'];
 
-            // Emails: ₹100 per 1,000 emails
             $emailsDiff = max(0, $emailsPerMonth - $currentEmails);
-            $basePrice += ($emailsDiff / 1000) * $rates['email_per_1k'];
+            $monthlyPrice += ($emailsDiff / 1000) * $rates['email_per_1k'];
 
-            // WhatsApp numbers: ₹500 per number
             $whatsappNumbersDiff = max(0, $whatsappNumbers - $currentWhatsappNumbers);
-            $basePrice += $whatsappNumbersDiff * $rates['whatsapp_per_number'];
+            $monthlyPrice += $whatsappNumbersDiff * $rates['whatsapp_per_number'];
 
-            // WhatsApp messages: ₹0.90 per message
             $whatsappMessagesDiff = max(0, $whatsappMessages - 0);
-            $basePrice += $whatsappMessagesDiff * $rates['whatsapp_per_message'];
+            $monthlyPrice += $whatsappMessagesDiff * $rates['whatsapp_per_message'];
 
-            $basePrice = round($basePrice);
+            $monthlyPrice = round($monthlyPrice);
         }
 
-        $subtotal = $basePrice + $extraPrice;
-        $taxAmount = ($subtotal * $taxPercent) / 100;
-        $grandTotal = round($subtotal + $taxAmount, 2);
+        $subtotal = $monthlyPrice * $billingMonths;
+        $discountAmount = round(($subtotal * $discountPercent) / 100);
+        $afterDiscount = $subtotal - $discountAmount;
+        $taxAmount = round(($afterDiscount * $taxPercent) / 100);
+        $grandTotal = round($afterDiscount + $taxAmount, 2);
 
         return [
-            'base_price'  => $basePrice,
-            'extra_price' => $extraPrice,
-            'subtotal'    => $subtotal,
-            'tax_amount'  => $taxAmount,
-            'grand_total' => $grandTotal,
+            'monthly_price'    => $monthlyPrice,
+            'billing_months'   => $billingMonths,
+            'subtotal'         => $subtotal,
+            'discount_percent' => $discountPercent,
+            'discount_amount'  => $discountAmount,
+            'after_discount'   => $afterDiscount,
+            'tax_amount'       => $taxAmount,
+            'grand_total'      => $grandTotal,
         ];
     }
 
@@ -166,14 +172,16 @@ class PlansController extends Controller
     {
         $request->validate([
             'plan'               => 'required|string|in:starter,growth,business,custom',
-            'crm_users'          => 'nullable|integer|min:1',
+            'crm_users'          => 'nullable|integer|min:0',
             'crm_contacts'       => 'nullable|integer|min:1000',
             'emails_per_month'   => 'nullable|integer|min:0',
             'whatsapp_numbers'   => 'nullable|integer|min:0',
             'whatsapp_messages'  => 'nullable|integer|min:0',
+            'billing_months'     => 'nullable|integer|in:1,6,12',
         ]);
 
         $planKey = $request->plan;
+        $billingMonths = (int) ($request->billing_months ?? 1);
 
         if ($planKey !== 'custom') {
             $plan = config("plans.plans.{$planKey}");
@@ -204,7 +212,8 @@ class PlansController extends Controller
             $limits['crm_contacts'],
             $limits['emails_per_month'],
             $limits['whatsapp_numbers'],
-            $limits['whatsapp_messages']
+            $limits['whatsapp_messages'],
+            $billingMonths
         );
         $amount = $pricingDetails['grand_total'];
 
@@ -220,8 +229,9 @@ class PlansController extends Controller
             'status' => 'pending',
             'payment_id' => $orderId,
             'plan_details' => [
-                'plan'   => $planKey,
-                'limits' => $limits,
+                'plan'           => $planKey,
+                'limits'         => $limits,
+                'billing_months' => $billingMonths,
             ]
         ]);
 
@@ -285,9 +295,11 @@ class PlansController extends Controller
                 $selectedModules[] = 'whatsapp';
             }
 
+            $billingMonths = $details['billing_months'] ?? 1;
+
             $existingSub = \App\Models\Subscription::where('user_id', $invoice->user_id)->first();
             $startsAt = now();
-            $endsAt = now()->addMonth();
+            $endsAt = now()->addMonths($billingMonths);
 
             if ($existingSub && $existingSub->ends_at && $existingSub->ends_at > now()) {
                 $startsAt = $existingSub->starts_at;

@@ -29,6 +29,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Billing Cycle Options
+    |--------------------------------------------------------------------------
+    | Users can choose 1, 6, or 12 month billing cycles.
+    | Longer cycles get a discount percentage applied to the total.
+    */
+    'billing_cycles' => [
+        1  => ['label' => '1 Month',   'discount' => 0],
+        6  => ['label' => '6 Months',  'discount' => 10],
+        12 => ['label' => '12 Months', 'discount' => 15],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Per-Unit Scaling Rates
     |--------------------------------------------------------------------------
     */
