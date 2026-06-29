@@ -89,7 +89,7 @@
                             class="w-10 h-10 rounded-full border-2 border-brand">
                     </div>
                     <div class="mt-4">
-                        <h3 class="text-3xl md:text-5xl font-black mb-2 font-['Outfit']">10k+</h3>
+                        <h3 class="text-3xl md:text-5xl font-black mb-2 font-['Outfit']">11k+</h3>
                         <p class="text-xs md:text-sm text-white/90 leading-relaxed font-medium">Emails Delivered <br>
                             Successfully</p>
                     </div>
