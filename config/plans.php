@@ -47,9 +47,9 @@ return [
     */
     'rates' => [
         'crm_per_user'             => 399,     // ₹399 per extra CRM user / month
-        'crm_per_1k_contacts'      => 12,      // ₹12 per 1000 extra contacts / month
+        'crm_per_1k_contacts'      => 7,       // ₹7 per 1000 extra contacts / month
         'email_per_1k'             => 82,      // ₹82 per 1,000 emails / month
-        'whatsapp_per_number'      => 499,     // ₹499 per WhatsApp number / month
+        'whatsapp_per_number'      => 399,     // ₹399 per WhatsApp number / month
         'whatsapp_per_message'     => 0,       // ₹0 (Billed directly by Meta)
     ],
 
@@ -62,7 +62,7 @@ return [
         'starter' => [
             'name'    => 'Starter',
             'tagline' => 'Perfect for starting your business',
-            'price'   => 1999,
+            'price'   => 1653,  // 1×399 + 5×7 + 10×82 + 1×399 + 0
             'period'  => 'month',
             'limits'  => [
                 'crm_users'          => 1,
@@ -95,7 +95,7 @@ return [
         'growth' => [
             'name'     => 'Growth',
             'tagline'  => 'Take your marketing to the next level',
-            'price'    => 7749,
+            'price'    => 6634,  // 3×399 + 20×7 + 50×82 + 3×399 + 0
             'period'   => 'month',
             'popular'  => true,
             'limits'   => [
@@ -129,7 +129,7 @@ return [
         'business' => [
             'name'     => 'Business',
             'tagline'  => 'Full-power marketing automation',
-            'price'    => 28999,
+            'price'    => 25080,  // 10×399 + 100×7 + 200×82 + 10×399 + 0
             'period'   => 'month',
             'limits'   => [
                 'crm_users'          => 10,
