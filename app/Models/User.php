@@ -186,9 +186,20 @@ class User extends Authenticatable implements MustVerifyEmail
             ];
         }
 
-        $hasEmail = $this->hasModule('email');
+        $subscription = $this->subscription;
+        $isExpired = !$subscription || strtolower($subscription->status) !== 'active' || ($subscription->ends_at && $subscription->ends_at < now());
+
+        $hasEmail = $this->hasModule('email') && !$isExpired;
         $limit = $hasEmail ? (optional($this->subscription)->emails_limit ?? 0) : 0;
-        $total = $this->logs()->countedTowardsUsage()->count();
+        
+        $total = 0;
+        if ($subscription && !$isExpired && $subscription->starts_at) {
+            $total = $this->logs()
+                ->countedTowardsUsage()
+                ->where('created_at', '>=', $subscription->starts_at)
+                ->count();
+        }
+
         return (object) [
             'total' => $total,
             'limit' => $limit,
