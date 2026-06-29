@@ -326,6 +326,8 @@ Route::name('admin.')->group(function () {
     Route::middleware(['super_admin'])->prefix('super')->name('super.')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\SuperAdminController::class, 'index'])->name('dashboard');
         Route::get('/users', [\App\Http\Controllers\SuperAdminController::class, 'users'])->name('users');
+        Route::post('/users/{user}/suspend', [\App\Http\Controllers\SuperAdminController::class, 'suspend'])->name('users.suspend');
+        Route::post('/users/{user}/unsuspend', [\App\Http\Controllers\SuperAdminController::class, 'unsuspend'])->name('users.unsuspend');
         Route::get('/settings', [\App\Http\Controllers\SuperAdminController::class, 'settings'])->name('settings');
         Route::post('/settings', [\App\Http\Controllers\SuperAdminController::class, 'updateSettings'])->name('settings.update');
     });

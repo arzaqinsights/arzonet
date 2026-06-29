@@ -46,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->web(append: [
             \App\Http\Middleware\SwapTeamUser::class,
+            \App\Http\Middleware\CheckSuspended::class,
         ]);
         $middleware->alias([
             'super_admin' => \App\Http\Middleware\SuperAdminMiddleware::class,

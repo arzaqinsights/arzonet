@@ -12,7 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Notifications\CustomVerifyEmail;
 use App\Notifications\CustomResetPassword;
 
-#[Fillable(['name', 'email', 'password', 'role', 'phone_number', 'company_name', 'gstin', 'address_street', 'address_city', 'address_state', 'address_country', 'address_zip', 'parent_id', 'permissions'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone_number', 'company_name', 'gstin', 'address_street', 'address_city', 'address_state', 'address_country', 'address_zip', 'parent_id', 'permissions', 'is_suspended', 'suspension_reason'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
