@@ -125,12 +125,15 @@ class PlansController extends Controller
             // Custom plan — calculate from per-unit rates
             $monthlyPrice = 0;
 
-            // Get current subscription limits if logged in
+            // Get current subscription limits if logged in (only if active)
             $subscription = auth()->check() ? auth()->user()->subscription : null;
-            $currentCrmUsers = $subscription ? ($subscription->team_limit ?? 0) : 0;
-            $currentCrmContacts = $subscription ? ($subscription->contacts_limit ?? 0) : 0;
-            $currentEmails = $subscription ? ($subscription->emails_limit ?? 0) : 0;
-            $currentWhatsappNumbers = $subscription ? ($subscription->whatsapp_limit ?? 0) : 0;
+            $isExpired = $subscription && (
+                ($subscription->ends_at && $subscription->ends_at < now()) || strtolower($subscription->status) === 'expired'
+            );
+            $currentCrmUsers = ($subscription && !$isExpired) ? ($subscription->team_limit ?? 0) : 0;
+            $currentCrmContacts = ($subscription && !$isExpired) ? ($subscription->contacts_limit ?? 0) : 0;
+            $currentEmails = ($subscription && !$isExpired) ? ($subscription->emails_limit ?? 0) : 0;
+            $currentWhatsappNumbers = ($subscription && !$isExpired) ? ($subscription->whatsapp_limit ?? 0) : 0;
 
             $crmUsersDiff = max(0, $crmUsers - $currentCrmUsers);
             $monthlyPrice += $crmUsersDiff * $rates['crm_per_user'];
@@ -188,10 +191,13 @@ class PlansController extends Controller
             $limits = $plan['limits'];
         } else {
             $subscription = auth()->check() ? auth()->user()->subscription : null;
-            $currentCrmUsers = $subscription ? ($subscription->team_limit ?? 0) : 0;
-            $currentCrmContacts = $subscription ? ($subscription->contacts_limit ?? 0) : 0;
-            $currentEmails = $subscription ? ($subscription->emails_limit ?? 0) : 0;
-            $currentWhatsappNumbers = $subscription ? ($subscription->whatsapp_limit ?? 0) : 0;
+            $isExpired = $subscription && (
+                ($subscription->ends_at && $subscription->ends_at < now()) || strtolower($subscription->status) === 'expired'
+            );
+            $currentCrmUsers = ($subscription && !$isExpired) ? ($subscription->team_limit ?? 0) : 0;
+            $currentCrmContacts = ($subscription && !$isExpired) ? ($subscription->contacts_limit ?? 0) : 0;
+            $currentEmails = ($subscription && !$isExpired) ? ($subscription->emails_limit ?? 0) : 0;
+            $currentWhatsappNumbers = ($subscription && !$isExpired) ? ($subscription->whatsapp_limit ?? 0) : 0;
 
             $emailsPerMonth = (int) ($request->emails_per_month ?? 25000);
             $whatsappNumbers = (int) ($request->whatsapp_numbers ?? 2);
