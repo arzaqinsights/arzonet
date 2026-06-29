@@ -126,7 +126,7 @@
                 <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"></div>
             </div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div class="inline-block align-bottom bg-white rounded-sm text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+            <div class="inline-block align-bottom bg-white rounded-sm text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200 relative z-10">
                 <form :action="suspendUrl" method="POST">
                     @csrf
                     <div class="bg-white px-6 pt-5 pb-4 sm:p-6 sm:pb-4">
