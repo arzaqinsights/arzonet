@@ -501,39 +501,6 @@
 
             {{-- Sidebar Footer --}}
             <div class="p-3 border-t border-gray-300 bg-white mt-auto space-y-3">
-                @php
-                    $globalTotalSent = \DB::table('email_logs')->where('status', '!=', 'pending')->count();
-                    $globalTotalComplaints = \DB::table('email_logs')->where('status', 'complaint')->count();
-                    $globalTotalBounced = \DB::table('email_logs')->where('status', 'bounced')->count();
-                    
-                    $globalBounceRate = $globalTotalSent > 0 ? round(($globalTotalBounced / $globalTotalSent) * 100, 1) : 0;
-                    $globalComplaintRate = $globalTotalSent > 0 ? ($globalTotalComplaints / $globalTotalSent) * 100 : 0;
-                    
-                    $globalReputation = max(0, min(100, round(100 - ($globalBounceRate * 2) - ($globalComplaintRate * 5))));
-                @endphp
-
-                <div class="bg-surface-50 border border-gray-200 rounded-sm p-3 relative overflow-hidden group hover:border-brand/30 transition-colors">
-                    <p class="text-[9px] font-bold text-surface-500 uppercase tracking-widest mb-1 flex items-center justify-between">
-                        Sender Reputation
-                        @if($globalReputation >= 90)
-                            <span class="text-emerald-500">Excellent</span>
-                        @elseif($globalReputation >= 75)
-                            <span class="text-amber-500">Good</span>
-                        @else
-                            <span class="text-red-500">Poor</span>
-                        @endif
-                    </p>
-                    <div class="flex items-baseline gap-1">
-                        <h3 class="text-2xl font-black text-surface-900 tracking-tight" style="font-family:'Outfit',sans-serif;">{{ $globalReputation }}</h3>
-                        <span class="text-[10px] font-bold text-surface-400">/ 100</span>
-                    </div>
-                    <div class="mt-2 w-full h-1 bg-surface-200 rounded-sm overflow-hidden">
-                        @php
-                            $globalRepColor = $globalReputation >= 90 ? 'bg-emerald-500' : ($globalReputation >= 75 ? 'bg-amber-500' : 'bg-red-500');
-                        @endphp
-                        <div class="{{ $globalRepColor }} h-full rounded-sm" style="width: {{ $globalReputation }}%"></div>
-                    </div>
-                </div>
 
                 <a href="{{ route('admin.billing.plans') }}"
                     class="flex items-center justify-between w-full border-2 border-brand text-xs text-white bg-brand hover:bg-brand/90 p-3 rounded-sm transition-all uppercase tracking-wider group">
